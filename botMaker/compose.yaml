@@ -1,7 +1,0 @@
-﻿services:
-  botmaker:
-    image: botmaker
-    build:
-      context: .
-      dockerfile: Dockerfile
-
