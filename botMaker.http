@@ -1,0 +1,6 @@
+@botMaker_HostAddress = http://localhost:5142
+
+GET {{botMaker_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
