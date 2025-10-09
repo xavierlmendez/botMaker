@@ -14,6 +14,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.MapGet("/", () =>
+{
+    var welcomeMessage = "Welcome to the Welcome page! \n This is the API for Xavi's botMaker";
+    return welcomeMessage;
+});
+
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
