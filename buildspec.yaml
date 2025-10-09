@@ -1,8 +1,10 @@
 version: 0.2
 env:
   variables:
+    IMAGE_REPO_NAME: botrepo
+    AWS_DEFAULT_REGION: us-east-2
     IMAGE_TAG: botMaker
-    
+
 phases:
   pre_build:
     commands:
