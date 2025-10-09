@@ -1,5 +1,8 @@
 version: 0.2
-
+env:
+  variables:
+    IMAGE_TAG: botMaker
+    
 phases:
   pre_build:
     commands:
