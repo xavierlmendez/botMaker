@@ -51,7 +51,7 @@ app.MapGet("/alertPoll", () =>
             .ToArray();
         return forecast;
     })
-    .WithName("GetWeatherForecast");
+    .WithName("alertPoll");
 
 app.Run();
 
