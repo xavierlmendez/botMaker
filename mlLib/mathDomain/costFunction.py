@@ -1,3 +1,5 @@
+from lossFunction import LossFunction
+
 class CostFunction():
     def __init__(self, lossFunction : LossFunction):
         self.lossFunction = lossFunction

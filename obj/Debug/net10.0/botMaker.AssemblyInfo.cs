@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("botMaker")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+faeb53f3c0fe05ff2b501aab6d78454a6978621f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2061eeb6b47c067799f41b2541fb2ec644ada981")]
 [assembly: System.Reflection.AssemblyProductAttribute("botMaker")]
 [assembly: System.Reflection.AssemblyTitleAttribute("botMaker")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

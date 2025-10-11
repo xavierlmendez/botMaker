@@ -10,10 +10,28 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="22dcd69f-ae74-4729-b70c-f2db53a0a0b7" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/Controllers/AlertsController.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Controllers/StrategyBacktesterController.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Models/Condition.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Models/Indicator.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Models/Trigger.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mlLib/mathDomain/linearAlgebraHelpers.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/services/IndicatorService.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/services/StrategyBacktesterService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.botMaker.dir/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.botMaker.dir/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Program.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/Debug/net10.0/botMaker.deps.json" beforeDir="false" afterPath="$PROJECT_DIR$/bin/Debug/net10.0/botMaker.deps.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/bin/Debug/net10.0/botMaker.dll" beforeDir="false" afterPath="$PROJECT_DIR$/bin/Debug/net10.0/botMaker.dll" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/bin/Debug/net10.0/botMaker.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/bin/Debug/net10.0/botMaker.pdb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/botMaker.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/botMaker.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mlLib/mathDomain/costFunction.py" beforeDir="false" afterPath="$PROJECT_DIR$/mlLib/mathDomain/costFunction.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.AssemblyInfo.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.AssemblyInfoInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.AssemblyInfoInputs.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.MvcApplicationPartsAssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.MvcApplicationPartsAssemblyInfo.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.assets.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.assets.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.csproj.AssemblyReference.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.csproj.AssemblyReference.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.csproj.CoreCompileInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.csproj.CoreCompileInputs.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.csproj.FileListAbsolute.txt" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.csproj.FileListAbsolute.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.dll" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.dll" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.pdb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.sourcelink.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/botMaker.sourcelink.json" afterDir="false" />
@@ -21,6 +39,14 @@
       <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/refint/botMaker.dll" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/refint/botMaker.dll" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/rjsmcshtml.dswa.cache.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/rjsmcshtml.dswa.cache.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/obj/Debug/net10.0/rjsmrazor.dswa.cache.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net10.0/rjsmrazor.dswa.cache.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/botMaker.csproj.nuget.dgspec.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/botMaker.csproj.nuget.dgspec.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/botMaker.csproj.nuget.g.props" beforeDir="false" afterPath="$PROJECT_DIR$/obj/botMaker.csproj.nuget.g.props" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/botMaker.csproj.nuget.g.targets" beforeDir="false" afterPath="$PROJECT_DIR$/obj/botMaker.csproj.nuget.g.targets" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/project.assets.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/project.assets.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/project.nuget.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/project.nuget.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/project.packagespec.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/project.packagespec.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/rider.project.model.nuget.info" beforeDir="false" afterPath="$PROJECT_DIR$/obj/rider.project.model.nuget.info" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/rider.project.restore.info" beforeDir="false" afterPath="$PROJECT_DIR$/obj/rider.project.restore.info" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,7 +73,14 @@
 }</component>
   <component name="HighlightingSettingsPerFile">
     <setting file="mock:///Users/xaviermendez/Desktop/BotMaker/botMaker/obj/Debug/net10.0/botMaker.AssemblyInfo.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="mock:///Users/xaviermendez/Desktop/BotMaker/botMaker/obj/Debug/net10.0/botMaker.AssemblyInfo.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/services/StrategyBacktesterService.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/services/auxilaryServices/yahooFinance.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/strategyBacktesterLib/Controllers/AlertsController.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/strategyBacktesterLib/Controllers/StrategyBacktesterController.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/strategyBacktesterLib/Models/Condition.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/strategyBacktesterLib/Models/Indicator.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/strategyBacktesterLib/Models/Trigger.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file:///usr/local/share/dotnet/x64/sdk/10.0.100-rc.1.25451.107/Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_10_default.globalconfig" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
@@ -264,7 +297,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760137329176</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="fix for temp end point">
+      <option name="closed" value="true" />
+      <created>1760137447790</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1760137447790</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -282,7 +323,8 @@
     <MESSAGE value="more updates" />
     <MESSAGE value="entry point update" />
     <MESSAGE value="converting python notebook into files and adding test script" />
-    <option name="LAST_COMMIT_MESSAGE" value="converting python notebook into files and adding test script" />
+    <MESSAGE value="fix for temp end point" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix for temp end point" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
