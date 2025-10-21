@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "pRMI3Vy731A=",
+  "dgSpecHash": "fZAxVAd//Lc=",
   "success": true,
-  "projectFilePath": "/Users/xaviermendez/Desktop/BotMaker/botMaker/botMaker.csproj",
+  "projectFilePath": "C:\\Users\\xluis\\RiderProjects\\botMaker\\botMaker.csproj",
   "expectedPackageFiles": [
-    "/Users/xaviermendez/.nuget/packages/microsoft.aspnetcore.openapi/10.0.0-rc.1.25451.107/microsoft.aspnetcore.openapi.10.0.0-rc.1.25451.107.nupkg.sha512",
-    "/Users/xaviermendez/.nuget/packages/microsoft.openapi/2.0.0/microsoft.openapi.2.0.0.nupkg.sha512"
+    "C:\\Users\\xluis\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.0-rc.1.25451.107\\microsoft.aspnetcore.openapi.10.0.0-rc.1.25451.107.nupkg.sha512",
+    "C:\\Users\\xluis\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
   ],
   "logs": []
 }

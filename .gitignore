@@ -1,0 +1,8 @@
+bin/
+obj/
+.idea/
+*.user
+*.suo
+*.pdb
+*.cache
+botMaker/packages/

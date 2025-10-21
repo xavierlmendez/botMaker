@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/Users/xaviermendez/Desktop/BotMaker/botMaker/botMaker.csproj": {}
+    "C:\\Users\\xluis\\RiderProjects\\botMaker\\botMaker.csproj": {}
   },
   "projects": {
-    "/Users/xaviermendez/Desktop/BotMaker/botMaker/botMaker.csproj": {
+    "C:\\Users\\xluis\\RiderProjects\\botMaker\\botMaker.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/xaviermendez/Desktop/BotMaker/botMaker/botMaker.csproj",
+        "projectUniqueName": "C:\\Users\\xluis\\RiderProjects\\botMaker\\botMaker.csproj",
         "projectName": "botMaker",
-        "projectPath": "/Users/xaviermendez/Desktop/BotMaker/botMaker/botMaker.csproj",
-        "packagesPath": "/Users/xaviermendez/.nuget/packages/",
-        "outputPath": "/Users/xaviermendez/Desktop/BotMaker/botMaker/obj/",
+        "projectPath": "C:\\Users\\xluis\\RiderProjects\\botMaker\\botMaker.csproj",
+        "packagesPath": "C:\\Users\\xluis\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\xluis\\RiderProjects\\botMaker\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/Users/xaviermendez/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\xluis\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -68,7 +68,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/x64/sdk/10.0.100-rc.1.25451.107/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Users\\xluis\\.dotnet\\sdk\\10.0.100-rc.1.25451.107/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.AspNetCore": "(,10.0.32767]",
             "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",
