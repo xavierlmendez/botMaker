@@ -14,3 +14,4 @@ public class Indicator
     
     public string getTicker() => this.ticker;
 }
+

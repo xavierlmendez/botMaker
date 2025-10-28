@@ -2,8 +2,12 @@ namespace botMaker.strategyBacktesterLib;
 
 public class Strategy
 {
+    private String id;
     private String user;
     private String name;
+    private Double initialCapital;
+    private DateTime startDate;
+    private DateTime endDate;
     private Indicator[]  indicators;
     private Trigger[]  triggers;
     

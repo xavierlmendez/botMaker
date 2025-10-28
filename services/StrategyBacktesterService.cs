@@ -22,5 +22,10 @@ public class StrategyBacktesterService
 
         return new Strategy(userName, strategyName);
     }
+
+    public string[] dummyReturn()
+    {
+        return new[] { "strat", "test", "three" };
+    }
     
 }

@@ -1,3 +1,4 @@
+using botMaker.services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace botMaker.Controllers;
@@ -6,8 +7,20 @@ namespace botMaker.Controllers;
 [Route("api/[controller]")]
 public class StrategyBacktesterController : ControllerBase
 {
+    
+    private readonly StrategyBacktesterService _service;
+    
+    public StrategyBacktesterController(StrategyBacktesterService service)
+    {
+        _service = service;
+    }
+    
     [HttpGet]
-    public IActionResult GetAll() => Ok(new[] { "strat", "test" });
+    public IActionResult GetAll()
+    {
+        var result = _service.dummyReturn();
+        return Ok(result);
+    }
 
     [HttpGet("{id:int}")]
     public IActionResult GetById(int id) => Ok(new { id, status = "ok" });
