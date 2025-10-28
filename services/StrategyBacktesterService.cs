@@ -5,7 +5,7 @@ namespace botMaker.services;
 public class StrategyBacktesterService
 {
     // when this is called a user object should be in the context
-    public Strategy createStrategy(String strategyName)
+    public Strategy createStrategy(string strategyName)
     {
         /**
          * here we want to take in the inputs passed into function

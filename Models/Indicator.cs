@@ -6,7 +6,7 @@ public class Indicator
 
     private Trigger[] triggers;
     
-    public Indicator(String ticker,  Trigger[] triggers)
+    public Indicator(string ticker,  Trigger[] triggers)
     {
         this.ticker = ticker;
         this.triggers = triggers;

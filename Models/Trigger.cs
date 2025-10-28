@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace botMaker.strategyBacktesterLib;
 public enum TriggerStatus
 {
