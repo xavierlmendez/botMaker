@@ -37,12 +37,11 @@ class AdClickPredictionModelBuilder:
     def buildModels(self):
         
         # logisticReg decisionTree neuralNetwork
+        print("\n Building Models...")
         
         # Logistic Regression
-        log_X_train, log_X_test, log_y_train, log_y_test = self.dataOrchestrator.build_test_train_split('logisticReg')
         logisticModel = MyLogisticRegression()
-        logisticModel.fit(log_X_train, log_y_train)
-        logisticModel.evaluate(log_X_test, log_y_test)
+        logisticModel.gridFit(*self.dataOrchestrator.build_test_train_split('logisticReg'))
         logisticModel.evaluator.printEvaluation()
 
         # Decision Tree

@@ -4,6 +4,8 @@ import sys
 import numpy as np
 import pandas as pd
 from numpy import array, mean, sum
+from sklearn.model_selection import ParameterGrid
+from sklearn.gaussian_process.kernels import Hyperparameter
 
 # Linear and logistic are very similar however have a major difference in that logistic is for classification
 # Todo look into seeing if I can reuse the linear class without so much code duplication 
@@ -14,7 +16,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # import from the sibling package mathDomain
 from mathDomain.hypothesis import HypothesisFunction
-from mathDomain.lossFunction import LossFunction, MSE
+from mathDomain.lossFunction import LossFunction, MSE, MAE
 from mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
 class MyLogisticRegression: # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
@@ -27,6 +29,32 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
         self.learningRate = learningRate
         self.epochs = epochs
         self.evaluator = LogisticRegressionModelEvaluator()
+        
+    def gridFit(self, trainValues, testValues, trainTargets, testTargets): #todo push down the test train split to this scope so that can be a parameter for the grid later
+        hyperparameterGridOptions = np.array([ 
+            {
+                'modelName': ['LogisticRegressionModel'],
+                'learningRate': [0.001, 0.008, 0.01, 0.015],
+                'epoch': [4, 5, 6, 7, 8],
+                'lossFunction': [MSE(), MAE()]
+            }
+        ])
+
+        hyperparameterCombinations = list(ParameterGrid(hyperparameterGridOptions))
+
+        for parameterSetting in hyperparameterCombinations:
+            seededRand = np.random.default_rng(10)
+            initialWeights = seededRand.random(19)
+            initialBias = 0
+            self.learningModel = HypothesisFunction(initialWeights, initialBias)
+            self.lossFunction = parameterSetting['lossFunction']
+            self.epochs = parameterSetting['epoch']
+            self.learningRate = parameterSetting['learningRate']
+            for epoch in range(self.epochs):
+                newWeights, newBias = self.calculateGradientDescent(trainValues, trainTargets)
+                self.updateWeights(newWeights, newBias)
+                cost = self.calculateCostFunction(trainValues, trainTargets)
+            self.evaluate(testValues, testTargets, parameterSetting)
 
     def fit(self, dataValues, dataTargets):
         # for n epochs
@@ -50,11 +78,11 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
             predictedValues.append(self.predict(data))
         return array(predictedValues)
 
-    def evaluate(self, dataValues, dataTargets):
+    def evaluate(self, dataValues, dataTargets, evaluationMetaData):
         # Standardize Inputs for compatibility with pandas dataframes as parameters
         dataValues, dataTargets = self.dataFrameCrossCapatibility(dataValues, dataTargets)
         predictedValues = self.predictValues(dataValues, dataTargets)
-        self.evaluator.updateTestingPredictionData(dataValues, dataTargets, predictedValues)
+        self.evaluator.updateTestingPredictionData(dataValues, dataTargets, predictedValues, evaluationMetaData)
 
     def calculateGradientDescent(self, dataValues, dataTargets):
         # standardize Inputs for compatibility with pandas dataframes as parameters
