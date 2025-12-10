@@ -1,4 +1,7 @@
-class MyPerceptron:
+import numpy as np
+
+
+class MyPerceptron: # prefixing with my for the comparison script, rename later when cleaning up files
     def __init__(self, hypothesisFunction : HypothesisFunction, lossFunction : LossFunction, learningRate = 0.001, epochs = 10):
         self.learningModel = hypothesisFunction
         self.lossFunction = lossFunction

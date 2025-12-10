@@ -35,6 +35,8 @@ class HypothesisFunction:
         # for hw one keeping it simple and non polynomial
         # multiplying the weights by the data and adding the bias
         data = data.reshape(-1)
+        if np.sign(self.hypothesis @ data + self.bias) == 'nan':
+            ahh = 1
         return np.sign(self.hypothesis @ data + self.bias)
 
     def expandHypothesis(self, degree):

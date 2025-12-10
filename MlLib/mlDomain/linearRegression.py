@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # import from the sibling package mathDomain
 from mathDomain.hypothesis import HypothesisFunction
 from mathDomain.lossFunction import LossFunction
-class MyLinearRegression:
+class MyLinearRegression: # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
     def __init__(self, hypothesisFunction : HypothesisFunction, lossFunction : LossFunction, learningRate = 0.001, epochs = 10):
         self.learningModel = hypothesisFunction
