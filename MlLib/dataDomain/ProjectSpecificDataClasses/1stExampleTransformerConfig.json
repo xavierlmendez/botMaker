@@ -1,0 +1,43 @@
+{
+  "nameOfFirstModel": {
+    "ALL": [
+      "TrimWhitespace",
+      "HandleMissingValues",
+      "ValidateSchema"
+    ],
+    "Column Name 1": [
+      "CastToInt",
+      "ClipOutliers",
+      "StandardizeNumeric"
+    ],
+    "Column Name 2": [
+      "CastToString",
+      "Lowercase",
+      "StandardizeCategories",
+      "OneHotEncode"
+    ],
+    "Column Name 3": [
+      "CastToString",
+      "Uppercase",
+      "StandardizeSizeScale",
+      "OrdinalEncode"
+    ]
+  },
+
+  "AnotherModelExample": {
+    "ALL": [
+      "TrimWhitespace",
+      "HandleMissingValues",
+      "ValidateSchema"
+    ],
+    "Feature A": [
+      "CastToFloat",
+      "StandardizeNumeric"
+    ],
+    "Feature B": [
+      "CastToString",
+      "Lowercase",
+      "OneHotEncode"
+    ]
+  }
+}
