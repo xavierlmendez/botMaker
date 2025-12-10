@@ -17,12 +17,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # import from the sibling package mathDomain
 from mathDomain.hypothesis import HypothesisFunction
 from mathDomain.lossFunction import LossFunction, MSE, MAE
-from mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
 class MyLogisticRegression: # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
     def __init__(self, learningRate = 0.001, epochs = 10):
         seededRand = np.random.default_rng(10) # seeting a seed for random initial weights,
-        initialWeights = seededRand.random(19) # hardcoded for now but this should be influenced by one hot encoding results and hypothesis space later
+        initialWeights = seededRand.random(19) # hardcoded for now but this should overwritten by subclasses for project specific implementation
         initialBias = 0
         self.learningModel = HypothesisFunction(initialWeights, initialBias)
         self.lossFunction = MSE()

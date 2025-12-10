@@ -13,6 +13,8 @@ sys.path.append(
 
 from dataDomain.DataOrchestrator import DataOrchestrator
 from mlDomain.logisticRegression import MyLogisticRegression
+from mlDomain.projectSpecificFiles.adClickPredictionLogReg import LogisticRegression, LogisticRegressionWithAgeBinning
+from mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
 
 # import kagglehub
 # from kagglehub import KaggleDatasetAdapter
@@ -40,15 +42,20 @@ class AdClickPredictionModelBuilder:
         print("\n Building Models...")
         
         # Logistic Regression
-        logisticModel = MyLogisticRegression()
+        logisticModel = adClickPredictionLogReg.LogisticRegression()
         logisticModel.gridFit(*self.dataOrchestrator.build_test_train_split('logisticReg'))
-        logisticModel.evaluator.printEvaluation()
+        logisticModel.evaluator.printEvaluation(True)
+
+        # Logistic Regression with binning age
+        logistic2Model = adClickPredictionLogReg.LogisticRegressionWithAgeBinning()
+        logistic2Model.gridFit(*self.dataOrchestrator.build_test_train_split('logisticRegWithAgeBinning'))
+        logistic2Model.evaluator.printEvaluation(True)
 
         # Decision Tree
-        # tree_X_train, tree_X_test, tree_y_train, tree_y_test = self.dataOrchestrator.build_test_train_split('decisionTree')
-        # treeModel = MyDecisionTree()
-        # treeModel.fit(tree_X_train, tree_y_train)
-        # treeModelEval = treeModel.evaluate(tree_X_test, tree_y_test)
+        tree_X_train, tree_X_test, tree_y_train, tree_y_test = self.dataOrchestrator.build_test_train_split('decisionTree')
+        treeModel = MyDecisionTree()
+        treeModel.fit(tree_X_train, tree_y_train)
+        treeModelEval = treeModel.evaluate(tree_X_test, tree_y_test)
         
         # Neural Network
         # Decision Tree

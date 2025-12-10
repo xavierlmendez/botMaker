@@ -53,6 +53,7 @@ class DataTransformer:
     # TODO finish above pipeline arch when time allows, for current project just get it done
     def buildTransformedDataframes(self, df:DataFrame):
         self.logisticModelDataFrame = self.tempLogisticRegModelTransformer(df)
+        self.logisticModelWithAgeBinningDataFrame = self.tempLogisticRegModelWithAgeBinningTransformer(df)
         self.decisionTreeDataFrame = self.tempDecisionTreeTransformer(df)
         self.neuralNetworkDataFrame = self.tempNeuralNetworkModelTransformer(df)
     
@@ -98,9 +99,100 @@ class DataTransformer:
         
         return transformedDataFrame
 
+    def tempLogisticRegModelWithAgeBinningTransformer(self, df:DataFrame):
+        transformedDataFrame = df
+
+        allColumnsForEasyReference = np.array([
+            "id",
+            "full_name",
+            "age",
+            "gender",
+            "device_type",
+            "ad_position",
+            "browsing_history",
+            "time_of_day",
+            "click"
+        ])
+
+        columnsToRemove = np.array([
+            "id",
+            "full_name",
+        ])
+        transformedDataFrame = self.removeColumns(transformedDataFrame, columnsToRemove)
+
+        columnsToStandardize = np.array([
+            "age",
+        ])
+        transformedDataFrame = self.standardizeNumericColumns(transformedDataFrame, columnsToStandardize)
+
+        valuesToReplaceWithAverage = np.array([
+            np.nan,
+        ])
+        transformedDataFrame = self.replaceValuesWithNumericAvg(transformedDataFrame, columnsToStandardize, valuesToReplaceWithAverage)
+        
+        columnsToBin = np.array([
+            "age"
+        ])
+        transformedDataFrame  = self.binNumericColumnsByStdRanges(transformedDataFrame, columnsToBin) # using ten bins for now 
+
+        columnsToOneHotEncode = np.array([
+            "age",
+            "gender",
+            "device_type",
+            "ad_position",
+            "browsing_history",
+            "time_of_day",
+        ])
+        transformedDataFrame = self.oneHotEncodeCategoricalColumns(transformedDataFrame, columnsToOneHotEncode)
+
+        return transformedDataFrame
+
     def tempDecisionTreeTransformer(self, df:DataFrame):
         transformedDataFrame = df
-        # todo transformations
+
+        allColumnsForEasyReference = np.array([
+            "id",
+            "full_name",
+            "age",
+            "gender",
+            "device_type",
+            "ad_position",
+            "browsing_history",
+            "time_of_day",
+            "click"
+        ])
+
+        columnsToRemove = np.array([
+            "id",
+            "full_name",
+        ])
+        transformedDataFrame = self.removeColumns(transformedDataFrame, columnsToRemove)
+
+        columnsToStandardize = np.array([
+            "age",
+        ])
+        transformedDataFrame = self.standardizeNumericColumns(transformedDataFrame, columnsToStandardize)
+
+        valuesToReplaceWithAverage = np.array([
+            np.nan,
+        ])
+        transformedDataFrame = self.replaceValuesWithNumericAvg(transformedDataFrame, columnsToStandardize, valuesToReplaceWithAverage)
+
+        columnsToBin = np.array([
+            "age"
+        ])
+        transformedDataFrame  = self.binNumericColumnsByStdRanges(transformedDataFrame, columnsToBin) # using ten bins for now 
+
+        columnsToOneHotEncode = np.array([
+            "age",
+            "gender",
+            "device_type",
+            "ad_position",
+            "browsing_history",
+            "time_of_day",
+        ])
+        transformedDataFrame = self.oneHotEncodeCategoricalColumns(transformedDataFrame, columnsToOneHotEncode)
+
         return transformedDataFrame
 
     def tempNeuralNetworkModelTransformer(self, df:DataFrame):
@@ -132,8 +224,27 @@ class DataTransformer:
     def removeColumns(self, transformedDataFrame, columnsToRemove):
         return transformedDataFrame.drop(columns=columnsToRemove) # Kinda silly to put in another function but ill leave it for consistency
 
-    def bucketNumericColumns(self, df, columns: np.ndarray):
-        pass
+    def binNumericColumnsByStdRanges(self, df, columns: np.ndarray):
+        # only need this for one column atm # todo abstract to multiple for pipeline
+        std = df["age"].std()
+        mean = df["age"].mean()
+        min = df["age"].min()
+        max = df["age"].max()
+        binRanges = [
+            min,
+            mean - 2 * std,
+            mean - 1 * std,
+            mean - 0.5 * std,
+            mean,
+            mean + 0.5 * std,
+            mean + 1 * std,
+            mean + 2 * std,
+            max
+        ]
+        df["age"] = pd.cut(df["age"], bins=binRanges) # might add labels some how here in the future but for now this is getting one hot encoded anyway
+        
+        return df
+        
 
 
 class DataOrchestrator:
@@ -158,7 +269,7 @@ class DataOrchestrator:
             self.dataFrame = self.source
         
     def clean_data(self):
-        
+        # implement later, luckily the datasets used so far have been clean or cleaning as acceptable to be in the transformer
         pass
 
     def get_transformed_data(self, model:str):
@@ -166,6 +277,8 @@ class DataOrchestrator:
         # todo switch to match case statement after upgrade from python 3.9
         if model == 'logisticReg':
             dataFrame = self.dataTransformer.logisticModelDataFrame
+        elif model == 'logisticRegWithAgeBinning':
+            dataFrame = self.dataTransformer.logisticModelWithAgeBinningDataFrame
         elif model == 'decisionTree':
             dataFrame = self.dataTransformer.decisionTreeDataFrame
         elif model == 'neuralNetwork':

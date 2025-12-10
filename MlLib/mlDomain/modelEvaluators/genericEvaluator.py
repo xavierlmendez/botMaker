@@ -45,9 +45,10 @@ class ModelEvaluator:
             self.falseNegatives,
         }
         
-    def printEvaluation(self):
-        formattedEvalJson = dumps(self.evaluationRecord, indent=4)
-        print(formattedEvalJson)
+    def printEvaluation(self, printBestModelStatsOnly=False):
+        if not printBestModelStatsOnly:
+            formattedEvalJson = dumps(self.evaluationRecord, indent=4)
+            print(formattedEvalJson)
         self.printEvaluationStats()
 
     def printEvaluationStats(self):
@@ -71,7 +72,7 @@ class ModelEvaluator:
             if recall > bestRecall['value']:
                 bestRecall = {'iteration': iteration, 'value': recall}
     
-        print("\nEvaluation Summary")
+        print(f"\nEvaluation Summary : {self.evaluationMetaData['modelName']} ")
     
         print(
             f"Best Accuracy : {bestAccuracy['value']:.4f} "
@@ -87,6 +88,17 @@ class ModelEvaluator:
             f"Best Recall   : {bestRecall['value']:.4f} "
             f"(Iteration {bestRecall['iteration']})"
         )
+        bestModelIterations = [bestAccuracy['iteration'], bestPrecision['iteration'], bestRecall['iteration']]
+        bestModelIterations = list(set(bestModelIterations)) # remove duplicate if the same model is best for multiple metrics
+
+        for iteration in bestModelIterations:
+            print(f"\n(Iteration {iteration})")
+            modelIteration = self.evaluationRecord.get(iteration)
+            formattedEvalJson = dumps(modelIteration, indent=4)
+            print(formattedEvalJson)
+            
+        
+        
 
     def evaluateModel(self):
         raise NotImplementedError("Subclasses must implement evaluateModel()")
