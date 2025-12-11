@@ -161,6 +161,8 @@ class DataTransformer:
             "time_of_day",
             "click"
         ])
+        
+        transformedDataFrame = self.replaceNanWithString(df, allColumnsForEasyReference)
 
         columnsToRemove = np.array([
             "id",
@@ -182,16 +184,6 @@ class DataTransformer:
             "age"
         ])
         transformedDataFrame  = self.binNumericColumnsByStdRanges(transformedDataFrame, columnsToBin) # using ten bins for now 
-
-        columnsToOneHotEncode = np.array([
-            "age",
-            "gender",
-            "device_type",
-            "ad_position",
-            "browsing_history",
-            "time_of_day",
-        ])
-        transformedDataFrame = self.oneHotEncodeCategoricalColumns(transformedDataFrame, columnsToOneHotEncode)
 
         return transformedDataFrame
 
@@ -219,6 +211,12 @@ class DataTransformer:
             for val in values:
                 df[col] = df[col].replace(val, colMean)
 
+        return df
+
+    def replaceNanWithString(self, df, columns: np.ndarray):
+        for col in columns:
+            strNan = 'nan'
+            df[col] = df[col].replace(np.nan, strNan)
         return df
 
     def removeColumns(self, transformedDataFrame, columnsToRemove):

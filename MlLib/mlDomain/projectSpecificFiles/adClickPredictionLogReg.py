@@ -23,11 +23,11 @@ class LogisticRegression(MyLogisticRegression):
         self.hyperparameterGridOptions = np.array([
             {
                 'modelName': ['LogisticRegressionModel'],
-                'learningRate': [0.0005, 0.001, 0.004, 0.008, 0.01, 0.015, 0.1],
-                'epoch': [4, 5, 6, 7, 8, 10, 15],
+                'learningRate': [0.005], #[0.0005, 0.001, 0.004, 0.008, 0.01, 0.015, 0.1],
+                'epoch': [4], #[4, 5, 6, 7, 8, 10, 15],
                 'lossFunction': [MSE(), MAE()],
-                'weightRandSeed': [1,2,27],
-                'initialBias': [-100, 1, 100]
+                'weightRandSeed': [1], #[1,2,27],
+                'initialBias': [1], #[-100, 1, 100]
             }
         ])
 
@@ -45,10 +45,10 @@ class LogisticRegressionWithAgeBinning(MyLogisticRegression):
         self.hyperparameterGridOptions = np.array([
             {
                 'modelName': ['LogisticRegressionModelWithAgeBinning'],
-                'learningRate': [0.0005, 0.001, 0.004, 0.008, 0.01, 0.015, 0.1],
-                'epoch': [4, 5, 6, 7, 8, 10, 15],
+                'learningRate': [0.005], #[0.0005, 0.001, 0.004, 0.008, 0.01, 0.015, 0.1],
+                'epoch': [4], #[4, 5, 6, 7, 8, 10, 15],
                 'lossFunction': [MSE(), MAE()],
-                'weightRandSeed': [1,2,27],
-                'initialBias': [-100, 1, 100]
+                'weightRandSeed': [1], #[1,2,27],
+                'initialBias': [1], #[-100, 1, 100]
             }
         ])

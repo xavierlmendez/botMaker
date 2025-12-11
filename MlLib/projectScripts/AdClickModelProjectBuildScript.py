@@ -11,6 +11,7 @@ sys.path.append(
 
 from dataDomain.DataOrchestrator import DataOrchestrator
 from mlDomain.logisticRegression import MyLogisticRegression
+from mlDomain.decisionTree import DecisionTree
 from mlDomain.projectSpecificFiles.adClickPredictionLogReg import LogisticRegression, LogisticRegressionWithAgeBinning
 from mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
 
@@ -51,11 +52,12 @@ class AdClickPredictionModelBuilder:
 
         # Decision Tree
         tree_X_train, tree_X_test, tree_y_train, tree_y_test = self.dataOrchestrator.build_test_train_split('decisionTree')
-        treeModel = MyDecisionTree()
+        treeModel = DecisionTree()
         treeModel.fit(tree_X_train, tree_y_train)
-        treeModelEval = treeModel.evaluate(tree_X_test, tree_y_test)
-        
-        # Neural Network
+        treeModel.evaluate(tree_X_test, tree_y_test)
+        treeModel.evaluator.printEvaluation(printBestModelStatsOnly=True)
+
+    # Neural Network
         # Decision Tree
         # neural_X_train, neural_X_test, neural_y_train, neural_y_test = self.dataOrchestrator.build_test_train_split('neuralNetwork')
         # neuralModel = MyNeuralNetwork()

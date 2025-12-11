@@ -6,6 +6,7 @@ class TreeNode:
         self.data = data # leaving abstract here to allow more options in the decision tree implementations
         self.childNodes = []
         self.childNodeCount = 0
+        self.isLeafNode = False
     
     def addChild(self, child:object):
         self.childNodeCount += 1
