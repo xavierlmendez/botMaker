@@ -122,15 +122,17 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
         trueNegatives = 0
         falseNegatives = 0
         countTotalPredictions = self.predictions.size
-        
+
+        self.predictions[self.predictions == -1] = 0 # standardize 0 and -1 to be zero 
+        self.testTargets[self.testTargets == -1] = 0 # standardize 0 and -1 to be zero 
         for i in range(countTotalPredictions):
             if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 1:
                 truePositives += 1
             if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 1:
                 falsePositives += 1
-            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == -1:
+            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 0:
                 trueNegatives += 1
-            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == -1:
+            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 0:
                 falseNegatives += 1
                 
         self.truePositives = truePositives
@@ -214,10 +216,10 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
         return correctPredictions / countTotalPredictions
 
     def getPrecision(self):
-        return self.truePositives / ((self.truePositives + self.falsePositives) or 1) # Account for divide by zero
+        return self.truePositives / ((self.truePositives + self.falsePositives) or 0.000000001) # Account for divide by zero
 
     def getRecall(self):
-        return self.truePositives / ((self.truePositives + self.falseNegatives) or 1)
+        return self.truePositives / ((self.truePositives + self.falseNegatives) or 0.000000001)
 
     def getMSE(self):
         pass
