@@ -2,7 +2,7 @@ class SplitFunction:
     def __init__(self):
         pass
     
-    def calculateSplit(self, DecicionTree):
+    def determineSplit(self, dataValues, dataTargets):
         return "class"
     
 class GiniImpurity(SplitFunction):

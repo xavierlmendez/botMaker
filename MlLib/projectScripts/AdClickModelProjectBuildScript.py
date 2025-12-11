@@ -2,8 +2,6 @@ import os
 import sys
 from os.path import isfile
 
-from sklearn.linear_model import LogisticRegression
-
 # adding the packages for data math and ml domains
 sys.path.append(
     os.path.abspath(
@@ -42,14 +40,14 @@ class AdClickPredictionModelBuilder:
         print("\n Building Models...")
         
         # Logistic Regression
-        logisticModel = adClickPredictionLogReg.LogisticRegression()
+        logisticModel = LogisticRegression()
         logisticModel.gridFit(*self.dataOrchestrator.build_test_train_split('logisticReg'))
-        logisticModel.evaluator.printEvaluation(True)
+        logisticModel.evaluator.printEvaluation(printBestModelStatsOnly=True)
 
         # Logistic Regression with binning age
-        logistic2Model = adClickPredictionLogReg.LogisticRegressionWithAgeBinning()
+        logistic2Model = LogisticRegressionWithAgeBinning()
         logistic2Model.gridFit(*self.dataOrchestrator.build_test_train_split('logisticRegWithAgeBinning'))
-        logistic2Model.evaluator.printEvaluation(True)
+        logistic2Model.evaluator.printEvaluation(printBestModelStatsOnly=True)
 
         # Decision Tree
         tree_X_train, tree_X_test, tree_y_train, tree_y_test = self.dataOrchestrator.build_test_train_split('decisionTree')

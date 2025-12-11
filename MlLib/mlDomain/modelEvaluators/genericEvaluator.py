@@ -128,9 +128,9 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
                 truePositives += 1
             if self.test_targets[i] != self.predictions[i] and self.test_targets[i] == 1:
                 falsePositives += 1
-            if self.test_targets[i] == self.predictions[i] and self.test_targets[i] == 0:
+            if self.test_targets[i] == self.predictions[i] and self.test_targets[i] == -1:
                 trueNegatives += 1
-            if self.test_targets[i] != self.predictions[i] and self.test_targets[i] == 0:
+            if self.test_targets[i] != self.predictions[i] and self.test_targets[i] == -1:
                 falseNegatives += 1
                 
         self.truePositives = truePositives
@@ -140,10 +140,10 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
                 
         
     def getPrecision(self):
-        return self.truePositives / (self.truePositives + self.falsePositives)
+        return self.truePositives / ((self.truePositives + self.falsePositives) or 1) # Account for divide by zero
     
     def getRecall(self):
-        return self.truePositives / (self.truePositives + self.falseNegatives)
+        return self.truePositives / ((self.truePositives + self.falseNegatives) or 1)
         
     def getMSE(self):
         pass
