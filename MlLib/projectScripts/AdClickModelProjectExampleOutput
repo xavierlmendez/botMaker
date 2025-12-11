@@ -140,3 +140,26 @@ Best Recall   : 0.6488 (Iteration 1)
     "precision": 1.0,
     "recall": 0.6488
 }
+
+Evaluation Summary : DecisionTreeModel 
+Best Accuracy : 0.6444 (Iteration 1)
+Best Precision: 0.7787 (Iteration 1)
+Best Recall   : 0.7044 (Iteration 1)
+
+(Iteration 1)
+{
+    "modelData": {
+        "modelName": "DecisionTreeModel",
+        "maxDepth": 15
+    },
+    "correctPredictions": 1611,
+    "truePositives": 1263,
+    "falsePositives": 359,
+    "trueNegatives": 348,
+    "falseNegatives": 530,
+    "accuracy": 0.6444,
+    "precision": 0.7786683107274969,
+    "recall": 0.7044060234244284
+}
+
+Process finished with exit code 0

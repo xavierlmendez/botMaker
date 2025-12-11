@@ -29,22 +29,22 @@ class DecisionTree:
             self.root = TreeNode()
             
         # hyperparameters
-        self.maxDepth = 20
+        self.maxDepth = 15
         
         self.splitFunction = GiniImpurity()
         self.evaluator = DecisionTreeModelEvaluator()
-        self.evaluationMetaData = np.array([
-            {
-                'modelName': ['DecisionTreeModel'],
+        self.evaluationMetaData = {
+                'modelName': 'DecisionTreeModel',
+                'maxDepth': self.maxDepth,
             }
-        ])
+
 
     def fit(self, dataValues, dataTargets):
         self.buildTree(dataValues, dataTargets, self.root)
         return self
     
     def buildTree(self, dataValues, dataTargets, currentNode:TreeNode, depth=0):
-        
+        currentNode.prediction = dataTargets.mode()[0] # set the majority as the prediction
         splitColumn = self.splitFunction.calculateSplit(dataValues, dataTargets)
         childNodes, splitSubsets = self.buildSplit(splitColumn, currentNode, dataValues, dataTargets)
 
@@ -60,7 +60,7 @@ class DecisionTree:
                     depth + 1
                 )
         
-        if currentNode.childNodeCount == 0:
+        if currentNode.childNodeCount == 0 and not currentNode.isLeafNode :
             currentNode.isLeafNode = True
 
     def buildSplit(self, splitColumn, currentNode, dataValues, dataTargets):
@@ -102,13 +102,13 @@ class DecisionTree:
         
         for child in currentNode.childNodes:
             if isinstance(child.data, int):
-                return child.data
+                return currentNode.prediction
             
             nodeSplitCriteria = child.data
             if nodeSplitCriteria.criteriaFunction(data[nodeSplitCriteria.column]):
                 return self.traverseTree(child, data)
         
-        test = 1
+        return currentNode.prediction # case when no children have the class needed to continue likely due to too little model complexity
         # todo add error handling if no split found
             
 

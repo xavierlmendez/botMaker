@@ -9,10 +9,10 @@ class ModelEvaluator:
         self.runIteration = 0
         self.evaluationRecord: dict[int, dict] = {}
 
-    def updateTestingPredictionData(self, test_values:ndarray, test_targets:ndarray, predictions:ndarray, evaluationMetaData):
+    def updateTestingPredictionData(self, test_values:ndarray, testTargets:ndarray, predictions:ndarray, evaluationMetaData):
         self.runIteration += 1
         self.test_values = test_values
-        self.test_targets = test_targets
+        self.testTargets = testTargets
         self.predictions = predictions
         self.evaluationMetaData = evaluationMetaData
         self.correctPredictions = 0
@@ -28,7 +28,7 @@ class ModelEvaluator:
         countTotalPredictions = self.predictions.size
         
         for i in range(countTotalPredictions):
-            if self.test_targets[i] == self.predictions[i]:
+            if self.testTargets[i] == self.predictions[i]:
                 correctPredictions += 1
                 
         # set to self to reuse for future calculations that would run after this
@@ -71,8 +71,8 @@ class ModelEvaluator:
     
             if recall > bestRecall['value']:
                 bestRecall = {'iteration': iteration, 'value': recall}
-    
-        print(f"\nEvaluation Summary : {self.evaluationMetaData['modelName']} ")
+        modelName = self.evaluationMetaData['modelName']
+        print(f"\nEvaluation Summary : {modelName} ")
     
         print(
             f"Best Accuracy : {bestAccuracy['value']:.4f} "
@@ -124,20 +124,19 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
         countTotalPredictions = self.predictions.size
         
         for i in range(countTotalPredictions):
-            if self.test_targets[i] == self.predictions[i] and self.test_targets[i] == 1:
+            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 1:
                 truePositives += 1
-            if self.test_targets[i] != self.predictions[i] and self.test_targets[i] == 1:
+            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 1:
                 falsePositives += 1
-            if self.test_targets[i] == self.predictions[i] and self.test_targets[i] == -1:
+            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == -1:
                 trueNegatives += 1
-            if self.test_targets[i] != self.predictions[i] and self.test_targets[i] == -1:
+            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == -1:
                 falseNegatives += 1
                 
         self.truePositives = truePositives
         self.falsePositives = falsePositives
         self.trueNegatives = trueNegatives
         self.falseNegatives = falseNegatives
-                
         
     def getPrecision(self):
         return self.truePositives / ((self.truePositives + self.falsePositives) or 1) # Account for divide by zero
@@ -186,15 +185,15 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
         trueNegatives = 0
         falseNegatives = 0
         countTotalPredictions = self.predictions.__len__()
-
+        self.testTargets = self.testTargets.to_numpy()
         for i in range(countTotalPredictions):
-            if self.test_targets[i] == self.predictions[i] and self.test_targets[i] == 1:
+            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 1:
                 truePositives += 1
-            if self.test_targets[i] != self.predictions[i] and self.test_targets[i] == 1:
+            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 1:
                 falsePositives += 1
-            if self.test_targets[i] == self.predictions[i] and self.test_targets[i] == -1:
+            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 0:
                 trueNegatives += 1
-            if self.test_targets[i] != self.predictions[i] and self.test_targets[i] == -1:
+            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 0:
                 falseNegatives += 1
 
         self.truePositives = truePositives
@@ -202,6 +201,17 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
         self.trueNegatives = trueNegatives
         self.falseNegatives = falseNegatives
 
+    def getAccuracy(self):
+        correctPredictions = 0
+        countTotalPredictions = self.predictions.__len__()
+
+        for i in range(countTotalPredictions):
+            if self.testTargets[i] == self.predictions[i]:
+                correctPredictions += 1
+
+        # set to self to reuse for future calculations that would run after this
+        self.correctPredictions = correctPredictions
+        return correctPredictions / countTotalPredictions
 
     def getPrecision(self):
         return self.truePositives / ((self.truePositives + self.falsePositives) or 1) # Account for divide by zero
@@ -231,3 +241,4 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
             "precision": self.precision,
             "recall": self.recall
         }
+            
