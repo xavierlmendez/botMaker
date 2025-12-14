@@ -51,11 +51,11 @@ class AdClickPredictionModelBuilder:
         logistic2Model.evaluator.printEvaluation(printBestModelStatsOnly=True)
 
         # Decision Tree
-        tree_X_train, tree_X_test, tree_y_train, tree_y_test = self.dataOrchestrator.build_test_train_split('decisionTree')
-        treeModel = DecisionTree()
-        treeModel.fit(tree_X_train, tree_y_train)
-        treeModel.evaluate(tree_X_test, tree_y_test)
-        treeModel.evaluator.printEvaluation(printBestModelStatsOnly=True)
+        # tree_X_train, tree_X_test, tree_y_train, tree_y_test = self.dataOrchestrator.build_test_train_split('decisionTree')
+        # treeModel = DecisionTree()
+        # treeModel.fit(tree_X_train, tree_y_train)
+        # treeModel.evaluate(tree_X_test, tree_y_test)
+        # treeModel.evaluator.printEvaluation(printBestModelStatsOnly=True)
 
     # Neural Network
         # Decision Tree
@@ -75,10 +75,10 @@ class AdClickPredictionModelBuilder:
 
 modelBuilder = AdClickPredictionModelBuilder()
 # modelBuilder.dataOrchestrator.print_Data_Short_Summary_View()
-modelBuilder.dataOrchestrator.print_Data_Verboise_Summary()
+# modelBuilder.dataOrchestrator.print_Data_Verboise_Summary()
 # modelBuilder.dataOrchestrator.transform_data() # currently triggered on data orchestrator init using preset transformations future updates will add more automation and control
 # rereview data post transformation
-modelBuilder.dataOrchestrator.print_Data_Post_Transformation_View()
+# modelBuilder.dataOrchestrator.print_Data_Post_Transformation_View()
 modelBuilder.buildModels()
 modelBuilder.compileModelComparison()
 modelBuilder.printModelComparison()

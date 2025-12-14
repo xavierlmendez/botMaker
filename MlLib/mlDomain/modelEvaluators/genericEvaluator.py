@@ -72,27 +72,27 @@ class ModelEvaluator:
             if recall > bestRecall['value']:
                 bestRecall = {'iteration': iteration, 'value': recall}
         modelName = self.evaluationMetaData['modelName']
-        print(f"\nEvaluation Summary : {modelName} ")
+        print(f"\n Evaluation Summary : {modelName} ")
     
         print(
-            f"Best Accuracy : {bestAccuracy['value']:.4f} "
+            f"\tBest Accuracy : {bestAccuracy['value']:.4f} "
             f"(Iteration {bestAccuracy['iteration']})"
         )
     
         print(
-            f"Best Precision: {bestPrecision['value']:.4f} "
-            f"(Iteration {bestPrecision['iteration']})"
+            f"\tBest Precision: {bestPrecision['value']:.4f} "
+            f"\t(Iteration {bestPrecision['iteration']})"
         )
     
         print(
-            f"Best Recall   : {bestRecall['value']:.4f} "
-            f"(Iteration {bestRecall['iteration']})"
+            f"\tBest Recall   : {bestRecall['value']:.4f} "
+            f"\t(Iteration {bestRecall['iteration']})"
         )
         bestModelIterations = [bestAccuracy['iteration'], bestPrecision['iteration'], bestRecall['iteration']]
         bestModelIterations = list(set(bestModelIterations)) # remove duplicate if the same model is best for multiple metrics
 
         for iteration in bestModelIterations:
-            print(f"\n(Iteration {iteration})")
+            print(f"\n (Iteration {iteration})")
             modelIteration = self.evaluationRecord.get(iteration)
             formattedEvalJson = dumps(modelIteration, indent=4)
             print(formattedEvalJson)
@@ -152,10 +152,10 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
     def persistEvaluationRecord(self):
         # since the json package cant serialize python class objects we'll replace the class object with a class name str
         parsedMetaData = dict(self.evaluationMetaData)
-        if 'lossFunction' in parsedMetaData:
-            parsedMetaData['lossFunction'] = (
-                parsedMetaData['lossFunction'].__class__.__name__
-            )
+
+        for potentialClassObject in parsedMetaData:
+            if hasattr(parsedMetaData[potentialClassObject], "__class__") and not isinstance(parsedMetaData[potentialClassObject], (str, int, float, bool, list, dict)):
+                parsedMetaData[potentialClassObject] = (parsedMetaData[potentialClassObject].__class__.__name__)
 
         self.evaluationRecord[self.runIteration] = {
             "modelData": parsedMetaData,
@@ -168,6 +168,11 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
             "precision": self.precision,
             "recall": self.recall
         }
+        
+    def classObjectDeserializer(self):
+        
+        return self.parsedMetaData
+        
 
 class DecisionTreeModelEvaluator(ModelEvaluator):
 

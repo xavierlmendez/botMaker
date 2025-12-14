@@ -1,14 +1,25 @@
+from os import path
+import sys
+
 import numpy as np
+sys.path.append(path.abspath(path.join(path.dirname(__file__), '..')))
+from mathDomain.hypothesisExpander import HypothesisExpander
 
 
+# numpy documentation ref for linear algebra functions https://numpy.org/devdocs/reference/routines.linalg.html
 class HypothesisFunction:
-    def __init__(self, initialWeights, initialBias):
+    def __init__(self, initialWeights, initialBias, degree, hypothesisExpander = None):
         # the X in the normal hypothesis function will be passed into the compute prediction function instead of a part of instantiation
+        self.initialHypothesis = initialWeights
         self.hypothesis = initialWeights
         self.bias = initialBias
+        self.degree = degree
+        self.hypothesisExpander = hypothesisExpander or HypothesisExpander(self.degree)
+        self.hypothesisExpander.degree = self.degree
+        self.hypothesis = self.hypothesisExpander.expandHypothesis(self.hypothesis)
         self.metadata = {
             "name": "hypothesis function parent class",
-            "description": "A library class serving as a template for hypothesis function classes used to compute a prediction and expand/contract the hypothesis space the hypothesis in this context is a nparray containing the weight and degree of the hypothesis space"
+            "description": "A library class serving as a template for hypothesis function classes used to compute a prediction, hypothesis in this context is a nparray containing the weight and degree of the hypothesis space"
         }
 
     def setHypothesis(self, hypothesis):
@@ -26,26 +37,24 @@ class HypothesisFunction:
     def printHypothesis(self):
         print(self.hypothesis)
 
-    def computePrediction(self, data):
+    def computePrediction(self, data: np.ndarray):
         # multiplying the weights by the data and adding the bias
-        data = data.reshape(-1)
+        data = self.hypothesisExpander.fitDataToHypothesis(data)
         return self.hypothesis @ data + self.bias
 
-    def computeClassification(self, data):
-        # for hw one keeping it simple and non polynomial
+    def computeClassification(self, data: np.ndarray):
         # multiplying the weights by the data and adding the bias
-        data = data.reshape(-1)
+        #todo call hypothesisExpander to shape data if needed
+        data = self.hypothesisExpander.fitDataToHypothesis(data, True)
         if self.hypothesis.shape[0] != data.shape[0]:
-            ahh = 1 # common issue when building so leaving this to break point on
-        if np.sign(self.hypothesis @ data + self.bias) == 'nan' or np.sign(self.hypothesis @ data + self.bias) == np.nan:
-            ahh = 1 # common issue when building so leaving this to break point on
-            
+            ahh = 1  # common issue when building so leaving this to break point on
+
         return np.sign(self.hypothesis @ data + self.bias)
 
-    def expandHypothesis(self, degree):
+    def expandHypothesis(self):
         # if the hypothesis is [[x1], [x2]] and degree=3 then we will return [[1, x1, x1^2, x1^3], [1, x2, x2^2, x2^3]]
-        # not using for HW1
-        pass
+        # in this application the data's features are a basis vector of the dimensional space 
+        self.hypothesis = self.hypothesisExpander.expand(self.hypothesis, self.degree)
 
     def getWeights(self):
         return self.hypothesis

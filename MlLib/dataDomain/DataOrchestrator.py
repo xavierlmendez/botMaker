@@ -289,7 +289,7 @@ class DataOrchestrator:
         
     def build_test_train_split(self, model:str):
         X, y = self.get_transformed_data(model)
-        return train_test_split(X, y, test_size=0.25)
+        return train_test_split(X, y, test_size=0.15)
     
     # helper/ functions that can be deleted in the future
     
