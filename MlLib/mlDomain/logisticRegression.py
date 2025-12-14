@@ -37,18 +37,15 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
     def gridFit(self, trainValues, testValues, trainTargets, testTargets): #todo push down the test train split to this scope so that can be a parameter for the grid later
         hyperparameterCombinations = list(ParameterGrid(self.hyperparameterGridOptions))
         modelImplementationName = self.hyperparameterGridOptions[0]['modelName'][0]
-        print(f" Starting model training for {type(self).__name__} implementation: {modelImplementationName}")
+        print(f" Starting model training for {type(self).__name__} implementation: {modelImplementationName}\n")
         
         countModels = hyperparameterCombinations.__len__()
-        print(f" Total model permutations: {countModels}\n")
+        print(f" Total model permutations: {countModels}")
         
         modelNumber = 0
         startTime = time.perf_counter()
         for parameterSetting in hyperparameterCombinations:
             modelNumber += 1
-            
-            if(modelNumber % 100 == 0):
-                print(f"\tModel Number {modelNumber}/{countModels} complete")
                 
             self.lossFunction = parameterSetting['lossFunction']
             self.epochs = parameterSetting['epoch']
@@ -57,8 +54,8 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
             initialWeights = seededRand.random(self.numWeights)
             initialBias = parameterSetting['initialBias']
             self.learningModel = HypothesisFunction(initialWeights, initialBias, parameterSetting['polynomialDegree'], parameterSetting['HypothesisExpander'])
-            initialWeights = self.learningModel.hypothesisExpander.expandHypothesis(initialWeights)
-            self.updateWeights(initialWeights, initialBias)
+            hypothesisSpaceAdjustedWeights = self.learningModel.hypothesisExpander.expandHypothesis(initialWeights)
+            self.updateWeights(hypothesisSpaceAdjustedWeights, initialBias)
             
             for epoch in range(self.epochs):
                 newWeights, newBias = self.calculateGradientDescent(trainValues, trainTargets)
@@ -66,7 +63,10 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
                 cost = self.calculateCostFunction(trainValues, trainTargets)
                 
             self.evaluate(testValues, testTargets, parameterSetting)
-            
+
+            if(modelNumber % 1 == 0): # modify depending on number of permutations i.e. 300+ then probably modulo 40 or 80 
+                print(f"\tModel Number {modelNumber}/{countModels} complete")
+        
         endTime = time.perf_counter()
         timeElapsed = endTime - startTime
         timePerModel = timeElapsed/countModels

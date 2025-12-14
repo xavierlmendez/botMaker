@@ -16,13 +16,13 @@ class LogisticRegression(MyLogisticRegression):
         self.hyperparameterGridOptions = np.array([
             {
                 'modelName': ['LogisticRegression'],
-                'learningRate': [0.001, 0.004, 0.008],#[0.001, 0.004, 0.008, 0.01, 0.015, 0.1],
-                'epoch':  [100, 200],#[6, 8, 10, 15, 20],
-                'lossFunction': [MAE()],# [MSE(), MAE()],
+                'learningRate': [0.008, 0.01, 0.012, 0.015, 0.02, 0.03, 0.05, 0.07, 0.12, 0.15],#[0.001, 0.004, 0.008, 0.01, 0.015, 0.1],
+                'epoch':  [10, 25, 50, 200, 300, 500],#[6, 8, 10, 15, 20],
+                'lossFunction': [MSE(), MAE()],
                 'HypothesisExpander': [PolynomialRegressionExpander()],
-                'polynomialDegree':  [3, 4],#[1,2,3,4,5],
-                'weightRandSeed': [2], #[1,2,27],
-                'initialBias': [1], #[.5, 1, 2, 5]
+                'polynomialDegree':  [1,2,3,4, 5, 6, 7, 8, 9, 10, 11],#[1,2,3,4,5],
+                'weightRandSeed': [1,2,27],
+                'initialBias': [.5, 1, 2, 5]
             }
         ])
         self.exporter = None # todo implement exporter
@@ -34,13 +34,13 @@ class LogisticRegressionWithAgeBinning(MyLogisticRegression):
         self.hyperparameterGridOptions = np.array([
             {
                 'modelName': ['LogisticRegressionModelWithAgeBinning'],
-                'learningRate': [0.001, 0.004, 0.008],#[0.001, 0.004, 0.008, 0.01, 0.015, 0.1],
-                'epoch':  [100, 200],#[6, 8, 10, 15, 20],
-                'lossFunction': [MAE()],# [MSE(), MAE()],
+                'learningRate': [0.008, 0.01, 0.012, 0.015, 0.02, 0.03, 0.05, 0.07, 0.12, 0.15],#[0.001, 0.004, 0.008, 0.01, 0.015, 0.1],
+                'epoch':  [10, 25, 50, 200, 300, 500],#[6, 8, 10, 15, 20],
+                'lossFunction': [MSE(), MAE()],
                 'HypothesisExpander': [PolynomialRegressionExpander()],
-                'polynomialDegree':  [3, 4],#[1,2,3,4,5],
-                'weightRandSeed': [2], #[1,2,27],
-                'initialBias': [1], #[.5, 1, 2, 5]
+                'polynomialDegree':  [1,2,3,4, 5, 6, 7, 8, 9, 10, 11],#[1,2,3,4,5],
+                'weightRandSeed': [1,2,27],
+                'initialBias': [.5, 1, 2, 5]
             }
         ])
         self.exporter = None # todo implement exporter

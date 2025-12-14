@@ -88,7 +88,7 @@ class ModelEvaluator:
             f"\tBest Recall   : {bestRecall['value']:.4f} "
             f"\t(Iteration {bestRecall['iteration']})"
         )
-        bestModelIterations = [bestAccuracy['iteration'], bestPrecision['iteration'], bestRecall['iteration']]
+        bestModelIterations = [bestAccuracy['iteration']] #[bestAccuracy['iteration'], bestPrecision['iteration'], bestRecall['iteration']]
         bestModelIterations = list(set(bestModelIterations)) # remove duplicate if the same model is best for multiple metrics
 
         for iteration in bestModelIterations:
