@@ -4,12 +4,12 @@ import sys
 import numpy as np
 import pandas as pd
 
-# add parent folder (/mlLib) to path
+# adding parent folder (/mlLib) to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # import from the sibling package mathDomain
 from mathDomain.graphBased.splitFunction import SplitFunction, GiniImpurity
-from mathDomain.graphBased.treeNode import TreeNode
+from mathDomain.graphBased.treeStructures import TreeNode
 from mlDomain.modelEvaluators.genericEvaluator import DecisionTreeModelEvaluator
 from typing import Callable, Any
 
@@ -22,7 +22,7 @@ class nodeSplitCriteria:
     def getSplit(self, dataValue):
         return self.criteriaFunction(dataValue, self.value)
 
-class DecisionTree:
+class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
     def __init__(self, splitFunction:SplitFunction = None, root = None):
         self.root = root
         if self.root == None:
