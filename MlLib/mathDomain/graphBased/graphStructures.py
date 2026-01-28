@@ -1,37 +1,65 @@
 import numpy as np
-
-class GraphEdge:
-    def __init__(self):
-        pass
-    
-    # todo figure out how I want to handle the relation ship and responsibilites of the edge versus node classes
-
 class GraphNode:
     def __init__(self, nodeIdentifier = 0, data = None, edges=None):
-        self.identifier = nodeIdentifier
+        self.nodeId = nodeIdentifier
         self.data = data # leaving abstract here to allow more options in graph implementations
 
         if edges is None:
-            edges = []
+            self.outboundEdges = []
             self.edgeCount = 0
         else :
-            self.edges = edges
+            self.outboundEdges = edges
             self.edgeCount = len(edges)
 
-    def addEdge(self, GraphNode:object):
+    def addToEdge(self, graphNode:object):
         self.edgeCount += 1
+        self.outboundEdges.append(graphNode.nodeId)
         
-        self.edges.append(GraphNode)
-
-    def removeEdge(self, GraphNode:object):
+    def removeEdge(self, graphNode:object):
         self.edgeCount -= 1
-        self.edges.remove(GraphNode)
-        GraphNode.parentNode = None # if not set on init then this will correct
+        self.outboundEdges.remove(graphNode.nodeId)
 
 
 class Graph:
     def __init__(self, nodes = None, useCustomIdentifier = False):
-        self.identifierIncrementor = 0;
         
+        self.nodes = []
+        self.nodeCount = 0
+        self.edges = [] # (Bi)directional edges will have to be on a directional graph implementation
+        self.useCustomIdentifier = useCustomIdentifier
+        self.identifierIncrementor = 0 # Prefer this as searching burned identifiers will add to run time
+        self.burnedIdentifiers = []
+        
+        # todo implement handling for nodes passed into constructor
+        
+    def addNode(self, data = None, customIdentifier = None):
+        try:
+            if(self.useCustomIdentifier and customIdentifier is not None):
+                nodeId = customIdentifier
+            else:
+                self.identifierIncrementor += 1
+                nodeId = self.identifierIncrementor
+                
+            newNode = GraphNode(nodeId, data)
+            self.nodes.append(newNode)
+            self.nodeCount += 1
+            
+        except:
+            # todo figure out how I want to handle errors for mathDomain
+            pass
+        
+    def addEdge(self, nodeIdOne, nodeIdTwo):
+        # confirm nodes exist
+        # add edge if so 
+        # else pop up an error
         pass
+    def removeNode(self):
+        try:
+            # need to remove node from all edges
+            # remove from node list
+            # decrement node count
+        
+        except:
+        # todo figure out how I want to handle errors for mathDomain
+            pass
 
