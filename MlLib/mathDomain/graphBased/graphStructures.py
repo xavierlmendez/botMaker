@@ -1,66 +1,57 @@
-import numpy as np
+from dataclasses import dataclass, field
+from typing import Any, Set
+
+# https://dzone.com/articles/understanding-pythons-dataclass-decorator
+@dataclass(frozen=True, slots=True)
+class Edge:
+    u: int
+    v: int
+    data: Any = None
+
+@dataclass(slots=True)
 class GraphNode:
-    def __init__(self, nodeIdentifier = 0, data = None, edges=None):
-        self.nodeId = nodeIdentifier
-        self.data = data # leaving abstract here to allow more options in graph implementations
-
-        if edges is None:
-            self.outboundEdges = []
-            self.edgeCount = 0
-        else :
-            self.outboundEdges = edges
-            self.edgeCount = len(edges)
-
-    def addToEdge(self, graphNode:object):
-        self.edgeCount += 1
-        self.outboundEdges.append(graphNode.nodeId)
-        
-    def removeEdge(self, graphNode:object):
-        self.edgeCount -= 1
-        self.outboundEdges.remove(graphNode.nodeId)
-
+    nodeId: int
+    data: Any
+    neighbors: Set[int] = field(default_factory=set)
 
 class Graph:
-    def __init__(self, nodes = None, useCustomIdentifier = False):
-        
-        self.nodes = []
-        self.nodeCount = 0
+    def __init__(self, initNodes = None):
+        self.nodes: dict[int, GraphNode] = {}
         self.edges = [] # (Bi)directional edges will have to be on a directional graph implementation
-        self.useCustomIdentifier = useCustomIdentifier
-        self.identifierIncrementor = 0 # Prefer this as searching burned identifiers will add to run time
-        self.burnedIdentifiers = []
+        self.idIncrementor = 0 # Prefer this as searching burned identifiers will add to run time
+
+        if initNodes is not None:
+            for nodeId in initNodes:
+                self.nodes[nodeId] = initNodes[nodeId]
         
-        # todo implement handling for nodes passed into constructor
-        
-    def addNode(self, data = None, customIdentifier = None):
-        try:
-            if(self.useCustomIdentifier and customIdentifier is not None):
-                nodeId = customIdentifier
-            else:
-                self.identifierIncrementor += 1
-                nodeId = self.identifierIncrementor
-                
-            newNode = GraphNode(nodeId, data)
-            self.nodes.append(newNode)
-            self.nodeCount += 1
-            
-        except:
-            # todo figure out how I want to handle errors for mathDomain
-            pass
+    def addNode(self, data = None):
+        self.idIncrementor += 1
+        nodeId = self.idIncrementor
+
+        newNode = GraphNode(nodeId, data)
+        self.nodes[nodeId] = newNode
+        return nodeId
         
     def addEdge(self, nodeIdOne, nodeIdTwo):
-        # confirm nodes exist
-        # add edge if so 
-        # else pop up an error
-        pass
-    def removeNode(self):
-        try:
-            pass
-            # need to remove node from all edges
-            # remove from node list
-            # decrement node count
-        
-        except:
-        # todo figure out how I want to handle errors for mathDomain
-            pass
+        if nodeIdOne not in self.nodes:
+            raise KeyError(f"Unknown node: {nodeIdOne}")
+        if nodeIdTwo not in self.nodes:
+            raise KeyError(f"Unknown node: {nodeIdTwo}")
+
+        newEdge = Edge(nodeIdOne, nodeIdTwo)
+        if newEdge in self.edges:
+            raise KeyError(f"Duplicate edge: {newEdge}")
+
+        self.edges.append(newEdge)
+        self.nodes[nodeIdOne].neighbors.add(nodeIdTwo)
+        self.nodes[nodeIdTwo].neighbors.add(nodeIdOne)
+
+    def removeNode(self, nodeId):
+        if nodeId not in self.nodes:
+            raise KeyError(f"Unknown node: {nodeId}")
+
+        for connectedNodeId in self.nodes[nodeId].neighbors:
+            self.nodes[connectedNodeId].neighbors.remove(nodeId)
+
+        del self.nodes[nodeId]
 
