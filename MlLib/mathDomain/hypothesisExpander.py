@@ -37,7 +37,7 @@ class PolynomialRegressionExpander(HypothesisExpander):
         # the [:, :, None] function adds a new axis to the array with the : retaining the previous two axis 
         # this results in a new axis mapped that holds the degrees that would need to be applied to the second axis
         featureSpaceExpandedToDegree = featureSpaceExpandedToDegree.reshape(featureSpaceExpandedToDegree.shape[0], featureSpaceExpandedToDegree.shape[1] * self.degree)
-        # above were getting rid of the thrid axis used to map the degrees and reshaping the ndarray based on the number of features shape[1] * number of degrees the array holds 
+        # above were getting rid of the third axis used to map the degrees and reshaping the ndarray based on the number of features shape[1] * number of degrees the array holds
         return featureSpaceExpandedToDegree
 
     def expandHypothesis(self, initialArray: np.ndarray):  # can be used to shape both hypothesis function and features 

@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Folder Include="MlLib\mathDomain\algebraBased\" />
+    <Folder Include="MlLib\mathDomain\algorithmImplementations\" />
     <Folder Include="Repositories\" />
   </ItemGroup>
 
