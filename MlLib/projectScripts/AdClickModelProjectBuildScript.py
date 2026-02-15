@@ -1,19 +1,10 @@
-import os
-import sys
 from os.path import isfile
 
-# adding the packages for data math and ml domains
-sys.path.append(
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), '..')
-    )
-)
-
-from dataDomain.DataOrchestrator import DataOrchestrator
-from mlDomain.logisticRegression import MyLogisticRegression
-from mlDomain.decisionTree import DecisionTree
-from mlDomain.projectSpecificFiles.adClickPredictionLogReg import LogisticRegression, LogisticRegressionWithAgeBinning
-from mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
+from MlLib.dataDomain.DataOrchestrator import DataOrchestrator
+from MlLib.mlDomain.logisticRegression import MyLogisticRegression
+from MlLib.mlDomain.decisionTree import DecisionTree
+from MlLib.mlDomain.projectSpecificFiles.adClickPredictionLogReg import LogisticRegression, LogisticRegressionWithAgeBinning
+from MlLib.mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
 
 # import kagglehub
 # from kagglehub import KaggleDatasetAdapter

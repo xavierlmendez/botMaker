@@ -1,5 +1,10 @@
 
 class ProbabilisticKNN():
+    metadata = {
+        "name": "Probabilistic KNN",
+        "description": "Probabilistic KNN skeleton for prior/likelihood/posterior-based classification."
+    }
+    # TODO: review metadata (auto-generated)
     
     ''' 
         how does ProbabilisticKNN work?
@@ -9,8 +14,8 @@ class ProbabilisticKNN():
         third a posterior that combines the learned likely hoods and the prior
     '''
     
-    def __init__(prior):
-        pass
+    def __init__(self, prior=None):
+        self.prior = prior
         
     '''
         what functionality do I need?

@@ -1,23 +1,20 @@
-import os
-import sys
-
 import numpy as np
 import pandas as pd
 import numpy as np
 import sklearn
 import pandas as pd
 
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), './mlDomain')))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), './mathDomain')))
-
-from mlDomain.linearRegression import MyLinearRegression
-from mathDomain.lossFunction import MSE
-from mathDomain.hypothesis import HypothesisFunction
-
-from mathDomain.lossFunction import LossFunction
+from MlLib.mlDomain.linearRegression import MyLinearRegression
+from MlLib.mathDomain.lossFunction import MSE
+from MlLib.mathDomain.hypothesis import HypothesisFunction
+from MlLib.mathDomain.lossFunction import LossFunction
 class BostonHousingDataset:
     def __init__(self):
+        self.metadata = {
+            "name": "Boston Housing Dataset Loader",
+            "description": "Utility class for fetching and preparing the Boston housing dataset."
+        }
+        # TODO: review metadata (auto-generated)
         self.url = "http://lib.stat.cmu.edu/datasets/boston"
         self.feature_names = ["CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT"]
 

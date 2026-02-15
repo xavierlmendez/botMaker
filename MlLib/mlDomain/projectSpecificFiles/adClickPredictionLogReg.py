@@ -1,16 +1,17 @@
-import os
-import sys
-
 import numpy as np
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from mlDomain.logisticRegression import MyLogisticRegression
-from mathDomain.lossFunction import MSE, MAE
-from mathDomain.hypothesisExpander import PolynomialRegressionExpander
-from mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
+from MlLib.mlDomain.logisticRegression import MyLogisticRegression
+from MlLib.mathDomain.lossFunction import MSE, MAE
+from MlLib.mathDomain.hypothesisExpander import PolynomialRegressionExpander
+from MlLib.mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
 
 class LogisticRegression(MyLogisticRegression):
     def __init__(self):
+        self.metadata = {
+            "name": "Ad Click Logistic Regression",
+            "description": "Project-specific logistic regression configuration for ad click prediction."
+        }
+        # TODO: review metadata (auto-generated)
         self.numWeights = 19 # todo refactor to more descriptive name like num features or numfeature weights
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = np.array([
@@ -29,6 +30,11 @@ class LogisticRegression(MyLogisticRegression):
 
 class LogisticRegressionWithAgeBinning(MyLogisticRegression):
     def __init__(self):
+        self.metadata = {
+            "name": "Ad Click Logistic Regression With Age Binning",
+            "description": "Project-specific logistic regression with age binning for ad click prediction."
+        }
+        # TODO: review metadata (auto-generated)
         self.numWeights = 26 # todo refactor to more descriptive name like num features or numfeature weights
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = np.array([

@@ -1,9 +1,5 @@
-from os import path
-import sys
-
 import numpy as np
-sys.path.append(path.abspath(path.join(path.dirname(__file__), '..')))
-from mathDomain.hypothesisExpander import HypothesisExpander
+from MlLib.mathDomain.hypothesisExpander import HypothesisExpander
 
 
 # numpy documentation ref for linear algebra functions https://numpy.org/devdocs/reference/routines.linalg.html

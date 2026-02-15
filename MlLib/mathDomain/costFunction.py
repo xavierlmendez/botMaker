@@ -1,4 +1,4 @@
-from lossFunction import LossFunction
+from MlLib.mathDomain.lossFunction import LossFunction
 
 class CostFunction():
     def __init__(self, lossFunction : LossFunction):

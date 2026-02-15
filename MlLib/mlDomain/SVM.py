@@ -1,5 +1,16 @@
+import numpy as np
+
+from MlLib.mathDomain.hypothesis import HypothesisFunction
+from MlLib.mathDomain.lossFunction import LossFunction
+
+
 class MySVM: # prefixing with my for the comparison script, rename later when cleaning up files
     def __init__(self, hypothesisFunction : HypothesisFunction, lossFunction : LossFunction, learningRate = 0.001, epochs = 10):
+        self.metadata = {
+            "name": "SVM Base Class",
+            "description": "Support Vector Machine implementation using hinge-style sub-gradient updates."
+        }
+        # TODO: review metadata (auto-generated)
         self.learningModel = hypothesisFunction
         self.lossFunction = lossFunction
         self.learningRate = learningRate

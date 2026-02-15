@@ -1,16 +1,15 @@
-import os
-import sys
 from numpy import array, mean, sum
 
-# add parent folder (/mlLib) to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# import from the sibling package mathDomain
-from mathDomain.hypothesis import HypothesisFunction
-from mathDomain.lossFunction import LossFunction
+from MlLib.mathDomain.hypothesis import HypothesisFunction
+from MlLib.mathDomain.lossFunction import LossFunction
 class MyLinearRegression: # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
     def __init__(self, hypothesisFunction : HypothesisFunction, lossFunction : LossFunction, learningRate = 0.001, epochs = 10):
+        self.metadata = {
+            "name": "Linear Regression Base Class",
+            "description": "Core linear regression implementation with gradient descent and prediction helpers."
+        }
+        # TODO: review metadata (auto-generated)
         self.learningModel = hypothesisFunction
         self.lossFunction = lossFunction
         self.learningRate = learningRate

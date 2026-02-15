@@ -1,20 +1,18 @@
-import os
-import sys
-
 import numpy as np
 import pandas as pd
 
-# adding parent folder (/mlLib) to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# import from the sibling package mathDomain
-from mathDomain.graphBased.splitFunction import SplitFunction, GiniImpurity
-from mathDomain.graphBased.treeStructures import TreeNode
-from mlDomain.modelEvaluators.genericEvaluator import DecisionTreeModelEvaluator
+from MlLib.mathDomain.graphBased.splitFunction import SplitFunction, GiniImpurity
+from MlLib.mathDomain.graphBased.treeStructures import TreeNode
+from MlLib.mlDomain.modelEvaluators.genericEvaluator import DecisionTreeModelEvaluator
 from typing import Callable, Any
 
 class nodeSplitCriteria:
     def __init__(self, column, value, criteriaFunc:Callable[[Any, Any], bool]):
+        self.metadata = {
+            "name": "Decision Tree Split Criteria",
+            "description": "Encapsulates a column/value rule used to split nodes in a decision tree."
+        }
+        # TODO: review metadata (auto-generated)
         self.column = column
         self.value = value
         self.criteriaFunction = criteriaFunc
@@ -24,6 +22,11 @@ class nodeSplitCriteria:
 
 class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
     def __init__(self, splitFunction:SplitFunction = None, root = None):
+        self.metadata = {
+            "name": "Decision Tree Base Class",
+            "description": "Core decision tree implementation with training, prediction, and evaluation helpers."
+        }
+        # TODO: review metadata (auto-generated)
         self.root = root
         if self.root == None:
             self.root = TreeNode()
@@ -128,6 +131,14 @@ class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
     
 class MyDecisionTree(DecisionTree):
     # implementation for AdClickPredictionProject - scratched this and am using decisionTree which will be abstracted later
+    def __init__(self, splitFunction:SplitFunction = None, root = None):
+        super().__init__(splitFunction=splitFunction, root=root)
+        self.metadata = {
+            "name": "Decision Tree Project Wrapper",
+            "description": "Project-specific decision tree wrapper for experimentation and extension."
+        }
+        # TODO: review metadata (auto-generated)
+
     def addNode(self, node:TreeNode):
         if self.root == None:
             self.root = node
