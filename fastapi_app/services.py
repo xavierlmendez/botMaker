@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+from typing import Dict, Any
+
+
+class StrategyBacktesterService:
+    def __init__(self) -> None:
+        self._dummy_return: Dict[str, Any] = {
+            "strategyId": "STRAT-001",
+            "strategyName": "Moving Average Crossover",
+            "description": "Tests a simple moving average crossover strategy using short and long period averages.",
+            "tickers": [
+                {
+                    "symbol": "AAPL",
+                    "displayName": "Apple Inc.",
+                    "allocation": 0.4,
+                },
+                {
+                    "symbol": "MSFT",
+                    "displayName": "Microsoft Corporation",
+                    "allocation": 0.6,
+                },
+            ],
+            "timeframe": {"start": "2024-01-01T00:00:00Z", "end": "2024-12-31T00:00:00Z"},
+            "settings": {
+                "initialCapital": 100000,
+                "rebalanceFrequency": "monthly",
+                "benchmark": "SPY",
+            },
+            "additionalProperties": {
+                "indicators": [
+                    {
+                        "name": "SMA",
+                        "parameters": {"shortWindow": 20, "longWindow": 50},
+                    },
+                    {
+                        "name": "RSI",
+                        "parameters": {"period": 14, "overbought": 70, "oversold": 30},
+                    },
+                ],
+                "riskManagement": {"stopLoss": 0.05, "takeProfit": 0.1, "positionSizing": "fixed"},
+                "notes": "Backtest configured for 1-year period with monthly rebalancing.",
+            },
+        }
+
+    def dummy_return(self) -> Dict[str, Any]:
+        return self._dummy_return

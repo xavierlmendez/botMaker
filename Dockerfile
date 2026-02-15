@@ -1,15 +1,12 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /App
+FROM python:3.11-slim
+WORKDIR /app
 
-# Copy everything
-COPY . ./
-# Restore as distinct layers
-RUN dotnet restore
-# Build and publish a release
-RUN dotnet publish -o out
+# Install Python dependencies
+COPY fastapi_app/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
-WORKDIR /App
-COPY --from=build /App/out .
-ENTRYPOINT ["dotnet", "botMaker.dll"]
+# Copy FastAPI app
+COPY fastapi_app /app/fastapi_app
+
+EXPOSE 8000
+CMD ["uvicorn", "fastapi_app.main:app", "--host", "0.0.0.0", "--port", "8000"]

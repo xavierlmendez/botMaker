@@ -1,0 +1,56 @@
+# MlLib packaging configuration
+# This file tells Python build tools how to package, install, and test MlLib.
+# It follows PEP 621 (project metadata) and uses setuptools as the build backend.
+
+[build-system]
+# Required by PEP 517/518. These are the build-time dependencies.
+requires = ["setuptools>=68", "wheel"]
+# Setuptools is the tool that builds the package (sdist/wheel).
+build-backend = "setuptools.build_meta"
+
+[project]
+# The package name users will install: `pip install -e .` from this directory.
+name = "MlLib"
+# Keep this in sync with your release tags if you publish.
+version = "0.1.0"
+# Short summary shown on package indexes and in metadata.
+description = "Math and ML utilities for the BotMaker project."
+# Optional long description can be pulled from a README if you add one.
+readme = "README.md"
+# Minimum supported Python version for this package.
+requires-python = ">=3.10"
+# License can be a SPDX identifier or you can point to a file.
+license = {text = "Proprietary"}
+# Authors are optional but help document ownership.
+authors = [
+  {name = "BotMaker Team"}
+]
+# Runtime dependencies. Add packages that MlLib imports at runtime.
+dependencies = [
+  "networkx>=3.2",
+  "numpy>=1.26"
+]
+
+[project.optional-dependencies]
+# Dev extras can be installed with: pip install -e .[dev]
+dev = [
+  "pytest>=7.4",
+  "pytest-cov>=4.1"
+]
+
+[tool.setuptools]
+# This tells setuptools that the packages live in this directory.
+# With pyproject.toml inside MlLib, the package root is the current directory.
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+# Automatically discover Python packages under MlLib.
+# `include` ensures MlLib and its subpackages are included.
+where = ["."]
+include = ["MlLib", "MlLib.*"]
+
+[tool.pytest.ini_options]
+# Configure pytest to find tests and set pythonpath for local runs.
+# This avoids manual sys.path edits inside tests.
+pythonpath = [".."]
+testpaths = ["mathDomain", "mlDomain"]

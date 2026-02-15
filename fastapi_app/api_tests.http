@@ -1,0 +1,34 @@
+@base_url = http://127.0.0.1:8000
+
+### Root
+GET {{base_url}}/
+
+### Alerts list
+GET {{base_url}}/api/alerts
+
+### Alerts by id
+GET {{base_url}}/api/alerts/123
+
+### Create alert
+POST {{base_url}}/api/alerts
+Content-Type: application/json
+
+{
+  "name": "Price Alert",
+  "threshold": 10
+}
+
+### Strategy backtester list
+GET {{base_url}}/api/strategybacktester
+
+### Strategy backtester by id
+GET {{base_url}}/api/strategybacktester/42
+
+### Create strategy backtest
+POST {{base_url}}/api/strategybacktester
+Content-Type: application/json
+
+{
+  "name": "Moving Average Crossover",
+  "threshold": 5
+}
