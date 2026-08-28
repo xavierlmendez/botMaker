@@ -1,4 +1,3 @@
-
 from MlLib.dataDomain.DataOrchestrator import DataOrchestrator
 from MlLib.mlDomain.projectSpecificFiles.adClickPredictionLogReg import (
     LogisticRegression,
@@ -10,21 +9,22 @@ from MlLib.mlDomain.projectSpecificFiles.adClickPredictionLogReg import (
 # from kagglehub import KaggleDatasetAdapter
 class AdClickPredictionModelBuilder:
     def __init__(self):
-        self.projectName = "AdClickPrediction" # Used to get other project specific files in downstream procecsses
+        self.projectName = (
+            "AdClickPrediction"  # Used to get other project specific files in downstream procecsses
+        )
         self.dataFilePath = "../dataDomain/dataSets/ad_click_dataset.csv"
-        self.modelMetaData = {} # This function will contain the end results of each model to be used on the frontend
+        self.modelMetaData = {}  # This function will contain the end results of each model to be used on the frontend
         self.models = {}
         self.metadata = {
             "name": "Ad Click Model Builder and Evaluator",
-            "description": "ML 2025 Course Project looking at the use of different models in application to a problem"
+            "description": "ML 2025 Course Project looking at the use of different models in application to a problem",
         }
 
         # Ran into issues with the kaggle api so ended up manually downloading csv
-        #if not isfile(self.dataFilePath):
+        # if not isfile(self.dataFilePath):
         #    kagglehub.dataset_download("ranaghulamnabi/shopping-behavior-and-preferences-study")
 
-        self.dataOrchestrator = DataOrchestrator(self.dataFilePath, 'csv', 'Purchase')
-
+        self.dataOrchestrator = DataOrchestrator(self.dataFilePath, "csv", "Purchase")
 
     def buildModels(self):
 
@@ -33,12 +33,14 @@ class AdClickPredictionModelBuilder:
 
         # Logistic Regression
         logisticModel = LogisticRegression()
-        logisticModel.gridFit(*self.dataOrchestrator.build_test_train_split('logisticReg'))
+        logisticModel.gridFit(*self.dataOrchestrator.build_test_train_split("logisticReg"))
         logisticModel.evaluator.printEvaluation(printBestModelStatsOnly=True)
 
         # Logistic Regression with binning age
         logistic2Model = LogisticRegressionWithAgeBinning()
-        logistic2Model.gridFit(*self.dataOrchestrator.build_test_train_split('logisticRegWithAgeBinning'))
+        logistic2Model.gridFit(
+            *self.dataOrchestrator.build_test_train_split("logisticRegWithAgeBinning")
+        )
         logistic2Model.evaluator.printEvaluation(printBestModelStatsOnly=True)
 
         # Decision Tree
@@ -49,20 +51,21 @@ class AdClickPredictionModelBuilder:
         # treeModel.evaluator.printEvaluation(printBestModelStatsOnly=True)
 
     # Neural Network
-        # Decision Tree
-        # neural_X_train, neural_X_test, neural_y_train, neural_y_test = self.dataOrchestrator.build_test_train_split('neuralNetwork')
-        # neuralModel = MyNeuralNetwork()
-        # neuralModel.fit(neural_X_train, neural_y_train)
-        # neuralModelEval = treeModel.evaluate(neural_X_test, neural_y_test)
+    # Decision Tree
+    # neural_X_train, neural_X_test, neural_y_train, neural_y_test = self.dataOrchestrator.build_test_train_split('neuralNetwork')
+    # neuralModel = MyNeuralNetwork()
+    # neuralModel.fit(neural_X_train, neural_y_train)
+    # neuralModelEval = treeModel.evaluate(neural_X_test, neural_y_test)
 
     def compileModelComparison(self):
         pass
 
     def printModelComparison(self):
-       pass
+        pass
 
     def compileArtifactForWebApp(self):
         pass
+
 
 modelBuilder = AdClickPredictionModelBuilder()
 # modelBuilder.dataOrchestrator.print_Data_Short_Summary_View()

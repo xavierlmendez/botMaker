@@ -10,12 +10,12 @@ class Visualizer:
     def __init__(self):
         self.metadata = {
             "name": "Graph Visualizer",
-            "description": "Utility for visualizing graph traversal with matplotlib and networkx."
+            "description": "Utility for visualizing graph traversal with matplotlib and networkx.",
         }
         # TODO: review metadata (auto-generated)
 
-# tutorial used https://www.youtube.com/watch?v=7XVTnCrWDPY
-    def show(self, graph:Graph, traversalOrder=None, position = None):
+    # tutorial used https://www.youtube.com/watch?v=7XVTnCrWDPY
+    def show(self, graph: Graph, traversalOrder=None, position=None):
         plt.figure()
         plt.title(graph.name)
         if traversalOrder is not None:
@@ -27,7 +27,7 @@ class Visualizer:
                     position,
                     node_size=500,
                     with_labels=True,
-                    node_color=['r' if n == node else 'b' for n in graph.nodes]
+                    node_color=["r" if n == node else "b" for n in graph.nodes],
                 )
                 plt.draw()
                 plt.pause(0.5)

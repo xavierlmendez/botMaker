@@ -13,7 +13,7 @@ class DepthFirstSearch(AbstractGraphAlgorithm):
         super().__init__(graph)
         self.metadata = {
             "name": "Depth First Search",
-            "description": "Graph traversal/search using depth-first order."
+            "description": "Graph traversal/search using depth-first order.",
         }
 
     def _search(self, context: SearchContext) -> Any:
@@ -31,6 +31,5 @@ class DepthFirstSearch(AbstractGraphAlgorithm):
 
         queue = deque([context.start_node_id])
         traversal_order: list[int] = []
-
 
         return traversal_order

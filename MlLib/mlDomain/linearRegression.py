@@ -4,12 +4,18 @@ from MlLib.mathDomain.hypothesis import HypothesisFunction
 from MlLib.mathDomain.lossFunction import LossFunction
 
 
-class MyLinearRegression: # prefixing with my for the comparison script, rename later when cleaning up files
+class MyLinearRegression:  # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
-    def __init__(self, hypothesisFunction : HypothesisFunction, lossFunction : LossFunction, learningRate = 0.001, epochs = 10):
+    def __init__(
+        self,
+        hypothesisFunction: HypothesisFunction,
+        lossFunction: LossFunction,
+        learningRate=0.001,
+        epochs=10,
+    ):
         self.metadata = {
             "name": "Linear Regression Base Class",
-            "description": "Core linear regression implementation with gradient descent and prediction helpers."
+            "description": "Core linear regression implementation with gradient descent and prediction helpers.",
         }
         # TODO: review metadata (auto-generated)
         self.learningModel = hypothesisFunction
@@ -45,7 +51,9 @@ class MyLinearRegression: # prefixing with my for the comparison script, rename 
     def calculateGradientDescent(self, dataValues, dataTargets):
         # calculate the gradient
         predicted = self.predictValues(dataValues)
-        gradientDescentAdjusteddataTargets = self.lossFunction.computeGradient(dataTargets, predicted)
+        gradientDescentAdjusteddataTargets = self.lossFunction.computeGradient(
+            dataTargets, predicted
+        )
 
         gradientDescentAdjustedWeights = dataValues.T @ gradientDescentAdjusteddataTargets
         adjustedBias = sum(gradientDescentAdjusteddataTargets)
@@ -53,7 +61,9 @@ class MyLinearRegression: # prefixing with my for the comparison script, rename 
 
     def updateWeights(self, gradientDescentAdjustedWeights, gradientDescentAdjustedBias):
         # update the weights and bias
-        newWeights = self.learningModel.getWeights() - self.learningRate * gradientDescentAdjustedWeights
+        newWeights = (
+            self.learningModel.getWeights() - self.learningRate * gradientDescentAdjustedWeights
+        )
         newBias = self.learningModel.getBias() - self.learningRate * gradientDescentAdjustedBias
         self.learningModel.updateWeights(newWeights)
         self.learningModel.updateBias(newBias)

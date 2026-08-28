@@ -31,8 +31,9 @@ def test_bfs_traversal_order_without_target():
 def test_bfs_stops_on_target_criteria_match():
     graph, node_a, node_b, node_c, node_d, node_e = build_graph()
 
-    context = SearchContext(start_node_id=node_a, target_node_criteria= lambda node: node.data == "C")
+    context = SearchContext(
+        start_node_id=node_a, target_node_criteria=lambda node: node.data == "C"
+    )
     traversal = BreadthFirstSearch(graph).run(context)
 
     assert traversal == [node_a, node_b, node_c]
-

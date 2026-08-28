@@ -7,13 +7,15 @@ class ModelEvaluator:
     def __init__(self):
         self.metadata = {
             "name": "Model Evaluator Base Class",
-            "description": "Base evaluator for computing and persisting model evaluation metrics."
+            "description": "Base evaluator for computing and persisting model evaluation metrics.",
         }
         # TODO: review metadata (auto-generated)
         self.runIteration = 0
         self.evaluationRecord: dict[int, dict] = {}
 
-    def updateTestingPredictionData(self, test_values:ndarray, testTargets:ndarray, predictions:ndarray, evaluationMetaData):
+    def updateTestingPredictionData(
+        self, test_values: ndarray, testTargets: ndarray, predictions: ndarray, evaluationMetaData
+    ):
         self.runIteration += 1
         self.test_values = test_values
         self.testTargets = testTargets
@@ -58,29 +60,28 @@ class ModelEvaluator:
     def printEvaluationStats(self):
         eval_data = self.evaluationRecord
 
-        bestAccuracy = {'iteration': None, 'value': float('-inf')}
-        bestPrecision = {'iteration': None, 'value': float('-inf')}
-        bestRecall = {'iteration': None, 'value': float('-inf')}
+        bestAccuracy = {"iteration": None, "value": float("-inf")}
+        bestPrecision = {"iteration": None, "value": float("-inf")}
+        bestRecall = {"iteration": None, "value": float("-inf")}
 
         for iteration, metrics in self.evaluationRecord.items():
-            accuracy = metrics.get('accuracy')
-            precision = metrics.get('precision')
-            recall = metrics.get('recall')
+            accuracy = metrics.get("accuracy")
+            precision = metrics.get("precision")
+            recall = metrics.get("recall")
 
-            if accuracy > bestAccuracy['value']:
-                bestAccuracy = {'iteration': iteration, 'value': accuracy}
+            if accuracy > bestAccuracy["value"]:
+                bestAccuracy = {"iteration": iteration, "value": accuracy}
 
-            if precision > bestPrecision['value']:
-                bestPrecision = {'iteration': iteration, 'value': precision}
+            if precision > bestPrecision["value"]:
+                bestPrecision = {"iteration": iteration, "value": precision}
 
-            if recall > bestRecall['value']:
-                bestRecall = {'iteration': iteration, 'value': recall}
-        modelName = self.evaluationMetaData['modelName']
+            if recall > bestRecall["value"]:
+                bestRecall = {"iteration": iteration, "value": recall}
+        modelName = self.evaluationMetaData["modelName"]
         print(f"\n Evaluation Summary : {modelName} ")
 
         print(
-            f"\tBest Accuracy : {bestAccuracy['value']:.4f} "
-            f"(Iteration {bestAccuracy['iteration']})"
+            f"\tBest Accuracy : {bestAccuracy['value']:.4f} (Iteration {bestAccuracy['iteration']})"
         )
 
         print(
@@ -89,11 +90,14 @@ class ModelEvaluator:
         )
 
         print(
-            f"\tBest Recall   : {bestRecall['value']:.4f} "
-            f"\t(Iteration {bestRecall['iteration']})"
+            f"\tBest Recall   : {bestRecall['value']:.4f} \t(Iteration {bestRecall['iteration']})"
         )
-        bestModelIterations = [bestAccuracy['iteration']] #[bestAccuracy['iteration'], bestPrecision['iteration'], bestRecall['iteration']]
-        bestModelIterations = list(set(bestModelIterations)) # remove duplicate if the same model is best for multiple metrics
+        bestModelIterations = [
+            bestAccuracy["iteration"]
+        ]  # [bestAccuracy['iteration'], bestPrecision['iteration'], bestRecall['iteration']]
+        bestModelIterations = list(
+            set(bestModelIterations)
+        )  # remove duplicate if the same model is best for multiple metrics
 
         for iteration in bestModelIterations:
             print(f"\n (Iteration {iteration})")
@@ -101,20 +105,16 @@ class ModelEvaluator:
             formattedEvalJson = dumps(modelIteration, indent=4)
             print(formattedEvalJson)
 
-
-
-
     def evaluateModel(self):
         raise NotImplementedError("Subclasses must implement evaluateModel()")
 
 
 class LogisticRegressionModelEvaluator(ModelEvaluator):
-
     def __init__(self):
         super().__init__()
         self.metadata = {
             "name": "Logistic Regression Evaluator",
-            "description": "Evaluator for logistic regression classification metrics."
+            "description": "Evaluator for logistic regression classification metrics.",
         }
         # TODO: review metadata (auto-generated)
         self.evaluationMetaData = None
@@ -132,8 +132,8 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
         falseNegatives = 0
         countTotalPredictions = self.predictions.size
 
-        self.predictions[self.predictions == -1] = 0 # standardize 0 and -1 to be zero
-        self.testTargets[self.testTargets == -1] = 0 # standardize 0 and -1 to be zero
+        self.predictions[self.predictions == -1] = 0  # standardize 0 and -1 to be zero
+        self.testTargets[self.testTargets == -1] = 0  # standardize 0 and -1 to be zero
         for i in range(countTotalPredictions):
             if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 1:
                 truePositives += 1
@@ -150,7 +150,9 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
         self.falseNegatives = falseNegatives
 
     def getPrecision(self):
-        return self.truePositives / ((self.truePositives + self.falsePositives) or 1) # Account for divide by zero
+        return self.truePositives / (
+            (self.truePositives + self.falsePositives) or 1
+        )  # Account for divide by zero
 
     def getRecall(self):
         return self.truePositives / ((self.truePositives + self.falseNegatives) or 1)
@@ -163,8 +165,12 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
         parsedMetaData = dict(self.evaluationMetaData)
 
         for potentialClassObject in parsedMetaData:
-            if hasattr(parsedMetaData[potentialClassObject], "__class__") and not isinstance(parsedMetaData[potentialClassObject], (str, int, float, bool, list, dict)):
-                parsedMetaData[potentialClassObject] = (parsedMetaData[potentialClassObject].__class__.__name__)
+            if hasattr(parsedMetaData[potentialClassObject], "__class__") and not isinstance(
+                parsedMetaData[potentialClassObject], (str, int, float, bool, list, dict)
+            ):
+                parsedMetaData[potentialClassObject] = parsedMetaData[
+                    potentialClassObject
+                ].__class__.__name__
 
         self.evaluationRecord[self.runIteration] = {
             "modelData": parsedMetaData,
@@ -175,7 +181,7 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
             "falseNegatives": self.falseNegatives,
             "accuracy": self.accuracy,
             "precision": self.precision,
-            "recall": self.recall
+            "recall": self.recall,
         }
 
     def classObjectDeserializer(self):
@@ -184,12 +190,11 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
 
 
 class DecisionTreeModelEvaluator(ModelEvaluator):
-
     def __init__(self):
         super().__init__()
         self.metadata = {
             "name": "Decision Tree Evaluator",
-            "description": "Evaluator for decision tree classification metrics."
+            "description": "Evaluator for decision tree classification metrics.",
         }
         # TODO: review metadata (auto-generated)
         self.evaluationMetaData = None
@@ -235,7 +240,9 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
         return correctPredictions / countTotalPredictions
 
     def getPrecision(self):
-        return self.truePositives / ((self.truePositives + self.falsePositives) or 0.000000001) # Account for divide by zero
+        return self.truePositives / (
+            (self.truePositives + self.falsePositives) or 0.000000001
+        )  # Account for divide by zero
 
     def getRecall(self):
         return self.truePositives / ((self.truePositives + self.falseNegatives) or 0.000000001)
@@ -246,10 +253,8 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
     def persistEvaluationRecord(self):
         # since the json package cant serialize python class objects we'll replace the class object with a class name str
         parsedMetaData = dict(self.evaluationMetaData)
-        if 'lossFunction' in parsedMetaData:
-            parsedMetaData['lossFunction'] = (
-                parsedMetaData['lossFunction'].__class__.__name__
-            )
+        if "lossFunction" in parsedMetaData:
+            parsedMetaData["lossFunction"] = parsedMetaData["lossFunction"].__class__.__name__
 
         self.evaluationRecord[self.runIteration] = {
             "modelData": parsedMetaData,
@@ -260,6 +265,5 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
             "falseNegatives": self.falseNegatives,
             "accuracy": self.accuracy,
             "precision": self.precision,
-            "recall": self.recall
+            "recall": self.recall,
         }
-

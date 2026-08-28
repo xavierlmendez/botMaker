@@ -10,11 +10,25 @@ class BostonHousingDataset:
     def __init__(self):
         self.metadata = {
             "name": "Boston Housing Dataset Loader",
-            "description": "Utility class for fetching and preparing the Boston housing dataset."
+            "description": "Utility class for fetching and preparing the Boston housing dataset.",
         }
         # TODO: review metadata (auto-generated)
         self.url = "http://lib.stat.cmu.edu/datasets/boston"
-        self.feature_names = ["CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT"]
+        self.feature_names = [
+            "CRIM",
+            "ZN",
+            "INDUS",
+            "CHAS",
+            "NOX",
+            "RM",
+            "AGE",
+            "DIS",
+            "RAD",
+            "TAX",
+            "PTRATIO",
+            "B",
+            "LSTAT",
+        ]
 
     def load_dataset(self):
         # Fetch data from URL
@@ -24,22 +38,23 @@ class BostonHousingDataset:
 
         # Create the dictionary in sklearn format
         dataset = {
-            'data': [],
-            'target': [],
-            'feature_names': self.feature_names,
-            'DESCR': 'Boston House Prices dataset'
+            "data": [],
+            "target": [],
+            "feature_names": self.feature_names,
+            "DESCR": "Boston House Prices dataset",
         }
 
-        dataset['data'] = data
-        dataset['target'] = target
+        dataset["data"] = data
+        dataset["target"] = target
 
         return dataset
 
+
 boston_housing = BostonHousingDataset()
 boston_dataset = boston_housing.load_dataset()
-boston_dataset.keys(), boston_dataset['DESCR']
-boston = pd.DataFrame(boston_dataset['data'], columns=boston_dataset['feature_names'])
-boston['MEDV'] = boston_dataset['target']
+boston_dataset.keys(), boston_dataset["DESCR"]
+boston = pd.DataFrame(boston_dataset["data"], columns=boston_dataset["feature_names"])
+boston["MEDV"] = boston_dataset["target"]
 boston.head()
 
 from sklearn.metrics import r2_score
@@ -49,10 +64,11 @@ from sklearn.model_selection import train_test_split
 def rmse(predictions, targets):
     return np.sqrt(((predictions - targets) ** 2).mean())
 
+
 X = boston.to_numpy()
 X = np.delete(X, 13, 1)
-y = boston['MEDV'].to_numpy()
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=5)
+y = boston["MEDV"].to_numpy()
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=5)
 from sklearn.linear_model import LinearRegression
 
 lin_model = LinearRegression()
@@ -65,7 +81,9 @@ r2_test = r2_score(y_test, y_pred_test)
 print("Test RMSE = " + str(rmse_test))
 print("Test R2 = " + str(r2_test))
 
-seededRand = np.random.default_rng(10) # seeting a seed for random initial weights after a few tests
+seededRand = np.random.default_rng(
+    10
+)  # seeting a seed for random initial weights after a few tests
 initialWeights = seededRand.random(13)
 initialBias = 0
 hypothesisFunction = HypothesisFunction(initialWeights, initialBias)

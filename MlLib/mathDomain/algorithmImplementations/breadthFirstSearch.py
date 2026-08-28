@@ -13,7 +13,7 @@ class BreadthFirstSearch(AbstractGraphAlgorithm):
         super().__init__(graph)
         self.metadata = {
             "name": "Breadth First Search",
-            "description": "Graph traversal/search using breadth-first order."
+            "description": "Graph traversal/search using breadth-first order.",
         }
 
     def _search(self, context: SearchContext) -> Any:

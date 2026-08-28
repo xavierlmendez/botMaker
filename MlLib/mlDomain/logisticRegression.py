@@ -13,17 +13,19 @@ from MlLib.mathDomain.lossFunction import MSE
 from MlLib.mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
 
 
-class MyLogisticRegression: # prefixing with my for the comparison script, rename later when cleaning up files
+class MyLogisticRegression:  # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
-    def __init__(self, learningRate = 0.001, epochs = 10):
+    def __init__(self, learningRate=0.001, epochs=10):
         self.metadata = {
             "name": "Logistic Regression Base Class",
-            "description": "Core logistic regression implementation with training, prediction, and evaluation helpers."
+            "description": "Core logistic regression implementation with training, prediction, and evaluation helpers.",
         }
         # TODO: review metadata (auto-generated)
-        seededRand = np.random.default_rng(10) # seeting a seed for random initial weights,
+        seededRand = np.random.default_rng(10)  # seeting a seed for random initial weights,
         self.numWeights = 1
-        initialWeights = seededRand.random(self.numWeights) # hardcoded for now but this should overwritten by subclasses for project specific implementation
+        initialWeights = seededRand.random(
+            self.numWeights
+        )  # hardcoded for now but this should overwritten by subclasses for project specific implementation
         initialBias = 0
         self.learningModel = HypothesisFunction(initialWeights, initialBias)
         self.lossFunction = MSE()
@@ -32,10 +34,14 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = None
 
-    def gridFit(self, trainValues, testValues, trainTargets, testTargets): #TODO push down the test train split to this scope so that can be a parameter for the grid later
+    def gridFit(
+        self, trainValues, testValues, trainTargets, testTargets
+    ):  # TODO push down the test train split to this scope so that can be a parameter for the grid later
         hyperparameterCombinations = list(ParameterGrid(self.hyperparameterGridOptions))
-        modelImplementationName = self.hyperparameterGridOptions[0]['modelName'][0]
-        print(f" Starting model training for {type(self).__name__} implementation: {modelImplementationName}\n")
+        modelImplementationName = self.hyperparameterGridOptions[0]["modelName"][0]
+        print(
+            f" Starting model training for {type(self).__name__} implementation: {modelImplementationName}\n"
+        )
 
         countModels = hyperparameterCombinations.__len__()
         print(f" Total model permutations: {countModels}")
@@ -45,14 +51,21 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
         for parameterSetting in hyperparameterCombinations:
             modelNumber += 1
 
-            self.lossFunction = parameterSetting['lossFunction']
-            self.epochs = parameterSetting['epoch']
-            self.learningRate = parameterSetting['learningRate']
-            seededRand = np.random.default_rng(parameterSetting['weightRandSeed'])
+            self.lossFunction = parameterSetting["lossFunction"]
+            self.epochs = parameterSetting["epoch"]
+            self.learningRate = parameterSetting["learningRate"]
+            seededRand = np.random.default_rng(parameterSetting["weightRandSeed"])
             initialWeights = seededRand.random(self.numWeights)
-            initialBias = parameterSetting['initialBias']
-            self.learningModel = HypothesisFunction(initialWeights, initialBias, parameterSetting['polynomialDegree'], parameterSetting['HypothesisExpander'])
-            hypothesisSpaceAdjustedWeights = self.learningModel.hypothesisExpander.expandHypothesis(initialWeights)
+            initialBias = parameterSetting["initialBias"]
+            self.learningModel = HypothesisFunction(
+                initialWeights,
+                initialBias,
+                parameterSetting["polynomialDegree"],
+                parameterSetting["HypothesisExpander"],
+            )
+            hypothesisSpaceAdjustedWeights = self.learningModel.hypothesisExpander.expandHypothesis(
+                initialWeights
+            )
             self.updateWeights(hypothesisSpaceAdjustedWeights, initialBias)
 
             for epoch in range(self.epochs):
@@ -62,12 +75,14 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
 
             self.evaluate(testValues, testTargets, parameterSetting)
 
-            if(modelNumber % 1 == 0): # modify depending on number of permutations i.e. 300+ then probably modulo 40 or 80
+            if (
+                modelNumber % 1 == 0
+            ):  # modify depending on number of permutations i.e. 300+ then probably modulo 40 or 80
                 print(f"\tModel Number {modelNumber}/{countModels} complete")
 
         endTime = time.perf_counter()
         timeElapsed = endTime - startTime
-        timePerModel = timeElapsed/countModels
+        timePerModel = timeElapsed / countModels
         print(f" Training Time Elapsed: {timeElapsed}, time per model: {timePerModel}")
 
     def fit(self, dataValues, dataTargets):
@@ -96,7 +111,9 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
         # Standardize Inputs for compatibility with pandas dataframes as parameters
         dataValues, dataTargets = self.dataFrameCrossCapatibility(dataValues, dataTargets)
         predictedValues = self.predictValues(dataValues, dataTargets)
-        self.evaluator.updateTestingPredictionData(dataValues, dataTargets, predictedValues, evaluationMetaData)
+        self.evaluator.updateTestingPredictionData(
+            dataValues, dataTargets, predictedValues, evaluationMetaData
+        )
 
     def calculateGradientDescent(self, dataValues, dataTargets):
         # standardize Inputs for compatibility with pandas dataframes as parameters
@@ -104,7 +121,9 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
 
         # calculate the gradient
         predicted = self.predictValues(dataValues)
-        gradientDescentAdjustedDataTargets = self.lossFunction.computeGradient(dataTargets, predicted)
+        gradientDescentAdjustedDataTargets = self.lossFunction.computeGradient(
+            dataTargets, predicted
+        )
         dataValues = self.learningModel.hypothesisExpander.fitDataToHypothesis(dataValues)
         gradientDescentAdjustedWeights = dataValues.T @ gradientDescentAdjustedDataTargets
         adjustedBias = sum(gradientDescentAdjustedDataTargets)
@@ -112,7 +131,9 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
 
     def updateWeights(self, gradientDescentAdjustedWeights, gradientDescentAdjustedBias):
         # update the weights and bias
-        newWeights = self.learningModel.getWeights() - self.learningRate * gradientDescentAdjustedWeights
+        newWeights = (
+            self.learningModel.getWeights() - self.learningRate * gradientDescentAdjustedWeights
+        )
         newBias = self.learningModel.getBias() - self.learningRate * gradientDescentAdjustedBias
         self.learningModel.updateWeights(newWeights)
         self.learningModel.updateBias(newBias)

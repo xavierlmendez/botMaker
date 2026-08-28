@@ -5,7 +5,7 @@ from MlLib.mathDomain.hypothesisExpander import HypothesisExpander
 
 # numpy documentation ref for linear algebra functions https://numpy.org/devdocs/reference/routines.linalg.html
 class HypothesisFunction:
-    def __init__(self, initialWeights, initialBias, degree, hypothesisExpander = None):
+    def __init__(self, initialWeights, initialBias, degree, hypothesisExpander=None):
         # the X in the normal hypothesis function will be passed into the compute prediction function instead of a part of instantiation
         self.initialHypothesis = initialWeights
         self.hypothesis = initialWeights
@@ -16,7 +16,7 @@ class HypothesisFunction:
         self.hypothesis = self.hypothesisExpander.expandHypothesis(self.hypothesis)
         self.metadata = {
             "name": "hypothesis function parent class",
-            "description": "A library class serving as a template for hypothesis function classes used to compute a prediction, hypothesis in this context is a nparray containing the weight and degree of the hypothesis space"
+            "description": "A library class serving as a template for hypothesis function classes used to compute a prediction, hypothesis in this context is a nparray containing the weight and degree of the hypothesis space",
         }
 
     def setHypothesis(self, hypothesis):
@@ -41,7 +41,7 @@ class HypothesisFunction:
 
     def computeClassification(self, data: np.ndarray):
         # multiplying the weights by the data and adding the bias
-        #TODO call hypothesisExpander to shape data if needed
+        # TODO call hypothesisExpander to shape data if needed
         data = self.hypothesisExpander.fitDataToHypothesis(data, True)
         if self.hypothesis.shape[0] != data.shape[0]:
             ahh = 1  # common issue when building so leaving this to break point on

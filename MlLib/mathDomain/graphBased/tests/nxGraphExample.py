@@ -29,7 +29,6 @@ def main():
 
     nx_graph = graph.getNxGraph()
 
-
     # Compute layout
     pos = nx.spring_layout(nx_graph, seed=42)
 
@@ -37,7 +36,7 @@ def main():
     traversal = list(nx.bfs_tree(nx_graph, source=node_ids[0]).nodes())
     searchContext = SearchContext(
         start_node_id=node_ids[0],
-        target_node_criteria = lambda node: node.node_id == 7,
+        target_node_criteria=lambda node: node.node_id == 7,
     )
 
     traversal_two = BreadthFirstSearch(graph).run(searchContext)
@@ -60,6 +59,7 @@ def main():
 
     plt.tight_layout()
     plt.show()
+
 
 if __name__ == "__main__":
     main()

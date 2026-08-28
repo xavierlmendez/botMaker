@@ -4,10 +4,11 @@ class RegularizationFunction:
         # later I want the hypothesis function to have an enum so that I can dictate if it is meant to be for regression or classification
         self.metadata = {
             "name": "loss function parent class",
-            "description": "A library class serving as a template for loss function classes that compute loss between a single predicted and actual value"
+            "description": "A library class serving as a template for loss function classes that compute loss between a single predicted and actual value",
         }
 
     def computePenalty(self, actual, predicted):
         pass
+
     def compute(self, actual, predicted):
         pass

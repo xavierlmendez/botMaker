@@ -10,7 +10,9 @@ def test_calculate_gradient_descent_and_update_weights():
     initial_weights = np.array([1.0, 1.0])
     initial_bias = 0.0
     expander = PolynomialRegressionExpander(degree=1)
-    hypothesis = HypothesisFunction(initial_weights, initial_bias, degree=1, hypothesisExpander=expander)
+    hypothesis = HypothesisFunction(
+        initial_weights, initial_bias, degree=1, hypothesisExpander=expander
+    )
 
     model = MyLinearRegression(hypothesis, MSE(), learningRate=0.1, epochs=1)
 
@@ -33,7 +35,9 @@ def test_predict_values_returns_expected_shape():
     initial_weights = np.array([2.0, -1.0])
     initial_bias = 0.5
     expander = PolynomialRegressionExpander(degree=1)
-    hypothesis = HypothesisFunction(initial_weights, initial_bias, degree=1, hypothesisExpander=expander)
+    hypothesis = HypothesisFunction(
+        initial_weights, initial_bias, degree=1, hypothesisExpander=expander
+    )
 
     model = MyLinearRegression(hypothesis, MSE(), learningRate=0.01, epochs=1)
 
@@ -47,4 +51,6 @@ def test_predict_values_returns_expected_shape():
     predictions = model.predictValues(data_values)
 
     assert predictions.shape == (2,)
-    assert np.allclose(predictions, np.array([2.0 * 1.0 + -1.0 * 2.0 + 0.5, 2.0 * 3.0 + -1.0 * 4.0 + 0.5]))
+    assert np.allclose(
+        predictions, np.array([2.0 * 1.0 + -1.0 * 2.0 + 0.5, 2.0 * 3.0 + -1.0 * 4.0 + 0.5])
+    )

@@ -4,11 +4,17 @@ from MlLib.mathDomain.hypothesis import HypothesisFunction
 from MlLib.mathDomain.lossFunction import LossFunction
 
 
-class MySVM: # prefixing with my for the comparison script, rename later when cleaning up files
-    def __init__(self, hypothesisFunction : HypothesisFunction, lossFunction : LossFunction, learningRate = 0.001, epochs = 10):
+class MySVM:  # prefixing with my for the comparison script, rename later when cleaning up files
+    def __init__(
+        self,
+        hypothesisFunction: HypothesisFunction,
+        lossFunction: LossFunction,
+        learningRate=0.001,
+        epochs=10,
+    ):
         self.metadata = {
             "name": "SVM Base Class",
-            "description": "Support Vector Machine implementation using hinge-style sub-gradient updates."
+            "description": "Support Vector Machine implementation using hinge-style sub-gradient updates.",
         }
         # TODO: review metadata (auto-generated)
         self.learningModel = hypothesisFunction
@@ -18,7 +24,9 @@ class MySVM: # prefixing with my for the comparison script, rename later when cl
 
     def fit(self, dataValues, dataTargets):
         for epoch in range(self.epochs):
-            subGradientDirectionMatrix, subGradientDiasDirectionMatrix = self.calculateSubGradientDescent(dataValues, dataTargets)
+            subGradientDirectionMatrix, subGradientDiasDirectionMatrix = (
+                self.calculateSubGradientDescent(dataValues, dataTargets)
+            )
             self.updateWeights(subGradientDirectionMatrix, subGradientDiasDirectionMatrix)
             error = self.calculateError(dataValues, dataTargets)
             print(f"Epoch: {epoch}, Error: {error}")
@@ -45,9 +53,9 @@ class MySVM: # prefixing with my for the comparison script, rename later when cl
 
     def updateWeights(self, subGradientDirection, subGradientBiasDirection):
         # update the weights and bias
-        print('sub gradient:', subGradientDirection)
+        print("sub gradient:", subGradientDirection)
         newWeights = self.learningModel.getWeights() - self.learningRate * subGradientDirection
-        print('updated weights:', newWeights)
+        print("updated weights:", newWeights)
         newBias = self.learningModel.getBias() - self.learningRate * subGradientBiasDirection
         self.learningModel.updateWeights(newWeights)
         self.learningModel.updateBias(newBias)

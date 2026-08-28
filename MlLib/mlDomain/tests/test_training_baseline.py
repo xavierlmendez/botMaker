@@ -127,7 +127,9 @@ def test_metrics_are_well_formed(results, key):
         total = m["truePositives"] + m["falsePositives"] + m["trueNegatives"] + m["falseNegatives"]
         n_test = n_test or total
         assert total == n_test, "confusion matrix should cover the whole test split every time"
-        assert m["accuracy"] == pytest.approx((m["truePositives"] + m["trueNegatives"]) / total, abs=1e-6)
+        assert m["accuracy"] == pytest.approx(
+            (m["truePositives"] + m["trueNegatives"]) / total, abs=1e-6
+        )
     assert n_test == 2000, "10 000 rows with test_size=0.20"
 
 
@@ -150,6 +152,10 @@ def test_snapshot_matches(results):
         for exp, got in zip(expected[key], results[key], strict=True):
             for field, value in exp.items():
                 if isinstance(value, float):
-                    assert got[field] == pytest.approx(value, abs=TOLERANCE), (key, exp["iteration"], field)
+                    assert got[field] == pytest.approx(value, abs=TOLERANCE), (
+                        key,
+                        exp["iteration"],
+                        field,
+                    )
                 else:
                     assert got[field] == value, (key, exp["iteration"], field)

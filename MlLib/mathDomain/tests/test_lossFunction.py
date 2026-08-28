@@ -40,7 +40,9 @@ def test_perceptron_loss_gradient_and_bias():
     loss_fn = PerceptronLoss()
 
     assert np.allclose(loss_fn.computeLoss(actual, predicted), np.array([0.0, 0.1, 0.2]))
-    assert np.allclose(loss_fn.computeGradient(actual, predicted, data_values), np.array([2.0, 2.0]))
+    assert np.allclose(
+        loss_fn.computeGradient(actual, predicted, data_values), np.array([2.0, 2.0])
+    )
     assert loss_fn.computeBias(actual, predicted) == 0.0
 
 
@@ -58,5 +60,7 @@ def test_hinge_loss_gradient_and_bias():
     loss_fn = HingeLoss()
 
     assert np.allclose(loss_fn.computeLoss(actual, predicted), np.array([0.5, 1.1, 1.2]))
-    assert np.allclose(loss_fn.computeGradient(actual, predicted, data_values), np.array([-2.0, -2.0]))
+    assert np.allclose(
+        loss_fn.computeGradient(actual, predicted, data_values), np.array([-2.0, -2.0])
+    )
     assert loss_fn.computeBias(actual, predicted) == 0.0

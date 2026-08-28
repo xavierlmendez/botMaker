@@ -18,12 +18,12 @@ class SearchContext:
     allowRevisiting: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
 
-class AbstractGraphAlgorithm(ABC):
 
+class AbstractGraphAlgorithm(ABC):
     def __init__(self, graph: Graph, evaluator: Any | None = None):
         self.metadata = {
             "name": "Abstract Graph Algorithm",
-            "description": "Base class for graph search algorithms with evaluator orchestration."
+            "description": "Base class for graph search algorithms with evaluator orchestration.",
         }
         # TODO: review metadata (auto-generated)
         self.graph = graph
