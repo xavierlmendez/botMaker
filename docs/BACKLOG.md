@@ -142,8 +142,9 @@ slice 3.4) · `:133` "abstracted later".
 
 ### BL-14 — Never-imported modules · `kept` + smoke tests (slice 3.6)
 `graphBased/visualizer.py`, `probabilityBased/bayesRule.py`, `probabilityBased/gaussianPrior.py`,
-`algorithmImplementations/depthFirstSearch.py`, `mathDomain/regularizationFunction.py`, `mathDomain/linearAlgebraHelpers.py`.
-All real implementations (8–34 lines); kept by owner decision, each gets one smoke test so the keep rule holds.
+`mathDomain/regularizationFunction.py`, `mathDomain/linearAlgebraHelpers.py`.
+Real implementations (8–34 lines); kept by owner decision, each gets one smoke test so the keep rule holds.
+*Correction 2026-08-28:* `depthFirstSearch.py` was listed here but is a stub (returns an empty traversal) — see BL-25.
 
 ### BL-15 — Duplicate DFS · `deleted` · re-entry 0
 `MlLib/mathDomain/graphBased/searchAlgorithms/DFS.py` (13 lines) superseded by `algorithmImplementations/depthFirstSearch.py`.
@@ -186,6 +187,12 @@ E501 ×130 (long comments/strings) · TD004 ×17 (→ 3.7) · RUF012 ×12 (metad
 RUF059 ×6 · B007 ×5 · E402 ×4 · E711 ×3 · RUF002 ×2 · SIM113 ×1 · B905 ×1 (→ 3.5/3.6) · N-rules (→ 4.2/4.3).
 Rule: a slice that touches a file fixes that file's ignored violations; a code leaves the list when its
 count reaches zero. Nothing is added to the list without a backlog entry.
+
+### BL-25 — Depth-first search is a stub · `fix` · slice 3.6
+`MlLib/mathDomain/algorithmImplementations/depthFirstSearch.py` validates inputs then returns `[]`. Found in
+slice 3.1 when its import root was fixed and the algorithm modules became importable. Implement iteratively
+(stack, visited set, `max_depth`) mirroring the BFS shape; the BFS tests are the template. Until then no
+smoke test can pass for it, so slice 3.6 implements rather than merely tests it.
 
 ## Closed
 
