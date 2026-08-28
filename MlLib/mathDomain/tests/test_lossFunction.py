@@ -1,6 +1,6 @@
 import numpy as np
 
-from MlLib.mathDomain.lossFunction import MSE, MAE, PerceptronLoss, HingeLoss
+from MlLib.mathDomain.lossFunction import MAE, MSE, HingeLoss, PerceptronLoss
 
 
 def test_mse_loss_and_gradient():

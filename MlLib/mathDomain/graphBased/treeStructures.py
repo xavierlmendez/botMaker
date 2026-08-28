@@ -1,4 +1,6 @@
 import numpy as np
+
+
 class TreeNode:
     def __init__(self, parentNode = None, data = None, children: np.ndarray = None):
         self.metadata = {

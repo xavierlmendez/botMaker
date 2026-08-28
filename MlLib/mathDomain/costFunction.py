@@ -1,6 +1,7 @@
 from MlLib.mathDomain.lossFunction import LossFunction
 
-class CostFunction():
+
+class CostFunction:
     def __init__(self, lossFunction : LossFunction):
         self.lossFunction = lossFunction
         # the hypothesisFunction I am expecting to be a data object representing the vector notation used for hypothesisspaces so I can exapand this to polynomial

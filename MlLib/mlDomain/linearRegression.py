@@ -2,6 +2,8 @@ from numpy import array, mean, sum
 
 from MlLib.mathDomain.hypothesis import HypothesisFunction
 from MlLib.mathDomain.lossFunction import LossFunction
+
+
 class MyLinearRegression: # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
     def __init__(self, hypothesisFunction : HypothesisFunction, lossFunction : LossFunction, learningRate = 0.001, epochs = 10):

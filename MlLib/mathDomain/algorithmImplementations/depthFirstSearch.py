@@ -1,7 +1,10 @@
 from collections import deque
 from typing import Any
 
-from botMaker.MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import AbstractGraphAlgorithm, SearchContext
+from botMaker.MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import (
+    AbstractGraphAlgorithm,
+    SearchContext,
+)
 from botMaker.MlLib.mathDomain.graphBased.graphStructures import Graph
 
 
@@ -24,7 +27,7 @@ class DepthFirstSearch(AbstractGraphAlgorithm):
             raise KeyError(f"Unknown node: {context.start_node_id}")
 
         if context.target_node_criteria is None:
-            raise KeyError(f"DFS must have target criteria")
+            raise KeyError("DFS must have target criteria")
 
         queue = deque([context.start_node_id])
         traversal_order: list[int] = []

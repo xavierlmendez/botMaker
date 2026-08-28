@@ -1,7 +1,10 @@
 from collections import deque
 from typing import Any
 
-from botMaker.MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import AbstractGraphAlgorithm, SearchContext
+from botMaker.MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import (
+    AbstractGraphAlgorithm,
+    SearchContext,
+)
 from botMaker.MlLib.mathDomain.graphBased.graphStructures import Graph
 
 
@@ -22,7 +25,7 @@ class BreadthFirstSearch(AbstractGraphAlgorithm):
             raise KeyError(f"Unknown node: {context.start_node_id}")
 
         if context.target_node_criteria is None:
-            raise KeyError(f"BFS must have target criteria")
+            raise KeyError("BFS must have target criteria")
 
         if context.allowRevisiting is not None and not context.allowRevisiting:
             return self.search_without_revisiting(context)

@@ -1,9 +1,10 @@
 import numpy as np
 
-from MlLib.mlDomain.logisticRegression import MyLogisticRegression
-from MlLib.mathDomain.lossFunction import MSE, MAE
 from MlLib.mathDomain.hypothesisExpander import PolynomialRegressionExpander
+from MlLib.mathDomain.lossFunction import MAE, MSE
+from MlLib.mlDomain.logisticRegression import MyLogisticRegression
 from MlLib.mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
+
 
 class LogisticRegression(MyLogisticRegression):
     def __init__(self):
@@ -12,7 +13,7 @@ class LogisticRegression(MyLogisticRegression):
             "description": "Project-specific logistic regression configuration for ad click prediction."
         }
         # TODO: review metadata (auto-generated)
-        self.numWeights = 19 # todo refactor to more descriptive name like num features or numfeature weights
+        self.numWeights = 19 # TODO refactor to more descriptive name like num features or numfeature weights
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = np.array([
             {
@@ -26,7 +27,7 @@ class LogisticRegression(MyLogisticRegression):
                 'initialBias': [.5, 1, 2, 5]
             }
         ])
-        self.exporter = None # todo implement exporter
+        self.exporter = None # TODO implement exporter
 
 class LogisticRegressionWithAgeBinning(MyLogisticRegression):
     def __init__(self):
@@ -35,7 +36,7 @@ class LogisticRegressionWithAgeBinning(MyLogisticRegression):
             "description": "Project-specific logistic regression with age binning for ad click prediction."
         }
         # TODO: review metadata (auto-generated)
-        self.numWeights = 26 # todo refactor to more descriptive name like num features or numfeature weights
+        self.numWeights = 26 # TODO refactor to more descriptive name like num features or numfeature weights
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = np.array([
             {
@@ -49,4 +50,4 @@ class LogisticRegressionWithAgeBinning(MyLogisticRegression):
                 'initialBias': [.5, 1, 2, 5]
             }
         ])
-        self.exporter = None # todo implement exporter
+        self.exporter = None # TODO implement exporter

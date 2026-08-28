@@ -1,13 +1,11 @@
 import numpy as np
 import pandas as pd
-import numpy as np
-import sklearn
-import pandas as pd
 
-from MlLib.mlDomain.linearRegression import MyLinearRegression
-from MlLib.mathDomain.lossFunction import MSE
 from MlLib.mathDomain.hypothesis import HypothesisFunction
-from MlLib.mathDomain.lossFunction import LossFunction
+from MlLib.mathDomain.lossFunction import MSE
+from MlLib.mlDomain.linearRegression import MyLinearRegression
+
+
 class BostonHousingDataset:
     def __init__(self):
         self.metadata = {
@@ -20,7 +18,7 @@ class BostonHousingDataset:
 
     def load_dataset(self):
         # Fetch data from URL
-        raw_df = pd.read_csv(self.url, sep="\s+", skiprows=22, header=None)
+        raw_df = pd.read_csv(self.url, sep=r"\s+", skiprows=22, header=None)
         data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
         target = raw_df.values[1::2, 2]
 
@@ -36,7 +34,7 @@ class BostonHousingDataset:
         dataset['target'] = target
 
         return dataset
-    
+
 boston_housing = BostonHousingDataset()
 boston_dataset = boston_housing.load_dataset()
 boston_dataset.keys(), boston_dataset['DESCR']
@@ -44,8 +42,9 @@ boston = pd.DataFrame(boston_dataset['data'], columns=boston_dataset['feature_na
 boston['MEDV'] = boston_dataset['target']
 boston.head()
 
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score
+from sklearn.model_selection import train_test_split
+
 
 def rmse(predictions, targets):
     return np.sqrt(((predictions - targets) ** 2).mean())
@@ -55,6 +54,7 @@ X = np.delete(X, 13, 1)
 y = boston['MEDV'].to_numpy()
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=5)
 from sklearn.linear_model import LinearRegression
+
 lin_model = LinearRegression()
 lin_model.fit(X_train, y_train)
 

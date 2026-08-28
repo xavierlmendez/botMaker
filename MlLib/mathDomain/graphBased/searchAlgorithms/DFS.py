@@ -1,5 +1,6 @@
 from MlLib.mathDomain.graphBased.graphStructures import Graph
 
+
 class DFS:
     def __init__(self, graph:Graph):
         self.metadata = {

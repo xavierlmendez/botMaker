@@ -1,4 +1,5 @@
 import numpy as np
+
 from MlLib.mathDomain.hypothesisExpander import HypothesisExpander
 
 
@@ -40,7 +41,7 @@ class HypothesisFunction:
 
     def computeClassification(self, data: np.ndarray):
         # multiplying the weights by the data and adding the bias
-        #todo call hypothesisExpander to shape data if needed
+        #TODO call hypothesisExpander to shape data if needed
         data = self.hypothesisExpander.fitDataToHypothesis(data, True)
         if self.hypothesis.shape[0] != data.shape[0]:
             ahh = 1  # common issue when building so leaving this to break point on
@@ -49,7 +50,7 @@ class HypothesisFunction:
 
     def expandHypothesis(self):
         # if the hypothesis is [[x1], [x2]] and degree=3 then we will return [[1, x1, x1^2, x1^3], [1, x2, x2^2, x2^3]]
-        # in this application the data's features are a basis vector of the dimensional space 
+        # in this application the data's features are a basis vector of the dimensional space
         self.hypothesis = self.hypothesisExpander.expand(self.hypothesis, self.degree)
 
     def getWeights(self):

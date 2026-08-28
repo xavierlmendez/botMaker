@@ -1,6 +1,5 @@
 #%%
 import numpy as np
-from numpy import linalg
 
 testInitFeatures = np.array([1,1,1,1])
 featureSpaceExpansion = testInitFeatures.reshape(-1, 1) @ testInitFeatures.reshape(1,-1)

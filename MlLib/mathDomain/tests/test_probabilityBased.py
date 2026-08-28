@@ -1,6 +1,6 @@
 from MlLib.mathDomain.probabilityBased.prior import prior
-from MlLib.mathDomain.probabilityBased.sumRule import SumRule
 from MlLib.mathDomain.probabilityBased.productRule import productRule
+from MlLib.mathDomain.probabilityBased.sumRule import SumRule
 
 
 def test_prior_constructs():

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 from botMaker.MlLib.mathDomain.graphBased.graphStructures import Graph
 
@@ -12,14 +13,14 @@ class SearchContext:
     """Explicit inputs for graph search algorithms."""
 
     start_node_id: int
-    target_node_criteria: Optional[Callable[[Any], bool]] = None
-    max_depth: Optional[int] = None
+    target_node_criteria: Callable[[Any], bool] | None = None
+    max_depth: int | None = None
     allowRevisiting: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
 
 class AbstractGraphAlgorithm(ABC):
 
-    def __init__(self, graph: Graph, evaluator: Optional[Any] = None):
+    def __init__(self, graph: Graph, evaluator: Any | None = None):
         self.metadata = {
             "name": "Abstract Graph Algorithm",
             "description": "Base class for graph search algorithms with evaluator orchestration."

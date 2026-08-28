@@ -1,5 +1,4 @@
 import pytest
-
 from botMaker.MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import SearchContext
 from botMaker.MlLib.mathDomain.algorithmImplementations.breadthFirstSearch import BreadthFirstSearch
 from botMaker.MlLib.mathDomain.graphBased.graphStructures import Graph

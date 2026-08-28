@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class QuadraticFormHelper():
+class QuadraticFormHelper:
     metadata = {
         "name": "Quadratic Form Helper",
         "description": "Helper for constructing quadratic form matrices."

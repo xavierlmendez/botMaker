@@ -1,6 +1,5 @@
 from json import dumps
 
-import numpy as np
 from numpy import ndarray
 
 
@@ -27,19 +26,19 @@ class ModelEvaluator:
         self.falseNegatives = 0
         self.evaluateModel()
         self.persistEvaluationRecord()
-        
+
     def getAccuracy(self):
         correctPredictions = 0
         countTotalPredictions = self.predictions.size
-        
+
         for i in range(countTotalPredictions):
             if self.testTargets[i] == self.predictions[i]:
                 correctPredictions += 1
-                
+
         # set to self to reuse for future calculations that would run after this
         self.correctPredictions = correctPredictions
         return correctPredictions / countTotalPredictions
-    
+
     def persistEvaluationRecord(self):
         self.evaluationRecord[self.runIteration] = {
             self.evaluationMetaData,
@@ -49,7 +48,7 @@ class ModelEvaluator:
             self.trueNegatives,
             self.falseNegatives,
         }
-        
+
     def printEvaluation(self, printBestModelStatsOnly=False):
         if not printBestModelStatsOnly:
             formattedEvalJson = dumps(self.evaluationRecord, indent=4)
@@ -62,33 +61,33 @@ class ModelEvaluator:
         bestAccuracy = {'iteration': None, 'value': float('-inf')}
         bestPrecision = {'iteration': None, 'value': float('-inf')}
         bestRecall = {'iteration': None, 'value': float('-inf')}
-    
+
         for iteration, metrics in self.evaluationRecord.items():
             accuracy = metrics.get('accuracy')
             precision = metrics.get('precision')
             recall = metrics.get('recall')
-    
+
             if accuracy > bestAccuracy['value']:
                 bestAccuracy = {'iteration': iteration, 'value': accuracy}
-    
+
             if precision > bestPrecision['value']:
                 bestPrecision = {'iteration': iteration, 'value': precision}
-    
+
             if recall > bestRecall['value']:
                 bestRecall = {'iteration': iteration, 'value': recall}
         modelName = self.evaluationMetaData['modelName']
         print(f"\n Evaluation Summary : {modelName} ")
-    
+
         print(
             f"\tBest Accuracy : {bestAccuracy['value']:.4f} "
             f"(Iteration {bestAccuracy['iteration']})"
         )
-    
+
         print(
             f"\tBest Precision: {bestPrecision['value']:.4f} "
             f"\t(Iteration {bestPrecision['iteration']})"
         )
-    
+
         print(
             f"\tBest Recall   : {bestRecall['value']:.4f} "
             f"\t(Iteration {bestRecall['iteration']})"
@@ -101,16 +100,16 @@ class ModelEvaluator:
             modelIteration = self.evaluationRecord.get(iteration)
             formattedEvalJson = dumps(modelIteration, indent=4)
             print(formattedEvalJson)
-            
-        
-        
+
+
+
 
     def evaluateModel(self):
         raise NotImplementedError("Subclasses must implement evaluateModel()")
 
 
 class LogisticRegressionModelEvaluator(ModelEvaluator):
-    
+
     def __init__(self):
         super().__init__()
         self.metadata = {
@@ -125,7 +124,7 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
         self.accuracy = self.getAccuracy()
         self.precision = self.getPrecision()
         self.recall = self.getRecall()
-            
+
     def setConfusionMatrixValues(self):
         truePositives = 0
         falsePositives = 0
@@ -133,8 +132,8 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
         falseNegatives = 0
         countTotalPredictions = self.predictions.size
 
-        self.predictions[self.predictions == -1] = 0 # standardize 0 and -1 to be zero 
-        self.testTargets[self.testTargets == -1] = 0 # standardize 0 and -1 to be zero 
+        self.predictions[self.predictions == -1] = 0 # standardize 0 and -1 to be zero
+        self.testTargets[self.testTargets == -1] = 0 # standardize 0 and -1 to be zero
         for i in range(countTotalPredictions):
             if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 1:
                 truePositives += 1
@@ -144,18 +143,18 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
                 trueNegatives += 1
             if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 0:
                 falseNegatives += 1
-                
+
         self.truePositives = truePositives
         self.falsePositives = falsePositives
         self.trueNegatives = trueNegatives
         self.falseNegatives = falseNegatives
-        
+
     def getPrecision(self):
         return self.truePositives / ((self.truePositives + self.falsePositives) or 1) # Account for divide by zero
-    
+
     def getRecall(self):
         return self.truePositives / ((self.truePositives + self.falseNegatives) or 1)
-        
+
     def getMSE(self):
         pass
 
@@ -178,11 +177,11 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
             "precision": self.precision,
             "recall": self.recall
         }
-        
+
     def classObjectDeserializer(self):
-        
+
         return self.parsedMetaData
-        
+
 
 class DecisionTreeModelEvaluator(ModelEvaluator):
 
@@ -263,4 +262,4 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
             "precision": self.precision,
             "recall": self.recall
         }
-            
+

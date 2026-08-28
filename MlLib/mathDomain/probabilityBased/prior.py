@@ -1,4 +1,4 @@
-class prior():
+class prior:
     #
     def __init__(self):
         self.metadata = {

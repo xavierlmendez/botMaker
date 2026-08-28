@@ -4,15 +4,14 @@ import numpy as np
 import pandas as pd
 from numpy import array, mean, sum
 from sklearn.model_selection import ParameterGrid
-from sklearn.gaussian_process.kernels import Hyperparameter
 
 # Linear and logistic are very similar however have a major difference in that logistic is for classification
-# Todo look into seeing if I can reuse the linear class without so much code duplication 
+# TODO look into seeing if I can reuse the linear class without so much code duplication
 #  as the main difference is the compute prediction function
-
 from MlLib.mathDomain.hypothesis import HypothesisFunction
-from MlLib.mathDomain.lossFunction import LossFunction, MSE, MAE
+from MlLib.mathDomain.lossFunction import MSE
 from MlLib.mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
+
 
 class MyLogisticRegression: # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
@@ -32,20 +31,20 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
         self.epochs = epochs
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = None
-        
-    def gridFit(self, trainValues, testValues, trainTargets, testTargets): #todo push down the test train split to this scope so that can be a parameter for the grid later
+
+    def gridFit(self, trainValues, testValues, trainTargets, testTargets): #TODO push down the test train split to this scope so that can be a parameter for the grid later
         hyperparameterCombinations = list(ParameterGrid(self.hyperparameterGridOptions))
         modelImplementationName = self.hyperparameterGridOptions[0]['modelName'][0]
         print(f" Starting model training for {type(self).__name__} implementation: {modelImplementationName}\n")
-        
+
         countModels = hyperparameterCombinations.__len__()
         print(f" Total model permutations: {countModels}")
-        
+
         modelNumber = 0
         startTime = time.perf_counter()
         for parameterSetting in hyperparameterCombinations:
             modelNumber += 1
-                
+
             self.lossFunction = parameterSetting['lossFunction']
             self.epochs = parameterSetting['epoch']
             self.learningRate = parameterSetting['learningRate']
@@ -55,17 +54,17 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
             self.learningModel = HypothesisFunction(initialWeights, initialBias, parameterSetting['polynomialDegree'], parameterSetting['HypothesisExpander'])
             hypothesisSpaceAdjustedWeights = self.learningModel.hypothesisExpander.expandHypothesis(initialWeights)
             self.updateWeights(hypothesisSpaceAdjustedWeights, initialBias)
-            
+
             for epoch in range(self.epochs):
                 newWeights, newBias = self.calculateGradientDescent(trainValues, trainTargets)
                 self.updateWeights(newWeights, newBias)
                 cost = self.calculateCostFunction(trainValues, trainTargets)
-                
+
             self.evaluate(testValues, testTargets, parameterSetting)
 
-            if(modelNumber % 1 == 0): # modify depending on number of permutations i.e. 300+ then probably modulo 40 or 80 
+            if(modelNumber % 1 == 0): # modify depending on number of permutations i.e. 300+ then probably modulo 40 or 80
                 print(f"\tModel Number {modelNumber}/{countModels} complete")
-        
+
         endTime = time.perf_counter()
         timeElapsed = endTime - startTime
         timePerModel = timeElapsed/countModels
@@ -121,7 +120,7 @@ class MyLogisticRegression: # prefixing with my for the comparison script, renam
     def calculateCostFunction(self, dataValues, dataTargets):
         # Standardize Inputs for compatibility with pandas dataframes as parameters
         dataValues, dataTargets = self.dataFrameCrossCapatibility(dataValues, dataTargets)
-        
+
         # here were putting together the cost function as a set of linear equations
         # doing it this way to leverage linear algebra packages
         predicted = self.predictValues(dataValues)

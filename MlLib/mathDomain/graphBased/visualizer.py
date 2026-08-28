@@ -5,6 +5,7 @@ import networkx as nx
 
 from MlLib.mathDomain.graphBased.graphStructures import Graph
 
+
 class Visualizer:
     def __init__(self):
         self.metadata = {

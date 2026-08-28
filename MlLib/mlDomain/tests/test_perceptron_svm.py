@@ -4,8 +4,8 @@ from MlLib.mathDomain.hypothesis import HypothesisFunction
 from MlLib.mathDomain.hypothesisExpander import PolynomialRegressionExpander
 from MlLib.mathDomain.lossFunction import HingeLoss, PerceptronLoss
 from MlLib.mlDomain.perceptron import MyPerceptron
-from MlLib.mlDomain.SVM import MySVM
 from MlLib.mlDomain.probabilisticKNN import ProbabilisticKNN
+from MlLib.mlDomain.SVM import MySVM
 
 
 def build_hypothesis():

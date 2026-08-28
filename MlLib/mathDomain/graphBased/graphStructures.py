@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Any, Set
+from typing import Any
 
 import networkx as nx
+
 
 # https://dzone.com/articles/understanding-pythons-dataclass-decorator
 @dataclass(frozen=True, slots=True)
@@ -24,7 +25,7 @@ class GraphNode:
     # TODO: review metadata (auto-generated)
     node_id: int
     data: Any
-    neighbors: Set[int] = field(default_factory=set)
+    neighbors: set[int] = field(default_factory=set)
 
 class Graph:
     def __init__(self, initNodes = None):
@@ -40,7 +41,7 @@ class Graph:
         if initNodes is not None:
             for nodeId in initNodes:
                 self.nodes[nodeId] = initNodes[nodeId]
-        
+
     def addNode(self, data = None):
         self.idIncrementor += 1
         nodeId = self.idIncrementor
@@ -48,7 +49,7 @@ class Graph:
         newNode = GraphNode(nodeId, data)
         self.nodes[nodeId] = newNode
         return nodeId
-        
+
     def addEdge(self, nodeIdOne, nodeIdTwo):
         if nodeIdOne not in self.nodes:
             raise KeyError(f"Unknown node: {nodeIdOne}")

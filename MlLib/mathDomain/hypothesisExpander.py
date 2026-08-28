@@ -34,13 +34,13 @@ class PolynomialRegressionExpander(HypothesisExpander):
             expandedWeightsArray = expandedWeightsArray.reshape(1, -1)
 
         featureSpaceExpandedToDegree = expandedWeightsArray[:, :, None] ** exponents[None, None, :] # AKA Phi to represent feature brought to a higher dimensionality
-        # the [:, :, None] function adds a new axis to the array with the : retaining the previous two axis 
+        # the [:, :, None] function adds a new axis to the array with the : retaining the previous two axis
         # this results in a new axis mapped that holds the degrees that would need to be applied to the second axis
         featureSpaceExpandedToDegree = featureSpaceExpandedToDegree.reshape(featureSpaceExpandedToDegree.shape[0], featureSpaceExpandedToDegree.shape[1] * self.degree)
         # above were getting rid of the third axis used to map the degrees and reshaping the ndarray based on the number of features shape[1] * number of degrees the array holds
         return featureSpaceExpandedToDegree
 
-    def expandHypothesis(self, initialArray: np.ndarray):  # can be used to shape both hypothesis function and features 
+    def expandHypothesis(self, initialArray: np.ndarray):  # can be used to shape both hypothesis function and features
         return self.expand(initialArray).reshape(-1)
 
     def fitDataToHypothesis(self, data: np.ndarray, needsReshape = False):  # This expander implementation uses the expandHypothesis function for both
@@ -49,4 +49,3 @@ class PolynomialRegressionExpander(HypothesisExpander):
         else:
             return self.expand(data).reshape(-1) if needsReshape else self.expand(data)
 
-    

@@ -37,6 +37,7 @@ include = ["MlLib", "MlLib.*"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = ["notebooks"]   # coursework notebooks are not library code
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "TD", "RUF"]
@@ -46,8 +47,16 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Pre-rename codebase (Phase 4 removes these): camelCase modules, methods, and variables.
-"MlLib/**" = ["N801", "N802", "N803", "N806", "N815", "N816", "N999"]
+# Pre-refactor debt, tracked as BL-24 in docs/BACKLOG.md. Each code is removed from this list by the
+# slice that burns it down (Phase 3: TD004 E402 F841 RUF059 B007 E711 SIM113 B905 RUF002 RUF012 E501;
+# Phase 4: the N naming rules). Do not add codes here; fix the code or open a backlog entry.
+"MlLib/**" = [
+  "N801", "N802", "N803", "N806", "N815", "N816", "N999",   # camelCase naming (D-17, Phase 4)
+  "E501",    # long comment/string lines (130 after format)
+  "TD004",   # TODO without colon — rewritten to TODO(BL-nn) in slice 3.7
+  "RUF012",  # mutable class-level metadata dicts — removed by introspection in slice 5.1
+  "F841", "RUF059", "B007", "E711", "SIM113", "B905", "E402", "RUF002",   # slice 3.5/3.6 cleanups
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["MlLib"]

@@ -1,10 +1,11 @@
-import numpy as np
-import pandas as pd
 
-from MlLib.mathDomain.graphBased.splitFunction import SplitFunction, GiniImpurity
+from collections.abc import Callable
+from typing import Any
+
+from MlLib.mathDomain.graphBased.splitFunction import GiniImpurity, SplitFunction
 from MlLib.mathDomain.graphBased.treeStructures import TreeNode
 from MlLib.mlDomain.modelEvaluators.genericEvaluator import DecisionTreeModelEvaluator
-from typing import Callable, Any
+
 
 class nodeSplitCriteria:
     def __init__(self, column, value, criteriaFunc:Callable[[Any, Any], bool]):
@@ -16,11 +17,11 @@ class nodeSplitCriteria:
         self.column = column
         self.value = value
         self.criteriaFunction = criteriaFunc
-        
+
     def getSplit(self, dataValue):
         return self.criteriaFunction(dataValue, self.value)
 
-class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
+class DecisionTree: # TODO refactor to use graphBased utilities of MathDomain
     def __init__(self, splitFunction:SplitFunction = None, root = None):
         self.metadata = {
             "name": "Decision Tree Base Class",
@@ -30,10 +31,10 @@ class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
         self.root = root
         if self.root == None:
             self.root = TreeNode()
-            
+
         # hyperparameters
         self.maxDepth = 15
-        
+
         self.splitFunction = GiniImpurity()
         self.evaluator = DecisionTreeModelEvaluator()
         self.evaluationMetaData = {
@@ -45,7 +46,7 @@ class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
     def fit(self, dataValues, dataTargets):
         self.buildTree(dataValues, dataTargets, self.root)
         return self
-    
+
     def buildTree(self, dataValues, dataTargets, currentNode:TreeNode, depth=0):
         currentNode.prediction = dataTargets.mode()[0] # set the majority as the prediction
         splitColumn = self.splitFunction.calculateSplit(dataValues, dataTargets)
@@ -62,18 +63,18 @@ class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
                     childNode,
                     depth + 1
                 )
-        
+
         if currentNode.childNodeCount == 0 and not currentNode.isLeafNode :
             currentNode.isLeafNode = True
 
     def buildSplit(self, splitColumn, currentNode, dataValues, dataTargets):
         childNodes = []
         splitSubsets = []
-        
+
         # we have a column name for the split
         # we need to get all the types for the split column
         uniqueColumnValues = dataValues[splitColumn].unique() # treating all values as categorical bc age has been binned and is the only numerical column atm
-        
+
         # for each subset we need to create a child code and pair it with the subsets it has
         for category in uniqueColumnValues:
             childSubset = (dataValues[splitColumn] == category)
@@ -82,10 +83,10 @@ class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
 
             if childDataValuesSubset.empty:
                 continue # had a nan come up here so just skipping things that done need to be nodes
-                
+
             # very specific to a data set of all categorical values
             criteria = nodeSplitCriteria(splitColumn, category, criteriaFunc=lambda val, cat=category: val == cat)
-            
+
             childNode = TreeNode()
             childNode.data = criteria
             currentNode.addChild(childNode)
@@ -98,22 +99,22 @@ class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
         currentNode = self.root
         leafNodeResult = self.traverseTree(currentNode, data)
         return leafNodeResult
-    
+
     def traverseTree(self, currentNode, data):
         if currentNode.isLeafNode:
             return currentNode.prediction
-        
+
         for child in currentNode.childNodes:
             if isinstance(child.data, int):
                 return currentNode.prediction
-            
+
             nodeSplitCriteria = child.data
             if nodeSplitCriteria.criteriaFunction(data[nodeSplitCriteria.column]):
                 return self.traverseTree(child, data)
-        
+
         return currentNode.prediction # case when no children have the class needed to continue likely due to too little model complexity
-        # todo add error handling if no split found
-            
+        # TODO add error handling if no split found
+
 
     def predictValues(self, dataValues):
         predictedValues = []
@@ -128,7 +129,7 @@ class DecisionTree: # todo refactor to use graphBased utilities of MathDomain
         predictedValues = self.predictValues(dataValues)
         self.evaluator.updateTestingPredictionData(dataValues, dataTargets, predictedValues, evaluationMetaData)
 
-    
+
 class MyDecisionTree(DecisionTree):
     # implementation for AdClickPredictionProject - scratched this and am using decisionTree which will be abstracted later
     def __init__(self, splitFunction:SplitFunction = None, root = None):

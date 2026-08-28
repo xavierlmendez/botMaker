@@ -1,17 +1,17 @@
-from os.path import isfile
 
 from MlLib.dataDomain.DataOrchestrator import DataOrchestrator
-from MlLib.mlDomain.logisticRegression import MyLogisticRegression
-from MlLib.mlDomain.decisionTree import DecisionTree
-from MlLib.mlDomain.projectSpecificFiles.adClickPredictionLogReg import LogisticRegression, LogisticRegressionWithAgeBinning
-from MlLib.mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
+from MlLib.mlDomain.projectSpecificFiles.adClickPredictionLogReg import (
+    LogisticRegression,
+    LogisticRegressionWithAgeBinning,
+)
+
 
 # import kagglehub
 # from kagglehub import KaggleDatasetAdapter
 class AdClickPredictionModelBuilder:
     def __init__(self):
         self.projectName = "AdClickPrediction" # Used to get other project specific files in downstream procecsses
-        self.dataFilePath = "../dataDomain/dataSets/ad_click_dataset.csv"  
+        self.dataFilePath = "../dataDomain/dataSets/ad_click_dataset.csv"
         self.modelMetaData = {} # This function will contain the end results of each model to be used on the frontend
         self.models = {}
         self.metadata = {
@@ -19,18 +19,18 @@ class AdClickPredictionModelBuilder:
             "description": "ML 2025 Course Project looking at the use of different models in application to a problem"
         }
 
-        # Ran into issues with the kaggle api so ended up manually downloading csv 
+        # Ran into issues with the kaggle api so ended up manually downloading csv
         #if not isfile(self.dataFilePath):
         #    kagglehub.dataset_download("ranaghulamnabi/shopping-behavior-and-preferences-study")
-        
+
         self.dataOrchestrator = DataOrchestrator(self.dataFilePath, 'csv', 'Purchase')
-        
-        
+
+
     def buildModels(self):
-        
+
         # logisticReg decisionTree neuralNetwork
         print("\n Building Models...")
-        
+
         # Logistic Regression
         logisticModel = LogisticRegression()
         logisticModel.gridFit(*self.dataOrchestrator.build_test_train_split('logisticReg'))
@@ -54,13 +54,13 @@ class AdClickPredictionModelBuilder:
         # neuralModel = MyNeuralNetwork()
         # neuralModel.fit(neural_X_train, neural_y_train)
         # neuralModelEval = treeModel.evaluate(neural_X_test, neural_y_test)
-    
+
     def compileModelComparison(self):
         pass
 
     def printModelComparison(self):
        pass
-    
+
     def compileArtifactForWebApp(self):
         pass
 

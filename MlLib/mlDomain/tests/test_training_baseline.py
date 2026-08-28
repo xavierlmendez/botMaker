@@ -147,7 +147,7 @@ def test_snapshot_matches(results):
     assert set(expected) == set(results), "model set changed — update the snapshot deliberately"
     for key in expected:
         assert len(expected[key]) == len(results[key]), key
-        for exp, got in zip(expected[key], results[key]):
+        for exp, got in zip(expected[key], results[key], strict=True):
             for field, value in exp.items():
                 if isinstance(value, float):
                     assert got[field] == pytest.approx(value, abs=TOLERANCE), (key, exp["iteration"], field)
