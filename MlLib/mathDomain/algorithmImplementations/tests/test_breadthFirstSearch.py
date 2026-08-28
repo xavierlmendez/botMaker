@@ -1,7 +1,8 @@
 import pytest
-from botMaker.MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import SearchContext
-from botMaker.MlLib.mathDomain.algorithmImplementations.breadthFirstSearch import BreadthFirstSearch
-from botMaker.MlLib.mathDomain.graphBased.graphStructures import Graph
+
+from MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import SearchContext
+from MlLib.mathDomain.algorithmImplementations.breadthFirstSearch import BreadthFirstSearch
+from MlLib.mathDomain.graphBased.graphStructures import Graph
 
 
 def build_graph():
@@ -33,6 +34,30 @@ def test_bfs_stops_on_target_criteria_match():
 
     context = SearchContext(
         start_node_id=node_a, target_node_criteria=lambda node: node.data == "C"
+    )
+    traversal = BreadthFirstSearch(graph).run(context)
+
+    assert traversal == [node_a, node_b, node_c]
+
+
+def test_bfs_terminates_on_cycle_without_revisiting():
+    graph = Graph()
+    a = graph.addNode(data="A")
+    b = graph.addNode(data="B")
+    graph.addEdge(a, b)
+    graph.addEdge(b, a)
+
+    context = SearchContext(start_node_id=a, target_node_criteria=lambda node: False)
+    traversal = BreadthFirstSearch(graph).run(context)
+
+    assert traversal == [a, b]
+
+
+def test_bfs_max_depth_limits_expansion():
+    graph, node_a, node_b, node_c, node_d, node_e = build_graph()
+
+    context = SearchContext(
+        start_node_id=node_a, target_node_criteria=lambda node: False, max_depth=1
     )
     traversal = BreadthFirstSearch(graph).run(context)
 

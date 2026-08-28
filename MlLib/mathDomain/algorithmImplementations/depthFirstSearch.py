@@ -1,11 +1,11 @@
 from collections import deque
 from typing import Any
 
-from botMaker.MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import (
+from MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import (
     AbstractGraphAlgorithm,
     SearchContext,
 )
-from botMaker.MlLib.mathDomain.graphBased.graphStructures import Graph
+from MlLib.mathDomain.graphBased.graphStructures import Graph
 
 
 class DepthFirstSearch(AbstractGraphAlgorithm):

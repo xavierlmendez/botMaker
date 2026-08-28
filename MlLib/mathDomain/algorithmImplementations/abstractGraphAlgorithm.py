@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from botMaker.MlLib.mathDomain.graphBased.graphStructures import Graph
+from MlLib.mathDomain.graphBased.graphStructures import Graph
 
 
 @dataclass(frozen=True, slots=True)
