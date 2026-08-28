@@ -38,7 +38,7 @@ from MlLib.mathDomain.hypothesis import HypothesisFunction
 from MlLib.mathDomain.lossFunction import MSE
 from MlLib.mlDomain.linearRegression import MyLinearRegression
 
-h = HypothesisFunction(initial_weights, initial_bias)      # h(x) = w·x + b
+h = HypothesisFunction(initial_weights, initial_bias)  # h(x) = w·x + b
 model = MyLinearRegression(h, MSE(), learningRate=3e-6, epochs=15_000)
 model.fit(X_train, y_train)
 ```

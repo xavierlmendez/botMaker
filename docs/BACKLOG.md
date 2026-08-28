@@ -33,18 +33,58 @@ POST /api/strategybacktester     201     ← CreateStrategyBacktestRequest
 ```
 
 ```python
-class CreateAlertRequest(BaseModel):            name: str; threshold: int
-class CreateStrategyBacktestRequest(BaseModel): name: str; threshold: int
-class TickerAllocation(BaseModel):              symbol: str; displayName: str; allocation: float
-class Timeframe(BaseModel):                     start: str; end: str            # ISO 8601
-class StrategySettings(BaseModel):              initialCapital: int; rebalanceFrequency: str; benchmark: str
-class StrategyIndicator(BaseModel):             name: str; parameters: dict[str, Any]
-class RiskManagement(BaseModel):                stopLoss: float; takeProfit: float; positionSizing: str
-class StrategyAdditionalProperties(BaseModel):  indicators: list[StrategyIndicator]; riskManagement: RiskManagement; notes: str
+class CreateAlertRequest(BaseModel):
+    name: str
+    threshold: int
+
+
+class CreateStrategyBacktestRequest(BaseModel):
+    name: str
+    threshold: int
+
+
+class TickerAllocation(BaseModel):
+    symbol: str
+    displayName: str
+    allocation: float
+
+
+class Timeframe(BaseModel):
+    start: str
+    end: str  # ISO 8601
+
+
+class StrategySettings(BaseModel):
+    initialCapital: int
+    rebalanceFrequency: str
+    benchmark: str
+
+
+class StrategyIndicator(BaseModel):
+    name: str
+    parameters: dict[str, Any]
+
+
+class RiskManagement(BaseModel):
+    stopLoss: float
+    takeProfit: float
+    positionSizing: str
+
+
+class StrategyAdditionalProperties(BaseModel):
+    indicators: list[StrategyIndicator]
+    riskManagement: RiskManagement
+    notes: str
+
+
 class StrategyBacktestResponse(BaseModel):
-    strategyId: str; strategyName: str; description: str
-    tickers: list[TickerAllocation]; timeframe: Timeframe
-    settings: StrategySettings; additionalProperties: StrategyAdditionalProperties
+    strategyId: str
+    strategyName: str
+    description: str
+    tickers: list[TickerAllocation]
+    timeframe: Timeframe
+    settings: StrategySettings
+    additionalProperties: StrategyAdditionalProperties
 ```
 
 Example payload (was `initDummyDataForStrategy.json`): `STRAT-001` "Moving Average Crossover", AAPL 0.4 / MSFT 0.6,
