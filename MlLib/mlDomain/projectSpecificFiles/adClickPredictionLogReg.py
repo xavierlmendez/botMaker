@@ -8,14 +8,12 @@ from MlLib.mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionMo
 
 class LogisticRegression(MyLogisticRegression):
     def __init__(self):
+        super().__init__(numWeights=19)  # F4: base sets learningModel/lossFunction/epochs
         self.metadata = {
             "name": "Ad Click Logistic Regression",
             "description": "Project-specific logistic regression configuration for ad click prediction.",
         }
         # TODO: review metadata (auto-generated)
-        self.numWeights = (
-            19  # TODO refactor to more descriptive name like num features or numfeature weights
-        )
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = np.array(
             [
@@ -47,14 +45,12 @@ class LogisticRegression(MyLogisticRegression):
 
 class LogisticRegressionWithAgeBinning(MyLogisticRegression):
     def __init__(self):
+        super().__init__(numWeights=26)  # F4: base sets learningModel/lossFunction/epochs
         self.metadata = {
             "name": "Ad Click Logistic Regression With Age Binning",
             "description": "Project-specific logistic regression with age binning for ad click prediction.",
         }
         # TODO: review metadata (auto-generated)
-        self.numWeights = (
-            26  # TODO refactor to more descriptive name like num features or numfeature weights
-        )
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = np.array(
             [

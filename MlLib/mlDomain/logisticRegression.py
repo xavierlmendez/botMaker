@@ -9,25 +9,30 @@ from sklearn.model_selection import ParameterGrid
 # TODO look into seeing if I can reuse the linear class without so much code duplication
 #  as the main difference is the compute prediction function
 from MlLib.mathDomain.hypothesis import HypothesisFunction
+from MlLib.mathDomain.hypothesisExpander import PolynomialRegressionExpander
 from MlLib.mathDomain.lossFunction import MSE
 from MlLib.mlDomain.modelEvaluators.genericEvaluator import LogisticRegressionModelEvaluator
 
 
 class MyLogisticRegression:  # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
-    def __init__(self, learningRate=0.001, epochs=10):
+    def __init__(self, learningRate=0.001, epochs=10, numWeights=1):
         self.metadata = {
             "name": "Logistic Regression Base Class",
             "description": "Core logistic regression implementation with training, prediction, and evaluation helpers.",
         }
         # TODO: review metadata (auto-generated)
         seededRand = np.random.default_rng(10)  # seeting a seed for random initial weights,
-        self.numWeights = 1
-        initialWeights = seededRand.random(
-            self.numWeights
-        )  # hardcoded for now but this should overwritten by subclasses for project specific implementation
+        self.numWeights = numWeights  # number of feature weights; project subclasses pass theirs
+        initialWeights = seededRand.random(self.numWeights)
         initialBias = 0
-        self.learningModel = HypothesisFunction(initialWeights, initialBias)
+        # Same construction gridFit uses per permutation; a plain linear hypothesis by default.
+        self.learningModel = HypothesisFunction(
+            initialWeights,
+            initialBias,
+            degree=1,
+            hypothesisExpander=PolynomialRegressionExpander(1),
+        )
         self.lossFunction = MSE()
         self.learningRate = learningRate
         self.epochs = epochs
