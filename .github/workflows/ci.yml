@@ -1,0 +1,35 @@
+# from engineering-standards @ 56bfdb2 (configs/python/ci.yml). Two temporary deviations, both tracked:
+#  - one test file is ignored until slice 3.1 fixes its import root
+#  - the TODO(BL-nn) grep is added in slice 3.7 once TODOs are rewritten (BL-24)
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install
+        run: uv sync --locked --dev
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Test
+        run: uv run pytest --ignore=MlLib/mathDomain/algorithmImplementations/tests/test_breadthFirstSearch.py
