@@ -1,7 +1,7 @@
 # BotMaker / MlLib — Refactor & Framework Plan
 
 Status: **draft for owner review** · Written 2026-08-28 · Owner: Xavier
-Supersedes nothing; builds on `docs/ARCHITECTURE_REVIEW.md` (2026-07-18).
+Supersedes nothing; builds on `docs/reviews/2026-07-18-architecture-review.md` (2026-07-18).
 
 ---
 
@@ -179,7 +179,7 @@ Rule applied: D-4. "Delete" = removed in Phase 3 and recorded in `BACKLOG.md`. "
 | BL-16 | `~25 × # TODO: review metadata (auto-generated)` | across the tree | **Delete markers → R3** | Replaced wholesale by introspected metadata in Phase 5. | — |
 | BL-17 | `projectScripts/sandbox.py`, `testScript.py`, `KNNClassifierTestScript.py` | `projectScripts/` | **Move to `examples/`**, delete `sandbox.py` | Scripts are composition roots and belong in the reference brain; `sandbox.py` is scratch. | 0 |
 | BL-18 | `graphBased/tests/nxGraphExample.py` | (66 lines, not a test) | **Move to `examples/`** | Not collected by pytest; it is a worked example. | 0 |
-| BL-19 | tradePlatform plugin seam | (not in code) | **Backlog only** | Recorded so the north star is written down: descriptors introspected at the boundary (see `ARCHITECTURE_REVIEW.md` §Cross-codebase). | — |
+| BL-19 | tradePlatform plugin seam | (not in code) | **Backlog only** | Recorded so the north star is written down: descriptors introspected at the boundary (see `docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). | — |
 | BL-20 | Logistic/linear duplication | `logisticRegression.py:10,36` | **Keep+TODO → R2** | Phase 5. | — |
 | BL-21 | pandas ≥ 3 incompatibility | `genericEvaluator.py:136-137` | **Fix in Phase 3** | Copy-on-write makes `.to_numpy()` views read-only; in-place `[... == -1] = 0` raises `ValueError: assignment destination is read-only`. Baseline runs pinned to `pandas<3` until fixed. | — |
 | BL-22 | Confusion-matrix FP/FN swapped | `genericEvaluator.py:141,145` | **Fix in Phase 3** | "falsePositives" counts target=1/pred=0 (a false negative) and vice versa, so reported precision is really recall. Snapshot must be regenerated deliberately when fixed. | — |
@@ -198,7 +198,7 @@ Conventions for this section: every slice is one PR on a branch named as shown, 
 | 0.1 | *(local only)* | Remove accidental outer repo: `rm -rf ~/Desktop/BotMaker/.git ~/Desktop/BotMaker/.idea`. Delete `~/RiderProjects/botMaker`. Optionally move the project to `~/develop/botMaker` next to `orchestrator`. | `git -C ~/Desktop/BotMaker rev-parse` fails; only one checkout exists |
 | 0.2 | `chore/gitignore` | Root `.gitignore` from the standards Python template (`__pycache__/`, `.venv/`, `.DS_Store`, `.idea/`, `*.egg-info`, `.pytest_cache/`, `.ruff_cache/`). Nothing was tracked that needed un-tracking. | `git status` clean after a test run |
 | 0.3 | `chore/remove-fastapi` | Delete `fastapi_app/`, `Dockerfile`, `buildspec.yaml`, `initDummyDataForStrategy.json`, root `__init__.py`. Add BL-01 to a first-draft `docs/BACKLOG.md` with the Pydantic models pasted in as the saved contract. | Tree contains only `MlLib/`, `docs/`, config |
-| 0.4 | `chore/docs-and-assets` | Move `.docx`/`.pdf` → `docs/reports/`, `MLFall25HW1.ipynb` → `notebooks/`, un-ignore and commit the `.pptx` there too if wanted (A-7). Commit `docs/ARCHITECTURE_REVIEW.md` (currently untracked) and this plan. | `git ls-files` shows no binaries outside `docs/reports/` and `data/` |
+| 0.4 | `chore/docs-and-assets` | Move `.docx`/`.pdf` → `docs/reports/`, `MLFall25HW1.ipynb` → `notebooks/`, and archive the architecture review as `docs/reviews/2026-07-18-architecture-review.md` (references updated). `.pptx` stays ignored on disk (A-7 optional). | `git ls-files` shows no binaries outside `docs/reports/` and `data/` |
 
 ### Phase 1 — Framework documents (≈ 3 h)
 
@@ -206,7 +206,7 @@ Conventions for this section: every slice is one PR on a branch named as shown, 
 |---|---|---|---|
 | 1.1 | *(new repo)* `engineering-standards` | Scaffold per §2.2: templates, Python configs, `CONTRIBUTING.md`, `SOURCES.md` with citations to ruff / uv / pytest / pre-commit / GitHub Actions / Anthropic CLAUDE.md docs. | Repo pushed; README explains adoption in ≤ 10 lines |
 | 1.2 | `docs/framework` | Add `CLAUDE.md`, `README.md`, `CONTRIBUTING.md` (copied), `docs/DECISIONS.md` (seeded with D-1…D-13, A-1…A-7 as confirmed), `docs/BACKLOG.md` (full §3 table), `docs/LEARNING_LOG.md` (seeded with the topics already implemented: linear/logistic regression, perceptron, SVM, decision trees, KNN, BFS/DFS, polynomial features), `.claude/agents/testing-agent.md`. | Opening the repo in Claude Code and asking "how do I add a model?" gets a correct answer from the docs alone |
-| 1.3 | `docs/architecture` | Promote `ARCHITECTURE_REVIEW.md` → `ARCHITECTURE.md` (living doc: decomposition, contracts, extension points, the R1–R3 targets). Keep the review as `docs/reviews/2026-07-18-architecture-review.md`. | — |
+| 1.3 | `docs/architecture` | Promote the archived review (`docs/reviews/2026-07-18-architecture-review.md`, moved in 0.4) into a living `docs/ARCHITECTURE.md`: decomposition, contracts, extension points, the R1–R3 targets. | — |
 | 1.4 | *(orchestrator)* | `projects/botmaker.md`: update `## Thesis` to mention the framework, add `## Schedule` line-items for Phases 0–7 with `~` estimated dates, set `next` to Phase 0.1. Log the change. Run `python3 build/build.py`; `/publish`. | Docket shows the phase ladder |
 
 ### Phase 2 — Tooling gates (≈ 2.5 h)

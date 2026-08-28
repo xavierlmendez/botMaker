@@ -121,7 +121,7 @@ Not a test; a worked networkx example.
 
 ### BL-19 — tradePlatform plugin seam · `backlog-only`
 North star (D-2): MlLib models plug into tradePlatform as strategy plugins with descriptors introspected at the boundary
-(`docs/ARCHITECTURE_REVIEW.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
+(`docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
 
 ### BL-20 — Logistic/linear duplication · `kept` · Phase 5 (R2)
 `MlLib/mlDomain/logisticRegression.py:10,36`. Only real difference is `computePrediction` vs `computeClassification`, already
