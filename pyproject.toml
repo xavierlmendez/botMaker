@@ -1,0 +1,60 @@
+# Root project file. Ruff/pytest/dependency-group blocks from engineering-standards @ 869af91
+# (configs/python/pyproject.ruff.toml); see sources/SOURCES.md there for the vendor docs behind each key.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mllib"
+version = "0.1.0"
+description = "From-scratch math and ML library — the BotMaker learning and reference project."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Xavier Mendez" }]
+dependencies = [
+  "numpy>=1.26,<3",
+  "pandas>=2.2,<3",        # TODO(BL-21): lift the <3 pin once evaluator copies arrays on entry
+  "scikit-learn>=1.4",     # train_test_split, ParameterGrid only
+  "networkx>=3.2",
+  "matplotlib>=3.8",       # graphBased/visualizer.py
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.6",
+  "pre-commit>=3",
+  "hypothesis>=6",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["MlLib", "MlLib.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "TD", "RUF"]
+ignore = [
+  "TD002",   # author tag not required: the BL-nn id carries provenance
+  "TD003",   # issue link not required: BL-nn resolves in docs/BACKLOG.md
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Pre-rename codebase (Phase 4 removes these): camelCase modules, methods, and variables.
+"MlLib/**" = ["N801", "N802", "N803", "N806", "N815", "N816", "N999"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["MlLib"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["MlLib/mathDomain", "MlLib/mlDomain"]
+addopts = "-ra -q"

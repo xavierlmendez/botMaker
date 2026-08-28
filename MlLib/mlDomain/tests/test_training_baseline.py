@@ -17,11 +17,9 @@ Two layers of assertion:
    deliberately with ``BASELINE_UPDATE=1`` when a change is *meant* to alter
    numbers, and say so in the PR.
 
-Run (from the repo root, pandas < 3 required until BL-21 is fixed):
+Run (from the repo root; `pandas<3` is pinned in pyproject.toml until BL-21 is fixed):
 
-    PYTHONPATH=. uv run --no-project --python 3.12 \
-        --with "numpy<2.1" --with "pandas<3" --with networkx --with scikit-learn --with pytest \
-        python -m pytest MlLib/mlDomain/tests/test_training_baseline.py -q -s
+    uv run pytest MlLib/mlDomain/tests/test_training_baseline.py -q
 """
 
 from __future__ import annotations

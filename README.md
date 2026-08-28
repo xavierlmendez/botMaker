@@ -24,8 +24,12 @@ notebooks/           coursework notebooks
 
 ## Run
 
-See the **Commands** section of `CLAUDE.md` for the exact invocations that work today; they move to
-`uv sync` + `uv run pytest` in Phase 2 of the refactor plan. Requires Python 3.12 and `uv`.
+```
+uv sync          # Python 3.12, locked dependencies
+uv run pytest    # full suite including the training baseline
+```
+
+Requires [`uv`](https://docs.astral.sh/uv/); it installs Python 3.12 from `.python-version` if needed.
 
 ## How a model is composed
 

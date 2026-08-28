@@ -24,20 +24,17 @@ model classes — sklearn is used only for `train_test_split` and `ParameterGrid
 - `# TODO(BL-nn): …` is the only accepted TODO form.
 - Datasets over 1 MB are fetched, not committed (D-19).
 
-## Commands (until slice 2.1 replaces them with `uv sync`)
+## Commands
 
 ```
-# unit suite (one file excluded until slice 3.1 fixes its import root)
-PYTHONPATH=. uv run --no-project --python 3.12 --with "numpy<2.1" --with "pandas<3" \
-  --with networkx --with scikit-learn --with hypothesis --with pytest \
-  python -m pytest MlLib -q --ignore=MlLib/mathDomain/algorithmImplementations/tests/test_breadthFirstSearch.py
-# training baseline
-PYTHONPATH=. uv run --no-project --python 3.12 --with "numpy<2.1" --with "pandas<3" \
-  --with networkx --with scikit-learn --with pytest python -m pytest MlLib/mlDomain/tests/test_training_baseline.py -q
+uv sync                      # Python 3.12 (.python-version), locked deps, dev group
+uv run pytest                # unit suite incl. the training baseline (~40 s)
+uv run pytest MlLib/mlDomain/tests/test_training_baseline.py   # baseline only (~10 s)
 ```
 
-`pandas<3` is required until BL-21 is fixed. `uv run` without `--no-project` picks up `MlLib/pyproject.toml`
-and creates a stray `MlLib/.venv` — don't.
+`pandas<3` is pinned in `pyproject.toml` until BL-21 is fixed. One test file is excluded until slice 3.1
+fixes its import root: add `--ignore=MlLib/mathDomain/algorithmImplementations/tests/test_breadthFirstSearch.py`.
+Lint/format arrive in slice 2.2; pre-commit in 2.3.
 
 ## Conventions
 
