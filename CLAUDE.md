@@ -11,7 +11,7 @@ model classes — sklearn is used only for `train_test_split` and `ParameterGrid
 1. `docs/DECISIONS.md` — settled decisions; don't re-litigate, append new ones
 2. `docs/REFACTOR_PLAN.md` — the active migration plan; work happens in its numbered slices
 3. `docs/BACKLOG.md` — every `TODO(BL-nn)` in code resolves here
-4. `docs/reviews/2026-07-18-architecture-review.md` — the decomposition (promoted to `docs/ARCHITECTURE.md` in slice 1.3)
+4. `docs/ARCHITECTURE.md` — decomposition, contracts, extension points (dated reviews in `docs/reviews/`)
 
 ## Hard rules
 

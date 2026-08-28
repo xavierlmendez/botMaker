@@ -53,5 +53,6 @@ issues are tracked in `docs/BACKLOG.md` (notably BL-21..23, found while building
 - `docs/DECISIONS.md` — decision log
 - `docs/BACKLOG.md` — stripped initiatives and tagged TODOs
 - `docs/LEARNING_LOG.md` — one entry per technique implemented by hand
+- `docs/ARCHITECTURE.md` — decomposition, contracts, extension points
 - `docs/reviews/` — dated architecture reviews
 - `docs/reports/` — the MlLib model-training report (.docx/.pdf)
