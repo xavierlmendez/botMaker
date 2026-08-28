@@ -15,7 +15,7 @@ license = { text = "Proprietary" }
 authors = [{ name = "Xavier Mendez" }]
 dependencies = [
   "numpy>=1.26,<3",
-  "pandas>=2.2,<3",        # TODO(BL-21): lift the <3 pin once evaluator copies arrays on entry
+  "pandas>=2.2",
   "scikit-learn>=1.4",     # train_test_split, ParameterGrid only
   "networkx>=3.2",
   "matplotlib>=3.8",       # graphBased/visualizer.py

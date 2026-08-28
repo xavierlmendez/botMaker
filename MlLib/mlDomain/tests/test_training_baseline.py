@@ -17,7 +17,7 @@ Two layers of assertion:
    deliberately with ``BASELINE_UPDATE=1`` when a change is *meant* to alter
    numbers, and say so in the PR.
 
-Run (from the repo root; `pandas<3` is pinned in pyproject.toml until BL-21 is fixed):
+Run (from the repo root):
 
     uv run pytest MlLib/mlDomain/tests/test_training_baseline.py -q
 """

@@ -1,5 +1,6 @@
 from json import dumps
 
+import numpy as np
 from numpy import ndarray
 
 
@@ -18,8 +19,10 @@ class ModelEvaluator:
     ):
         self.runIteration += 1
         self.test_values = test_values
-        self.testTargets = testTargets
-        self.predictions = predictions
+        # Own copies: callers may pass read-only views (pandas >= 3 copy-on-write `.to_numpy()`),
+        # and setConfusionMatrixValues normalises labels in place.
+        self.testTargets = np.array(testTargets, copy=True)
+        self.predictions = np.array(predictions, copy=True)
         self.evaluationMetaData = evaluationMetaData
         self.correctPredictions = 0
         self.truePositives = 0
