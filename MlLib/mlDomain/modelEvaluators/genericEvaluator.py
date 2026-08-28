@@ -42,13 +42,15 @@ class ModelEvaluator:
         return correctPredictions / countTotalPredictions
 
     def persistEvaluationRecord(self):
+        # Base record: the confusion-matrix counts every evaluator shares. Subclasses extend
+        # this dict with their own metrics (see LogisticRegressionModelEvaluator).
         self.evaluationRecord[self.runIteration] = {
-            self.evaluationMetaData,
-            self.correctPredictions,
-            self.truePositives,
-            self.falsePositives,
-            self.trueNegatives,
-            self.falseNegatives,
+            "modelData": self.evaluationMetaData,
+            "correctPredictions": self.correctPredictions,
+            "truePositives": self.truePositives,
+            "falsePositives": self.falsePositives,
+            "trueNegatives": self.trueNegatives,
+            "falseNegatives": self.falseNegatives,
         }
 
     def printEvaluation(self, printBestModelStatsOnly=False):
