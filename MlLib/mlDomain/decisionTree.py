@@ -6,6 +6,10 @@ from MlLib.mathDomain.graphBased.treeStructures import TreeNode
 from MlLib.mlDomain.modelEvaluators.genericEvaluator import DecisionTreeModelEvaluator
 
 
+class NoSplitError(ValueError):
+    """Raised when a tree cannot be fitted because the data offers nothing to split on."""
+
+
 class nodeSplitCriteria:
     def __init__(self, column, value, criteriaFunc: Callable[[Any, Any], bool]):
         self.metadata = {
@@ -47,8 +51,19 @@ class DecisionTree:  # TODO refactor to use graphBased utilities of MathDomain
         return self
 
     def buildTree(self, dataValues, dataTargets, currentNode: TreeNode, depth=0):
+        if len(dataTargets) == 0:
+            raise NoSplitError("cannot fit a decision tree on zero rows")
+        if dataValues.shape[1] == 0:
+            raise NoSplitError("cannot fit a decision tree with no feature columns")
+
         currentNode.prediction = dataTargets.mode()[0]  # set the majority as the prediction
         splitColumn = self.splitFunction.calculateSplit(dataValues, dataTargets)
+
+        if dataValues[splitColumn].nunique(dropna=True) <= 1:
+            # The best available column has a single category here: splitting on it would produce
+            # one child identical to this node. Stop and predict the majority instead.
+            currentNode.isLeafNode = True
+            return
         childNodes, splitSubsets = self.buildSplit(
             splitColumn, currentNode, dataValues, dataTargets
         )
@@ -116,8 +131,9 @@ class DecisionTree:  # TODO refactor to use graphBased utilities of MathDomain
             if nodeSplitCriteria.criteriaFunction(data[nodeSplitCriteria.column]):
                 return self.traverseTree(child, data)
 
-        return currentNode.prediction  # case when no children have the class needed to continue likely due to too little model complexity
-        # TODO add error handling if no split found
+        # No child criterion matched (a category unseen at fit time): fall back to this node's
+        # majority prediction rather than failing. Intentional — see docs/BACKLOG.md BL-13.
+        return currentNode.prediction
 
     def predictValues(self, dataValues):
         predictedValues = []
