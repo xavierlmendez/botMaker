@@ -26,3 +26,6 @@ venv/
 
 # Project
 MlLib/MlLibProjectSlides.pptx
+
+# Claude Code personal instructions
+CLAUDE.local.md
