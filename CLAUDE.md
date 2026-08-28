@@ -34,7 +34,7 @@ uv run pytest MlLib/mlDomain/tests/test_training_baseline.py   # baseline only (
 
 `pandas<3` is pinned in `pyproject.toml` until BL-21 is fixed. One test file is excluded until slice 3.1
 fixes its import root: add `--ignore=MlLib/mathDomain/algorithmImplementations/tests/test_breadthFirstSearch.py`.
-Lint/format arrive in slice 2.2; pre-commit in 2.3.
+Lint/format: `uv run ruff check . && uv run ruff format --check .` — also run by pre-commit (`uv run pre-commit install` once per clone).
 
 ## Conventions
 
