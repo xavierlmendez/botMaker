@@ -1,9 +1,28 @@
-bin/
-obj/
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environments
+.venv/
+venv/
+.env
+
+# Editors / OS
 .idea/
-*.user
-*.suo
-*.pdb
-*.cache
-botMaker/packages/
-/MlLib/MlLibProjectSlides.pptx
+.vscode/
+.DS_Store
+*.swp
+
+# Project
+MlLib/MlLibProjectSlides.pptx
