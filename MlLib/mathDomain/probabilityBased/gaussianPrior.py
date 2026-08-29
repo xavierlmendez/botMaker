@@ -7,4 +7,4 @@ class GaussianPrior:  # add prior class as injection to allow different implemen
             "description": "A class to provide a Gaussian Prior and have related helper functions",
         }
         self.mean = mean
-        self.variance = float
+        self.variance = variance

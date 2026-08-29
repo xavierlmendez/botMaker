@@ -99,7 +99,7 @@ plugin — do **not** resurrect a second web app here unless a decision record s
 
 
 
-### BL-07 — Sum rule / product rule · `kept` · CS 6344 pairing
+### BL-07 — Probability placeholders: sum rule, product rule, Bayes rule, prior, Gaussian prior · `kept` · CS 6344 pairing
 `MlLib/mathDomain/probabilityBased/sumRule.py`, `productRule.py` — `pass` bodies, but imported by `test_probabilityBased.py`.
 Implement alongside `bayesRule.py` / `prior.py` when probability is covered.
 
@@ -126,12 +126,12 @@ Folds into the shared gradient-descent base.
 `MlLib/mlDomain/decisionTree.py:23` refactor onto `graphBased` utilities · `:115` missing no-split error handling (fixed in
 slice 3.4) · `:133` "abstracted later".
 
-### BL-14 — Never-imported modules · `kept` + smoke tests (slice 3.6)
-`graphBased/visualizer.py`, `probabilityBased/bayesRule.py`, `probabilityBased/gaussianPrior.py`,
-`mathDomain/regularizationFunction.py`, `mathDomain/linearAlgebraHelpers.py`.
-Real implementations (8–34 lines); kept by owner decision, each gets one smoke test so the keep rule holds.
-*Correction 2026-08-28:* `depthFirstSearch.py` was listed here but is a stub (returns an empty traversal) — see BL-25.
-
+### BL-14 — Formerly never-imported modules · smoke-tested in slice 3.6
+Survey (2026-08-28) called these "real implementations"; on inspection only two were: `graphBased/visualizer.py`
+(matplotlib/networkx animation) and `linearAlgebraHelpers.py` (`QuadraticFormHelper.computeQ`). Both now have smoke
+tests. `probabilityBased/bayesRule.py`, `prior.py`, `gaussianPrior.py` are placeholders → folded into BL-07;
+`regularizationFunction.py` is a placeholder → folded into BL-10. `gaussianPrior.py` assigned the *type* `float`
+to `variance` — fixed. Kept by owner decision (D-4 named set), tagged in slice 3.7.
 
 ### BL-16 — Auto-generated metadata markers · `deleted` · Phase 5 (R3)
 ~25 × `# TODO: review metadata (auto-generated)` plus the hand-typed `metadata = {…}` dicts they annotate. Replaced by an
@@ -159,13 +159,13 @@ RUF059 ×6 · B007 ×5 · E402 ×4 · E711 ×3 · RUF002 ×2 · SIM113 ×1 · B9
 Rule: a slice that touches a file fixes that file's ignored violations; a code leaves the list when its
 count reaches zero. Nothing is added to the list without a backlog entry.
 
-### BL-25 — Depth-first search is a stub · `fix` · slice 3.6
+## Closed
+
+### BL-25 — Depth-first search is a stub · closed in slice 3.6 (iterative stack DFS with visited set and max_depth; 5 tests)
 `MlLib/mathDomain/algorithmImplementations/depthFirstSearch.py` validates inputs then returns `[]`. Found in
 slice 3.1 when its import root was fixed and the algorithm modules became importable. Implement iteratively
 (stack, visited set, `max_depth`) mirroring the BFS shape; the BFS tests are the template. Until then no
 smoke test can pass for it, so slice 3.6 implements rather than merely tests it.
-
-## Closed
 
 ### BL-18 — `graphBased/tests/nxGraphExample.py` · closed in slice 3.5 (moved to examples/graph_search_vs_networkx.py)
 Not a test; a worked networkx example.
