@@ -41,6 +41,11 @@ interfaces. Adding a loss or an expander never touches a model.
 | `ModelEvaluator` | `update_testing_prediction_data(...)`, `evaluate_model()`, `persist_evaluation_record()` | every model's `evaluate` |
 | `AbstractGraphAlgorithm` | `_search(ctx)`; the ABC owns `run()` and `_notify_evaluator()`; `SearchContext` is frozen | graph algorithms |
 
+**Gradient-descent models.** `ml.gradient_descent.GradientDescentModel(hypothesis, loss, learning_rate, epochs)`
+owns `fit` / `predict_values` / gradient / update / cost and accepts arrays or DataFrames. A subclass sets
+`predict_method` (`compute_prediction` or `compute_classification`) — nothing else. `MyLogisticRegression` adds
+an evaluator and `grid_fit(X, y, test_size, random_state)`, which makes the train/test split itself.
+
 **Two-tier specialisation.** A library base (`MyLogisticRegression`) plus a thin project subclass that
 carries only `num_weights` and a hyper-parameter grid (`projectSpecificFiles/ad_click_logistic_regression.py`).
 The subclass must call `super().__init__()` (F4/slice 3.3) — a project class that skips it is a bug.
@@ -76,7 +81,7 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 | Debt | Where | Resolution |
 |---|---|---|
 | Hardcoded model-name ladder; `TransformerPipeline` commented out (F1) | `data_orchestrator.get_transformed_data` | Phase 6 (R1, BL-09) |
-| Linear/logistic duplication (F2) | `linear_regression.py`, `logistic_regression.py` | Phase 5 (R2, BL-20) |
+| Linear/logistic duplication (F2) | `linear_regression.py`, `logistic_regression.py` | **done** slice 5.3 — `ml/gradient_descent.py` |
 | Hand-typed drifting `metadata` dicts (F3) | ~25 classes | **done** slice 5.1 — `mllib.describe.describe(obj)` |
 | Subclass skips `super().__init__()` (F4) | `ad_click_logistic_regression.py` | slice 3.3 |
 | Base `persist_evaluation_record` builds a set literal (F5) | `generic_evaluator.py:44` | slice 3.2 |

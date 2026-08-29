@@ -11,10 +11,12 @@ class HypothesisExpander:
         self.expander_type = "Generic Parent Class"
 
     def expand_hypothesis(self, initial_hypothesis: np.ndarray):
-        pass
+        """Identity: the hypothesis space is the feature space."""
+        return np.asarray(initial_hypothesis)
 
-    def fit_data_to_hypothesis(self, data: np.ndarray):
-        pass
+    def fit_data_to_hypothesis(self, data: np.ndarray, needs_reshape=False):
+        """Identity: rows are already in the hypothesis space."""
+        return data
 
 
 class PolynomialRegressionExpander(HypothesisExpander):

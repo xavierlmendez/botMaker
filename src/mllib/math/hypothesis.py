@@ -10,7 +10,7 @@ class HypothesisFunction:
     hypothesis space
     """
 
-    def __init__(self, initial_weights, initial_bias, degree, hypothesis_expander=None):
+    def __init__(self, initial_weights, initial_bias, degree=1, hypothesis_expander=None):
         # the X in the normal hypothesis function will be passed into the compute prediction function instead of a part of instantiation
         self.initial_hypothesis = initial_weights
         self.hypothesis = initial_weights
@@ -41,12 +41,8 @@ class HypothesisFunction:
         return self.hypothesis @ data + self.bias
 
     def compute_classification(self, data: np.ndarray):
-        # multiplying the weights by the data and adding the bias
-        # TODO(BL-12): expander reshapes data in the shared descent base
+        # sign of the affine score; the expander reshapes a single row into the hypothesis space
         data = self.hypothesis_expander.fit_data_to_hypothesis(data, True)
-        if self.hypothesis.shape[0] != data.shape[0]:
-            ahh = 1  # common issue when building so leaving this to break point on
-
         return np.sign(self.hypothesis @ data + self.bias)
 
     def expand_hypothesis(self):

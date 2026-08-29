@@ -3,8 +3,8 @@
 Exercises the same path as ``examples/ad_click_model_comparison.py``
 (real CSV -> DataOrchestrator -> project LogisticRegression classes -> gridFit ->
 LogisticRegressionModelEvaluator) but with a tiny hyper-parameter grid so it runs
-in seconds instead of hours, and with the global RNG seeded so the unseeded
-``train_test_split`` inside ``DataOrchestrator`` is reproducible.
+in seconds instead of hours, and with the global RNG seeded so the
+train/test split inside ``grid_fit`` is reproducible.
 
 Two layers of assertion:
 
@@ -74,8 +74,9 @@ MODELS = {
 def _train(model_cls, split_key: str, orchestrator: DataOrchestrator):
     model = model_cls()
     model.hyperparameter_grid_options = SMOKE_GRID
-    np.random.seed(SPLIT_SEED)  # train_test_split has no random_state in DataOrchestrator
-    model.grid_fit(*orchestrator.build_test_train_split(split_key))
+    data_values, data_targets = orchestrator.get_transformed_data(split_key)
+    np.random.seed(SPLIT_SEED)  # grid_fit splits with random_state=None -> global RNG
+    model.grid_fit(data_values, data_targets)
     return model
 
 
