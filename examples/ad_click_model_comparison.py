@@ -10,6 +10,8 @@ from mllib.ml.projects.ad_click_logistic_regression import (
 # import kagglehub
 # from kagglehub import KaggleDatasetAdapter
 class AdClickPredictionModelBuilder:
+    """ML 2025 Course Project looking at the use of different models in application to a problem"""
+
     def __init__(self):
         self.project_name = (
             "AdClickPrediction"  # Used to get other project specific files in downstream procecsses
@@ -19,10 +21,6 @@ class AdClickPredictionModelBuilder:
         )
         self.model_meta_data = {}  # This function will contain the end results of each model to be used on the frontend
         self.models = {}
-        self.metadata = {
-            "name": "Ad Click Model Builder and Evaluator",
-            "description": "ML 2025 Course Project looking at the use of different models in application to a problem",
-        }
 
         # Ran into issues with the kaggle api so ended up manually downloading csv
         # if not isfile(self.dataFilePath):

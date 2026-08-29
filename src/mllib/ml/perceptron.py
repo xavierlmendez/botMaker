@@ -5,6 +5,8 @@ from mllib.math.loss_function import LossFunction
 
 
 class MyPerceptron:  # prefixing with my for the comparison script, rename later when cleaning up files
+    """Perceptron implementation using sub-gradient updates for classification."""
+
     def __init__(
         self,
         hypothesis_function: HypothesisFunction,
@@ -12,11 +14,6 @@ class MyPerceptron:  # prefixing with my for the comparison script, rename later
         learning_rate=0.001,
         epochs=10,
     ):
-        self.metadata = {
-            "name": "Perceptron Base Class",
-            "description": "Perceptron implementation using sub-gradient updates for classification.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.learning_model = hypothesis_function
         self.loss_function = loss_function
         self.learning_rate = learning_rate

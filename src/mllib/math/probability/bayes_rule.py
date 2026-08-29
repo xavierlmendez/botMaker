@@ -1,9 +1,9 @@
 class BayesRule:
+    """A class to apply BayesRule and provide helper function to add in the application of bayes
+    rule
+    """
+
     def __init__(self):
-        self.metadata = {
-            "name": "Bayes Rule class",
-            "description": "A class to apply BayesRule and provide helper function to add in the application of bayes rule",
-        }
         self.probability_event = 0
         self.probability_condition = 0
 

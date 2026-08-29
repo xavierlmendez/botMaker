@@ -8,12 +8,10 @@ from mllib.math.graph.graph_structures import Graph
 
 
 class DepthFirstSearch(AbstractGraphAlgorithm):
+    """Graph traversal/search using depth-first order."""
+
     def __init__(self, graph: Graph):
         super().__init__(graph)
-        self.metadata = {
-            "name": "Depth First Search",
-            "description": "Graph traversal/search using depth-first order.",
-        }
 
     def _search(self, context: SearchContext) -> Any:
         """

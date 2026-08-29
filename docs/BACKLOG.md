@@ -133,12 +133,6 @@ tests. `probabilityBased/bayes_rule.py`, `Prior.py`, `gaussian_prior.py` are pla
 `regularization_function.py` is a placeholder → folded into BL-10. `gaussian_prior.py` assigned the *type* `float`
 to `variance` — fixed. Kept by owner decision (D-4 named set), tagged in slice 3.7.
 
-### BL-16 — Auto-generated metadata markers · `deleted` · Phase 5 (R3)
-~25 × `# TODO: review metadata (auto-generated)` plus the hand-typed `metadata = {…}` dicts they annotate. Replaced by an
-introspection helper.
-
-
-
 ### BL-19 — tradePlatform plugin seam · `backlog-only`
 North star (D-2): MlLib models plug into tradePlatform as strategy plugins with descriptors introspected at the boundary
 (`docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
@@ -160,6 +154,10 @@ Rule: a slice that touches a file fixes that file's ignored violations; a code l
 count reaches zero. Nothing is added to the list without a backlog entry.
 
 ## Closed
+
+### BL-16 — Auto-generated metadata markers · closed in slice 5.1 (46 dicts → class docstrings; `mllib.describe.describe()` introspects name/doc/signature)
+~25 × `# TODO: review metadata (auto-generated)` plus the hand-typed `metadata = {…}` dicts they annotate. Replaced by an
+introspection helper.
 
 ### BL-25 — Depth-first search is a stub · closed in slice 3.6 (iterative stack DFS with visited set and max_depth; 5 tests)
 `MlLib/mathDomain/algorithmImplementations/depthFirstSearch.py` validates inputs then returns `[]`. Found in

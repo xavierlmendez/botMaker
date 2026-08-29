@@ -11,12 +11,9 @@ class NoSplitError(ValueError):
 
 
 class NodeSplitCriteria:
+    """Encapsulates a column/value rule used to split nodes in a decision tree."""
+
     def __init__(self, column, value, criteria_func: Callable[[Any, Any], bool]):
-        self.metadata = {
-            "name": "Decision Tree Split Criteria",
-            "description": "Encapsulates a column/value rule used to split nodes in a decision tree.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.column = column
         self.value = value
         self.criteria_function = criteria_func
@@ -26,12 +23,9 @@ class NodeSplitCriteria:
 
 
 class DecisionTree:  # TODO(BL-13): rebuild on mllib.math.graph tree utilities
+    """Core decision tree implementation with training, prediction, and evaluation helpers."""
+
     def __init__(self, split_function: SplitFunction = None, root=None):
-        self.metadata = {
-            "name": "Decision Tree Base Class",
-            "description": "Core decision tree implementation with training, prediction, and evaluation helpers.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.root = root
         if self.root == None:
             self.root = TreeNode()
@@ -155,13 +149,10 @@ class DecisionTree:  # TODO(BL-13): rebuild on mllib.math.graph tree utilities
 
 class MyDecisionTree(DecisionTree):
     # implementation for AdClickPredictionProject - scratched this and am using decisionTree which will be abstracted later
+    """Project-specific decision tree wrapper for experimentation and extension."""
+
     def __init__(self, split_function: SplitFunction = None, root=None):
         super().__init__(split_function=split_function, root=root)
-        self.metadata = {
-            "name": "Decision Tree Project Wrapper",
-            "description": "Project-specific decision tree wrapper for experimentation and extension.",
-        }
-        # TODO(BL-16): derive metadata by introspection
 
     def add_node(self, node: TreeNode):
         if self.root == None:

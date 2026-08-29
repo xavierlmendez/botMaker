@@ -45,6 +45,10 @@ interfaces. Adding a loss or an expander never touches a model.
 carries only `num_weights` and a hyper-parameter grid (`projectSpecificFiles/ad_click_logistic_regression.py`).
 The subclass must call `super().__init__()` (F4/slice 3.3) — a project class that skips it is a bug.
 
+**Descriptors.** `mllib.describe.describe(obj)` returns `{name, module, kind, doc, params, signature}` derived
+from the class (name, docstring, constructor signature). Components carry no hand-typed metadata; a class
+docstring is the description. This is the seam tradePlatform introspects (BL-19).
+
 **Evaluation records.** `evaluator.evaluation_record[iteration]` is a JSON-serialisable dict with
 `modelData`, confusion-matrix counts, `accuracy`, `precision`, `recall`. The training baseline test
 depends on this shape; changing it means regenerating the snapshot deliberately.
@@ -73,7 +77,7 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 |---|---|---|
 | Hardcoded model-name ladder; `TransformerPipeline` commented out (F1) | `data_orchestrator.get_transformed_data` | Phase 6 (R1, BL-09) |
 | Linear/logistic duplication (F2) | `linear_regression.py`, `logistic_regression.py` | Phase 5 (R2, BL-20) |
-| Hand-typed drifting `metadata` dicts (F3) | ~25 classes | Phase 5 (R3, BL-16) |
+| Hand-typed drifting `metadata` dicts (F3) | ~25 classes | **done** slice 5.1 — `mllib.describe.describe(obj)` |
 | Subclass skips `super().__init__()` (F4) | `ad_click_logistic_regression.py` | slice 3.3 |
 | Base `persist_evaluation_record` builds a set literal (F5) | `generic_evaluator.py:44` | slice 3.2 |
 | Web layer was a stub (F6) | `fastapi_app/` | removed, BL-01 |

@@ -1,9 +1,5 @@
 class ProbabilisticKNN:
-    metadata = {
-        "name": "Probabilistic KNN",
-        "description": "Probabilistic KNN skeleton for prior/likelihood/posterior-based classification.",
-    }
-    # TODO(BL-16): derive metadata by introspection
+    """Probabilistic KNN skeleton for prior/likelihood/posterior-based classification."""
 
     """
         how does ProbabilisticKNN work?

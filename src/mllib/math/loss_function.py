@@ -4,13 +4,9 @@ import numpy as np
 
 
 class LossFunction:
-    def __init__(self):
-        # the hypothesisFunction I am expecting to be a data object representing the vector notation used for hypothesisspaces so I can exapand this to polynomial
-        # later I want the hypothesis function to have an enum so that I can dictate if it is meant to be for regression or classification
-        self.metadata = {
-            "name": "loss function parent class",
-            "description": "A library class serving as a template for loss function classes that compute loss between a single predicted and actual value",
-        }
+    """A library class serving as a template for loss function classes that compute loss between a
+    single predicted and actual value
+    """
 
     def compute_loss(self, actual, predicted):
         pass
@@ -20,12 +16,8 @@ class LossFunction:
 
 
 class MSE(LossFunction):
-    metadata = {
-        "name": "Mean Squared Error",
-        "description": "Loss function computing mean squared error and its gradient.",
-    }
+    """Loss function computing mean squared error and its gradient."""
 
-    # TODO(BL-16): derive metadata by introspection
     def compute_loss(self, actual, predicted):
         return np.mean((actual - predicted) ** 2)
 
@@ -35,12 +27,8 @@ class MSE(LossFunction):
 
 
 class MAE(LossFunction):
-    metadata = {
-        "name": "Mean Absolute Error",
-        "description": "Loss function computing mean absolute error and its gradient.",
-    }
+    """Loss function computing mean absolute error and its gradient."""
 
-    # TODO(BL-16): derive metadata by introspection
     def compute_loss(self, actual, predicted):
         return np.mean(abs(actual - predicted))
 
@@ -49,12 +37,8 @@ class MAE(LossFunction):
 
 
 class PerceptronLoss(LossFunction):
-    metadata = {
-        "name": "Perceptron Loss",
-        "description": "Perceptron loss with sub-gradient and bias updates.",
-    }
+    """Perceptron loss with sub-gradient and bias updates."""
 
-    # TODO(BL-16): derive metadata by introspection
     def compute_loss(self, actual: np.ndarray, predicted: np.ndarray):
         return np.maximum(0.0, -actual * predicted)
 
@@ -69,12 +53,8 @@ class PerceptronLoss(LossFunction):
 
 
 class HingeLoss(LossFunction):
-    metadata = {
-        "name": "Hinge Loss",
-        "description": "Hinge loss for margin-based classifiers with sub-gradient updates.",
-    }
+    """Hinge loss for margin-based classifiers with sub-gradient updates."""
 
-    # TODO(BL-16): derive metadata by introspection
     def compute_loss(self, actual, predicted):
         return np.maximum(0.0, 1.0 - actual * predicted)
 

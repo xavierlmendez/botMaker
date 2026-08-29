@@ -1,3 +1,4 @@
 8891173371d468f955c30c74d9fc344147871e64  # style: ruff format 2026-08-28
 d2dfced3a33a07251faa7c477a63e22f9c3cb20a  # refactor: src/ layout (renames only) 2026-08-29
 9d53ba26017c3349d47d3b8f8a44fb543231b122  # refactor: snake_case modules (renames only) 2026-08-29
+874f915e01d2264531adaf5ec03fb3ddf853bc1c  # refactor: snake_case identifiers (renames only) 2026-08-29

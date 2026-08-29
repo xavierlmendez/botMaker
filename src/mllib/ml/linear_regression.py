@@ -6,6 +6,8 @@ from mllib.math.loss_function import LossFunction
 
 class MyLinearRegression:  # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
+    """Core linear regression implementation with gradient descent and prediction helpers."""
+
     def __init__(
         self,
         hypothesis_function: HypothesisFunction,
@@ -13,11 +15,6 @@ class MyLinearRegression:  # prefixing with my for the comparison script, rename
         learning_rate=0.001,
         epochs=10,
     ):
-        self.metadata = {
-            "name": "Linear Regression Base Class",
-            "description": "Core linear regression implementation with gradient descent and prediction helpers.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.learning_model = hypothesis_function
         self.loss_function = loss_function
         self.learning_rate = learning_rate

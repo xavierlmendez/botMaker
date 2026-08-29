@@ -7,12 +7,7 @@ from mllib.math.graph.graph_structures import Graph
 
 
 class Visualizer:
-    def __init__(self):
-        self.metadata = {
-            "name": "Graph Visualizer",
-            "description": "Utility for visualizing graph traversal with matplotlib and networkx.",
-        }
-        # TODO(BL-16): derive metadata by introspection
+    """Utility for visualizing graph traversal with matplotlib and networkx."""
 
     # tutorial used https://www.youtube.com/watch?v=7XVTnCrWDPY
     def show(self, graph: Graph, traversal_order=None, position=None):

@@ -1,11 +1,5 @@
 class RegularizationFunction:
-    def __init__(self):
-        # the hypothesisFunction I am expecting to be a data object representing the vector notation used for hypothesisspaces so I can exapand this to polynomial
-        # later I want the hypothesis function to have an enum so that I can dictate if it is meant to be for regression or classification
-        self.metadata = {
-            "name": "loss function parent class",
-            "description": "A library class serving as a template for loss function classes that compute loss between a single predicted and actual value",
-        }
+    """Template for regularization penalties added to the cost. Placeholder until BL-10."""
 
     def compute_penalty(self, actual, predicted):
         pass
