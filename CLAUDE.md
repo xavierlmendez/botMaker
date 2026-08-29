@@ -19,7 +19,7 @@ model classes — sklearn is used only for `train_test_split` and `ParameterGrid
   Xavier commits; Claude prepares slices and never commits.
 - No unstarted code on `main`: intent goes to `docs/BACKLOG.md`, not empty modules or `pass` bodies.
 - Every feature or fix ships with a deterministic test (`.claude/agents/testing-agent.md`).
-- The training baseline (`tests/mlDomain/test_training_baseline.py`) must pass before and after
+- The training baseline (`tests/ml/test_training_baseline.py`) must pass before and after
   every code slice. Regenerate its snapshot only deliberately (`BASELINE_UPDATE=1`) and say so in the PR.
 - `# TODO(BL-nn): …` is the only accepted TODO form.
 - Datasets over 1 MB are fetched, not committed (D-19).
@@ -29,7 +29,7 @@ model classes — sklearn is used only for `train_test_split` and `ParameterGrid
 ```
 uv sync                      # Python 3.12 (.python-version), locked deps, dev group
 uv run pytest                # unit suite incl. the training baseline (~40 s)
-uv run pytest tests/mlDomain/test_training_baseline.py   # baseline only (~10 s)
+uv run pytest tests/ml/test_training_baseline.py   # baseline only (~10 s)
 ```
 
 Lint/format: `uv run ruff check . && uv run ruff format --check .` — also run by pre-commit (`uv run pre-commit install` once per clone).
