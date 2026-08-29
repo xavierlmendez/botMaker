@@ -107,11 +107,6 @@ Implement alongside `bayes_rule.py` / `Prior.py` when probability is covered.
 `MlLib/math/graph/split_function.py` — placeholder subclasses beside a working `Gini`. Removing cleanly touches the
 `SplitFunction` hierarchy and `DecisionTree` injection (> 1 h). Implement when decision trees are revisited (BL-13).
 
-### BL-09 — Declarative `TransformerPipeline` · `kept` · Phase 6 (R1)
-`MlLib/data/data_orchestrator.py:41,53` — the pipeline class is written but commented out ("finish above pipeline arch when
-time allows"). Target: transformations declared in `ProjectSpecificDataClasses/*.json`, loaded by class name; retire the
-`temp*Transformer` methods and the `if model == …` ladder in `get_transformed_data`.
-
 ### BL-11 — Trained-model exporter · `kept` · re-entry 1–2 h
 `MlLib/ml/projects/ad_click_logistic_regression.py:29,52` — `self.exporter = None`. Intent: persist fitted weights
 + hypothesis config + evaluator record so a trained model can be reloaded without re-running the grid.
@@ -147,6 +142,11 @@ gradient signature (return the weight gradient given the design matrix for every
 tests in `tests/ml/test_perceptron_svm.py` as the guard.
 
 ## Closed
+
+### BL-09 — Declarative `TransformerPipeline` · closed in slice 6.3 (declarative `TransformerPipeline` from JSON config; `DataTransformer`, the `temp_*` methods and the model-name ladder deleted)
+`MlLib/data/data_orchestrator.py:41,53` — the pipeline class is written but commented out ("finish above pipeline arch when
+time allows"). Target: transformations declared in `ProjectSpecificDataClasses/*.json`, loaded by class name; retire the
+`temp*Transformer` methods and the `if model == …` ladder in `get_transformed_data`.
 
 ### BL-23 — Classifier predicts all-ones on ad-click data · closed in slice 5.3b
 **Findings (2026-08-29).** Two causes, one fixable. (1) *Model bug:* the sign hypothesis emits {-1, +1} but was

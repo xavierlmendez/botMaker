@@ -1,6 +1,8 @@
 """Transformer contract (fit/transform, no mutation) and exact equivalence with the legacy
 ``DataOrchestrator`` frames the training baseline depends on (R1, BL-09)."""
 
+import hashlib
+import json
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +10,6 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from mllib.data.data_orchestrator import DataOrchestrator
 from mllib.data.transformers import (
     BinByStdRanges,
     DropColumns,
@@ -22,6 +23,15 @@ from mllib.describe import describe
 
 DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "ad_click_dataset.csv"
 CONFIG_PATH = DATA_PATH.parent / "configs" / "ad_click_transformations.json"
+FINGERPRINTS = json.loads((Path(__file__).parent / "frame_fingerprints.json").read_text())
+
+
+def _fingerprint(frame):
+    return {
+        "shape": list(frame.shape),
+        "columns": [str(c) for c in frame.columns],
+        "sha256": hashlib.sha256(frame.astype(str).to_csv(index=False).encode()).hexdigest(),
+    }
 
 
 def _frame():
@@ -95,8 +105,9 @@ def test_transformers_are_self_describing():
 
 
 @pytest.mark.skipif(not DATA_PATH.is_file(), reason="ad-click dataset not present")
-def test_pipeline_of_transformers_reproduces_legacy_frames_exactly():
-    orchestrator = DataOrchestrator(str(DATA_PATH), "csv", str(CONFIG_PATH))
+def test_hand_chained_transformers_reproduce_the_recorded_legacy_frames():
+    """Fingerprints in frame_fingerprints.json were taken from the hand-written DataTransformer
+    before it was removed (slice 6.3); the chained transformers must still produce those frames."""
     raw = pd.read_csv(DATA_PATH, header=0)
     categorical = ["gender", "device_type", "ad_position", "browsing_history", "time_of_day"]
 
@@ -108,7 +119,7 @@ def test_pipeline_of_transformers_reproduces_legacy_frames_exactly():
         FillNaNWithMean(["age"]),
     ):
         logistic = t.fit_transform(logistic)
-    assert_frame_equal(logistic, orchestrator.data_transformer.logistic_model_data_frame)
+    assert _fingerprint(logistic) == FINGERPRINTS["logisticReg"]
 
     binned = raw
     for t in (
@@ -119,6 +130,4 @@ def test_pipeline_of_transformers_reproduces_legacy_frames_exactly():
         OneHotEncode(["age", *categorical]),
     ):
         binned = t.fit_transform(binned)
-    assert_frame_equal(
-        binned, orchestrator.data_transformer.logistic_model_with_age_binning_data_frame
-    )
+    assert _fingerprint(binned) == FINGERPRINTS["logisticRegWithAgeBinning"]
