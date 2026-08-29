@@ -2,13 +2,13 @@ import numpy as np
 
 
 class HypothesisExpander:
+    """A library class serving as a template for hypothesis expander classes used to
+    expand/contract the hypothesis space
+    """
+
     def __init__(self, degree: int = 0):
         self.degree = degree
         self.expander_type = "Generic Parent Class"
-        self.metadata = {
-            "name": "hypothesis expander parent class",
-            "description": "A library class serving as a template for hypothesis expander classes used to expand/contract the hypothesis space",
-        }
 
     def expand_hypothesis(self, initial_hypothesis: np.ndarray):
         pass
@@ -18,13 +18,13 @@ class HypothesisExpander:
 
 
 class PolynomialRegressionExpander(HypothesisExpander):
+    """Extends hypothesis according to polynomial regression. Main characteristic is viewing
+    feature independently in higher dim spaces than linear regression alone
+    """
+
     def __init__(self, degree: int = 1):
         self.degree = degree
         self.expander_type = "Polynomial Regression"
-        self.metadata = {
-            "name": "Polynomial Regression hypothesis expander",
-            "description": "Extends hypothesis according to polynomial regression. Main characteristic is viewing feature independently in higher dim spaces than linear regression alone",
-        }
 
     def expand(self, value_array):
         expanded_weights_array = np.asarray(value_array, dtype=float)

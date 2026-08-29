@@ -16,12 +16,9 @@ from mllib.ml.evaluators.generic_evaluator import LogisticRegressionModelEvaluat
 
 class MyLogisticRegression:  # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
+    """Core logistic regression implementation with training, prediction, and evaluation helpers."""
+
     def __init__(self, learning_rate=0.001, epochs=10, num_weights=1):
-        self.metadata = {
-            "name": "Logistic Regression Base Class",
-            "description": "Core logistic regression implementation with training, prediction, and evaluation helpers.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         seeded_rand = np.random.default_rng(10)  # seeting a seed for random initial weights,
         self.num_weights = num_weights  # number of feature weights; project subclasses pass theirs
         initial_weights = seeded_rand.random(self.num_weights)

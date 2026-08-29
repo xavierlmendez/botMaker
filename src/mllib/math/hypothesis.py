@@ -5,6 +5,11 @@ from mllib.math.hypothesis_expander import HypothesisExpander
 
 # numpy documentation ref for linear algebra functions https://numpy.org/devdocs/reference/routines.linalg.html
 class HypothesisFunction:
+    """A library class serving as a template for hypothesis function classes used to compute a
+    prediction, hypothesis in this context is a nparray containing the weight and degree of the
+    hypothesis space
+    """
+
     def __init__(self, initial_weights, initial_bias, degree, hypothesis_expander=None):
         # the X in the normal hypothesis function will be passed into the compute prediction function instead of a part of instantiation
         self.initial_hypothesis = initial_weights
@@ -14,10 +19,6 @@ class HypothesisFunction:
         self.hypothesis_expander = hypothesis_expander or HypothesisExpander(self.degree)
         self.hypothesis_expander.degree = self.degree
         self.hypothesis = self.hypothesis_expander.expand_hypothesis(self.hypothesis)
-        self.metadata = {
-            "name": "hypothesis function parent class",
-            "description": "A library class serving as a template for hypothesis function classes used to compute a prediction, hypothesis in this context is a nparray containing the weight and degree of the hypothesis space",
-        }
 
     def set_hypothesis(self, hypothesis):
         self.hypothesis = hypothesis

@@ -5,12 +5,9 @@ from numpy import ndarray
 
 
 class ModelEvaluator:
+    """Base evaluator for computing and persisting model evaluation metrics."""
+
     def __init__(self):
-        self.metadata = {
-            "name": "Model Evaluator Base Class",
-            "description": "Base evaluator for computing and persisting model evaluation metrics.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.run_iteration = 0
         self.evaluation_record: dict[int, dict] = {}
 
@@ -129,13 +126,10 @@ class ModelEvaluator:
 
 
 class LogisticRegressionModelEvaluator(ModelEvaluator):
+    """Evaluator for logistic regression classification metrics."""
+
     def __init__(self):
         super().__init__()
-        self.metadata = {
-            "name": "Logistic Regression Evaluator",
-            "description": "Evaluator for logistic regression classification metrics.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.evaluation_meta_data = None
 
     def evaluate_model(self):
@@ -185,13 +179,10 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
 
 
 class DecisionTreeModelEvaluator(ModelEvaluator):
+    """Evaluator for decision tree classification metrics."""
+
     def __init__(self):
         super().__init__()
-        self.metadata = {
-            "name": "Decision Tree Evaluator",
-            "description": "Evaluator for decision tree classification metrics.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.evaluation_meta_data = None
 
     def evaluate_model(self):

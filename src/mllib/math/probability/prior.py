@@ -1,8 +1,8 @@
 class Prior:
     #
+    """Template for prior distributions injected into probabilistic models. Placeholder until
+    BL-07.
+    """
+
     def __init__(self):
-        self.metadata = {
-            "name": "Bayes Rule class",
-            "description": "A class to apply BayesRule and provide helper function to add in the application of bayes rule",
-        }
         pass

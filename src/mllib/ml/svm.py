@@ -5,6 +5,8 @@ from mllib.math.loss_function import LossFunction
 
 
 class MySVM:  # prefixing with my for the comparison script, rename later when cleaning up files
+    """Support Vector Machine implementation using hinge-style sub-gradient updates."""
+
     def __init__(
         self,
         hypothesis_function: HypothesisFunction,
@@ -12,11 +14,6 @@ class MySVM:  # prefixing with my for the comparison script, rename later when c
         learning_rate=0.001,
         epochs=10,
     ):
-        self.metadata = {
-            "name": "SVM Base Class",
-            "description": "Support Vector Machine implementation using hinge-style sub-gradient updates.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.learning_model = hypothesis_function
         self.loss_function = loss_function
         self.learning_rate = learning_rate

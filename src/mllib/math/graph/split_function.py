@@ -2,12 +2,7 @@ import pandas as pd
 
 
 class SplitFunction:
-    def __init__(self):
-        self.metadata = {
-            "name": "Split Function Base Class",
-            "description": "Base class for decision tree split criteria implementations.",
-        }
-        # TODO(BL-16): derive metadata by introspection
+    """Base class for decision tree split criteria implementations."""
 
     def calculate_split(self, data_values, data_targets):
         return "class"
@@ -29,12 +24,8 @@ class SplitFunction:
 
 
 class GiniImpurity(SplitFunction):
-    metadata = {
-        "name": "Gini Impurity",
-        "description": "Split function using Gini impurity to choose the best feature.",
-    }
+    """Split function using Gini impurity to choose the best feature."""
 
-    # TODO(BL-16): derive metadata by introspection
     def calculate_gini_impurities(self, data_values, data_targets):
         columns = data_values.columns
         gini_impurities: dict[str, int] = {}
@@ -56,18 +47,8 @@ class GiniImpurity(SplitFunction):
 
 
 class InformationGain(SplitFunction):
-    def __init__(self):
-        self.metadata = {
-            "name": "Information Gain",
-            "description": "Split function placeholder for information gain.",
-        }
-        # TODO(BL-16): derive metadata by introspection
+    """Split function placeholder for information gain."""
 
 
 class ChiSquare(SplitFunction):
-    def __init__(self):
-        self.metadata = {
-            "name": "Chi Square",
-            "description": "Split function placeholder for chi-square based splitting.",
-        }
-        # TODO(BL-16): derive metadata by introspection
+    """Split function placeholder for chi-square based splitting."""

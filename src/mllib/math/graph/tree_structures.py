@@ -2,12 +2,9 @@ import numpy as np
 
 
 class TreeNode:
+    """Generic tree node with parent/children tracking."""
+
     def __init__(self, parent_node=None, data=None, children: np.ndarray = None):
-        self.metadata = {
-            "name": "Tree Node",
-            "description": "Generic tree node with parent/children tracking.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.parent_node = parent_node
         self.data = data  # leaving abstract here to allow more options in the decision tree and other tree implementations
         self.child_nodes = []

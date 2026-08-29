@@ -43,3 +43,14 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 - **What.** Accuracy / precision / recall from a hand-built confusion matrix, persisted per grid iteration.
 - **Where.** `ml/evaluators/generic_evaluator.py`
 - **Lesson.** BL-22 (fixed 2026-08-28): FP and FN were swapped in two duplicated copies of the loop — the reported precision 1.0 was really recall. Now one vectorised base implementation checked against sklearn on an 8-row hand-built case (`tests/test_confusion_matrix.py`). Duplicated code hid the bug twice.
+
+## Self-describing components by introspection · 2026-08-29
+- **What.** Replace 46 hand-typed `metadata = {"name", "description"}` dicts with one `describe(obj)` that reads the
+  class name, docstring, and constructor signature via `inspect`.
+- **Where.** `src/mllib/describe.py` · test `tests/test_describe.py`
+- **Design.** Descriptors that are *derived* cannot drift; the review (F3) found three copy-pasted ones
+  (`CostFunction`, `RegularizationFunction`, `Prior` all called themselves something else). Nothing ever read
+  `.metadata`, so the switch was behaviour-neutral — the baseline proved it.
+- **What was confusing.** Where to put the human text: the answer is the class docstring, which tooling already
+  understands, not a parallel data structure.
+- **Reference.** Python `inspect` module; the world-model doctrine in tradePlatform's `PHILOSOPHY.md`.

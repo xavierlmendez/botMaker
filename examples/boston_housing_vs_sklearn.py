@@ -7,12 +7,9 @@ from mllib.ml.linear_regression import MyLinearRegression
 
 
 class BostonHousingDataset:
+    """Utility class for fetching and preparing the Boston housing dataset."""
+
     def __init__(self):
-        self.metadata = {
-            "name": "Boston Housing Dataset Loader",
-            "description": "Utility class for fetching and preparing the Boston housing dataset.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.url = "http://lib.stat.cmu.edu/datasets/boston"
         self.feature_names = [
             "CRIM",

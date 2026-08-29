@@ -7,11 +7,8 @@ import networkx as nx
 # https://dzone.com/articles/understanding-pythons-dataclass-decorator
 @dataclass(frozen=True, slots=True)
 class Edge:
-    metadata = {
-        "name": "Graph Edge",
-        "description": "Simple edge representation connecting two node IDs with optional data.",
-    }
-    # TODO(BL-16): derive metadata by introspection
+    """Simple edge representation connecting two node IDs with optional data."""
+
     u: int
     v: int
     data: Any = None
@@ -19,23 +16,17 @@ class Edge:
 
 @dataclass(slots=True)
 class GraphNode:
-    metadata = {
-        "name": "Graph Node",
-        "description": "Graph node storing an ID, payload, and neighbor set.",
-    }
-    # TODO(BL-16): derive metadata by introspection
+    """Graph node storing an ID, payload, and neighbor set."""
+
     node_id: int
     data: Any
     neighbors: set[int] = field(default_factory=set)
 
 
 class Graph:
+    """Undirected graph structure with nodes, edges, and adjacency helpers."""
+
     def __init__(self, init_nodes=None):
-        self.metadata = {
-            "name": "Graph Structure",
-            "description": "Undirected graph structure with nodes, edges, and adjacency helpers.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.nodes: dict[int, GraphNode] = {}
         self.edges = []  # (Bi)directional edges will have to be on a directional graph implementation
         self.id_incrementor = 0  # Prefer this as searching burned identifiers will add to run time

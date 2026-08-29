@@ -20,12 +20,9 @@ class SearchContext:
 
 
 class AbstractGraphAlgorithm(ABC):
+    """Base class for graph search algorithms with evaluator orchestration."""
+
     def __init__(self, graph: Graph, evaluator: Any | None = None):
-        self.metadata = {
-            "name": "Abstract Graph Algorithm",
-            "description": "Base class for graph search algorithms with evaluator orchestration.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.graph = graph
         self.evaluator = evaluator
 

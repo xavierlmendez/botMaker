@@ -7,13 +7,10 @@ from mllib.ml.logistic_regression import MyLogisticRegression
 
 
 class LogisticRegression(MyLogisticRegression):
+    """Project-specific logistic regression configuration for ad click prediction."""
+
     def __init__(self):
         super().__init__(num_weights=19)  # F4: base sets learningModel/lossFunction/epochs
-        self.metadata = {
-            "name": "Ad Click Logistic Regression",
-            "description": "Project-specific logistic regression configuration for ad click prediction.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameter_grid_options = np.array(
             [
@@ -46,13 +43,10 @@ class LogisticRegression(MyLogisticRegression):
 
 
 class LogisticRegressionWithAgeBinning(MyLogisticRegression):
+    """Project-specific logistic regression with age binning for ad click prediction."""
+
     def __init__(self):
         super().__init__(num_weights=26)  # F4: base sets learningModel/lossFunction/epochs
-        self.metadata = {
-            "name": "Ad Click Logistic Regression With Age Binning",
-            "description": "Project-specific logistic regression with age binning for ad click prediction.",
-        }
-        # TODO(BL-16): derive metadata by introspection
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameter_grid_options = np.array(
             [

@@ -18,11 +18,9 @@ from sklearn.preprocessing import StandardScaler
 
 
 class DataTransformer:
+    """This class provides data transformation operations and to columns in a dataset"""
+
     def __init__(self, df: pd.DataFrame):  # , transformationFile:str):
-        self.metadata = {
-            "name": "Data Transformer",
-            "description": "This class provides data transformation operations and to columns in a dataset",
-        }
 
         # self.transformations = transformationFile # default to none
         # self.transformationPipeline = TransformerPipeline()
@@ -291,11 +289,11 @@ class DataTransformer:
 
 
 class DataOrchestrator:
+    """Loads a dataset, applies the project transformations, and produces train/test splits. To
+    become an injectable pipeline (BL-09).
+    """
+
     def __init__(self, data_source, data_source_type: str, transformation_file: str):
-        self.metadata = {
-            "name": "Data Orchestrator",
-            "description": "This will be moved to an abstract class that uses dependency injection in the future to allow for reuse across many use cases",
-        }
         self.data_frame = pd.DataFrame()  # to be overridden in the load_data function
         self.source = data_source
         self.data_source_type = data_source_type
