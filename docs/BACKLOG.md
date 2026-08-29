@@ -131,10 +131,6 @@ to `variance` — fixed. Kept by owner decision (D-4 named set), tagged in slice
 North star (D-2): MlLib models plug into tradePlatform as strategy plugins with descriptors introspected at the boundary
 (`docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
 
-### BL-23 — Classifier predicts all-ones on ad-click data · `fix` · slice 5.3b
-Every smoke-grid permutation (and the historic example output) yields TP=1317, TN=0 → accuracy = majority rate 0.6585.
-Suspects: classification threshold in `HypothesisFunction.compute_classification`, unscaled features, gradient sign.
-
 ### BL-24 — Lint debt behind temporary per-file ignores · `fix` · slices 3.5–3.7, 4.2–4.3, 5.1
 `pyproject.toml [tool.ruff.lint.per-file-ignores] "src/**"` lists rules the pre-refactor code violates so
 the ruff gate can be on from slice 2.2. Counts at 2026-08-28 after safe auto-fixes and formatting:
@@ -151,6 +147,17 @@ gradient signature (return the weight gradient given the design matrix for every
 tests in `tests/ml/test_perceptron_svm.py` as the guard.
 
 ## Closed
+
+### BL-23 — Classifier predicts all-ones on ad-click data · closed in slice 5.3b
+**Findings (2026-08-29).** Two causes, one fixable. (1) *Model bug:* the sign hypothesis emits {-1, +1} but was
+trained against {0, 1} targets, so the MSE gradient compared mismatched label spaces; on a linearly separable
+synthetic set it stalled at 0.42 accuracy, and with targets encoded to ±1 it reaches 1.0. Fixed by
+`GradientDescentModel.encode_targets` (identity) overridden in `MyLogisticRegression` (→ ±1); the unexplained
+pre-training "descent step with the initial weights as gradient" in `grid_fit` had no measurable effect and was
+removed. (2) *Data:* the ad-click features carry no linear signal — sklearn `LogisticRegression` scores 0.650
+(5-fold CV) against a 0.650 majority rate; gradient boosting reaches 0.715. So ≈0.66 is the ceiling for this model
+family on this dataset, and the smoke-grid baseline (10 epochs, lr 0.01) legitimately stays at the majority rate.
+Guard: `tests/ml/test_logistic_regression.py::test_learns_a_linearly_separable_problem_from_zero_one_labels`.
 
 ### BL-12 — `hypothesis.py:43` call expander to reshape data · closed in slice 5.3 (base `HypothesisExpander` is the identity; the descent base applies it uniformly)
 Folds into the shared gradient-descent base.

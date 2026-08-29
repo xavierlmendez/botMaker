@@ -43,7 +43,8 @@ interfaces. Adding a loss or an expander never touches a model.
 
 **Gradient-descent models.** `ml.gradient_descent.GradientDescentModel(hypothesis, loss, learning_rate, epochs)`
 owns `fit` / `predict_values` / gradient / update / cost and accepts arrays or DataFrames. A subclass sets
-`predict_method` (`compute_prediction` or `compute_classification`) — nothing else. `MyLogisticRegression` adds
+`predict_method` (`compute_prediction` or `compute_classification`) and, for a sign classifier,
+`encode_targets` (labels → ±1) — nothing else. `MyLogisticRegression` adds
 an evaluator and `grid_fit(X, y, test_size, random_state)`, which makes the train/test split itself.
 
 **Two-tier specialisation.** A library base (`MyLogisticRegression`) plus a thin project subclass that
@@ -86,7 +87,7 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 | Subclass skips `super().__init__()` (F4) | `ad_click_logistic_regression.py` | slice 3.3 |
 | Base `persist_evaluation_record` builds a set literal (F5) | `generic_evaluator.py:44` | slice 3.2 |
 | Web layer was a stub (F6) | `fastapi_app/` | removed, BL-01 |
-| Copy-on-write incompatibility, swapped FP/FN, degenerate classifier | `generic_evaluator.py`, training loop | BL-21, BL-22, BL-23 |
+| Copy-on-write incompatibility, swapped FP/FN, degenerate classifier | evaluator, training loop | **done** BL-21 (3.4b), BL-22 (3.4c), BL-23 (5.3b) |
 | `camelCase` modules and methods; nested `tests/` dirs; two import roots | everywhere | Phase 4 (D-17, D-18) |
 
 ## 6. Target layout (after Phase 4)

@@ -21,6 +21,13 @@ class MyLogisticRegression(GradientDescentModel):
 
     predict_method = "compute_classification"
 
+    def encode_targets(self, data_targets):
+        """The hypothesis emits ``sign(w·x + b)`` in {-1, +1}; train against targets in the same
+        space. {0, 1} (or {-1, 1}) labels both map to ±1. Without this the gradient compared -1
+        predictions with 0 targets and the classifier could not learn even separable data (BL-23).
+        """
+        return np.where(data_targets > 0, 1.0, -1.0)
+
     def __init__(self, learning_rate=0.001, epochs=10, num_weights=1):
         self.num_weights = num_weights  # number of feature weights; project subclasses pass theirs
         initial_weights = np.random.default_rng(10).random(num_weights)
@@ -65,13 +72,6 @@ class MyLogisticRegression(GradientDescentModel):
                 parameter_setting["polynomialDegree"],
                 parameter_setting["HypothesisExpander"],
             )
-            # Preserved from the original loop: applies one descent-shaped step with the expanded
-            # initial weights as the "gradient". Part of the BL-23 investigation; the baseline pins it.
-            hypothesis_space_adjusted_weights = (
-                self.learning_model.hypothesis_expander.expand_hypothesis(initial_weights)
-            )
-            self.update_weights(hypothesis_space_adjusted_weights, initial_bias)
-
             self.fit(train_values, train_targets)
             self.evaluate(test_values, test_targets, parameter_setting)
             print(f"\tModel Number {model_number}/{count_models} complete")
