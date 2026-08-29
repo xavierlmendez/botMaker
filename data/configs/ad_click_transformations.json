@@ -1,0 +1,140 @@
+{
+  "target": "click",
+  "frames": {
+    "logisticReg": [
+      {
+        "transformer": "DropColumns",
+        "args": {
+          "columns": [
+            "id",
+            "full_name"
+          ]
+        }
+      },
+      {
+        "transformer": "OneHotEncode",
+        "args": {
+          "columns": [
+            "gender",
+            "device_type",
+            "ad_position",
+            "browsing_history",
+            "time_of_day"
+          ]
+        }
+      },
+      {
+        "transformer": "StandardizeNumeric",
+        "args": {
+          "columns": [
+            "age"
+          ]
+        }
+      },
+      {
+        "transformer": "FillNaNWithMean",
+        "args": {
+          "columns": [
+            "age"
+          ]
+        }
+      }
+    ],
+    "logisticRegWithAgeBinning": [
+      {
+        "transformer": "DropColumns",
+        "args": {
+          "columns": [
+            "id",
+            "full_name"
+          ]
+        }
+      },
+      {
+        "transformer": "StandardizeNumeric",
+        "args": {
+          "columns": [
+            "age"
+          ]
+        }
+      },
+      {
+        "transformer": "FillNaNWithMean",
+        "args": {
+          "columns": [
+            "age"
+          ]
+        }
+      },
+      {
+        "transformer": "BinByStdRanges",
+        "args": {
+          "column": "age"
+        }
+      },
+      {
+        "transformer": "OneHotEncode",
+        "args": {
+          "columns": [
+            "age",
+            "gender",
+            "device_type",
+            "ad_position",
+            "browsing_history",
+            "time_of_day"
+          ]
+        }
+      }
+    ],
+    "decisionTree": [
+      {
+        "transformer": "ReplaceNaNWithString",
+        "args": {
+          "columns": [
+            "id",
+            "full_name",
+            "age",
+            "gender",
+            "device_type",
+            "ad_position",
+            "browsing_history",
+            "time_of_day",
+            "click"
+          ]
+        }
+      },
+      {
+        "transformer": "DropColumns",
+        "args": {
+          "columns": [
+            "id",
+            "full_name"
+          ]
+        }
+      },
+      {
+        "transformer": "StandardizeNumeric",
+        "args": {
+          "columns": [
+            "age"
+          ]
+        }
+      },
+      {
+        "transformer": "FillNaNWithMean",
+        "args": {
+          "columns": [
+            "age"
+          ]
+        }
+      },
+      {
+        "transformer": "BinByStdRanges",
+        "args": {
+          "column": "age"
+        }
+      }
+    ],
+    "neuralNetwork": []
+  }
+}

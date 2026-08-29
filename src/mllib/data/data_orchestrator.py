@@ -4,17 +4,7 @@ from pandas import DataFrame
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-# class TransformerPipeline:
-#     def __init__(self):
-#         self.transformers = []
-#
-#     def addTransformer(self, column, transformer):
-#
-#
-#     def load_class(module_path: str, class_name: str):
-#         module = importlib.import_module(module_path)
-#         cls = getattr(module, class_name)
-#         return cls
+from mllib.data.pipeline import ProjectTransformations
 
 
 class DataTransformer:
@@ -289,8 +279,8 @@ class DataTransformer:
 
 
 class DataOrchestrator:
-    """Loads a dataset, applies the project transformations, and produces train/test splits. To
-    become an injectable pipeline (BL-09).
+    """Loads a dataset and builds one transformed frame per pipeline declared in the project's
+    transformer config (``data/configs/*.json``), then hands out feature/target pairs by frame name.
     """
 
     def __init__(self, data_source, data_source_type: str, transformation_file: str):
@@ -299,7 +289,13 @@ class DataOrchestrator:
         self.data_source_type = data_source_type
         self.transformation_file = transformation_file
         self.load_data()
-        self.data_transformer = DataTransformer(self.data_frame)
+        self.transformations = ProjectTransformations.from_file(transformation_file)
+        self.frames = {
+            name: pipeline.fit_transform(self.data_frame)
+            for name, pipeline in self.transformations.pipelines.items()
+        }
+        # Legacy hand-written transformer, kept until slice 6.3 as the equivalence oracle.
+        self.data_transformer = DataTransformer(self.data_frame.copy())
 
     def load_data(self):
         if self.data_source_type == "csvFilePath" or self.data_source_type == "csv":
@@ -313,25 +309,18 @@ class DataOrchestrator:
         # implement later, luckily the datasets used so far have been clean or cleaning as acceptable to be in the transformer
         pass
 
-    def get_transformed_data(self, model: str):
-        # TODO(BL-09): model-name ladder retired with the pipeline
-        # TODO(BL-09): model-name ladder retired with the pipeline
-        if model == "logisticReg":
-            data_frame = self.data_transformer.logistic_model_data_frame
-        elif model == "logisticRegWithAgeBinning":
-            data_frame = self.data_transformer.logistic_model_with_age_binning_data_frame
-        elif model == "decisionTree":
-            data_frame = self.data_transformer.decision_tree_data_frame
-        elif model == "neuralNetwork":
-            data_frame = self.data_transformer.neural_network_data_frame
+    def get_transformed_data(self, frame_name: str):
+        """Features and target for a named frame from the project config."""
+        if frame_name not in self.frames:
+            raise KeyError(
+                f"unknown frame {frame_name!r}; configured: {self.transformations.frame_names()}"
+            )
+        frame = self.frames[frame_name]
+        target = self.transformations.target
+        return frame.drop(columns=[target]), frame[target]
 
-        # pull out the target column (RN only using this for purchase project refactor in future to have this column defined upstream)
-        X = data_frame.drop(columns=["click"])
-        y = data_frame["click"]
-        return X, y
-
-    def build_test_train_split(self, model: str):
-        X, y = self.get_transformed_data(model)
+    def build_test_train_split(self, frame_name: str):
+        X, y = self.get_transformed_data(frame_name)
         return train_test_split(X, y, test_size=0.20)
 
     # helper/ functions that can be deleted in the future

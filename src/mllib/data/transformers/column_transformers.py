@@ -29,29 +29,36 @@ class DropColumns(Transformer):
 class OneHotEncode(Transformer):
     """One-hot encode categorical columns (first level dropped, missing values as their own level).
 
-    ``fit`` records the encoded column set so ``transform`` yields the same columns for new data,
-    filling levels unseen in the new frame with 0.
+    ``fit`` records each column's categories so ``transform`` encodes new data against the same
+    levels: the same first level is dropped, every fitted level gets a column, and values unseen at
+    fit time land in the missing-value column.
     """
 
     def __init__(self, columns: Sequence[str], as_boolean: bool = False):
         self.columns = list(columns)
         self.dtype = bool if as_boolean else float
-        self.encoded_columns_: pd.Index | None = None
+        self.categories_: dict[str, list] = {}
 
-    def _encode(self, frame: pd.DataFrame) -> pd.DataFrame:
-        return pd.get_dummies(
-            frame, columns=self.columns, drop_first=True, dummy_na=True, dtype=self.dtype
-        )
+    @staticmethod
+    def _levels(column: pd.Series) -> list:
+        # An existing categorical (e.g. pd.cut intervals) keeps its own order; otherwise the natural
+        # sort pandas itself uses when it one-hot encodes.
+        if isinstance(column.dtype, pd.CategoricalDtype):
+            return list(column.cat.categories)
+        return sorted(column.dropna().unique())
 
     def fit(self, frame: pd.DataFrame) -> OneHotEncode:
-        self.encoded_columns_ = self._encode(frame).columns
+        self.categories_ = {col: self._levels(frame[col]) for col in self.columns}
         return self
 
     def transform(self, frame: pd.DataFrame) -> pd.DataFrame:
-        encoded = self._encode(frame)
-        if self.encoded_columns_ is None:
-            return encoded
-        return encoded.reindex(columns=self.encoded_columns_, fill_value=self.dtype(0))
+        out = frame.copy()
+        for col, categories in self.categories_.items():
+            known = out[col].where(out[col].isin(categories))  # unseen levels -> missing
+            out[col] = pd.Categorical(known, categories=categories)
+        return pd.get_dummies(
+            out, columns=self.columns, drop_first=True, dummy_na=True, dtype=self.dtype
+        )
 
 
 class StandardizeNumeric(Transformer):

@@ -38,7 +38,8 @@ interfaces. Adding a loss or an expander never touches a model.
 | `HypothesisExpander` | `expand_hypothesis(weights)`, `fit_data_to_hypothesis(data)` | `HypothesisFunction` |
 | `HypothesisFunction` | `compute_prediction(x)`, `compute_classification(x)`; owns weights, bias, expander | every model |
 | `SplitFunction` | impurity of a candidate split | `DecisionTree` |
-| `Transformer` | `fit(frame) -> self`, `transform(frame) -> new frame`, `fit_transform` | `TransformerPipeline` (6.2), `DataOrchestrator` |
+| `Transformer` | `fit(frame) -> self`, `transform(frame) -> new frame`, `fit_transform` | `TransformerPipeline`, `DataOrchestrator` |
+| `TransformerPipeline` | a `Transformer` of `Transformer`s; `from_config([{transformer, args}])` resolves names in `mllib.data.transformers` only | `ProjectTransformations` |
 | `ModelEvaluator` | `update_testing_prediction_data(...)`, `evaluate_model()`, `persist_evaluation_record()` | every model's `evaluate` |
 | `AbstractGraphAlgorithm` | `_search(ctx)`; the ABC owns `run()` and `_notify_evaluator()`; `SearchContext` is frozen | graph algorithms |
 
@@ -62,7 +63,9 @@ depends on this shape; changing it means regenerating the snapshot deliberately.
 
 ## 3. Pipeline trace (ad-click project)
 
-`DataOrchestrator(csv, 'csv', …)` → transformer builds one dataframe per model shape →
+`DataOrchestrator(csv, 'csv', config.json)` → `ProjectTransformations` builds one `TransformerPipeline` per
+frame declared in `data/configs/ad_click_transformations.json` (transformers resolved by class name) →
+`get_transformed_data(frame_name)` drops the configured target →
 `build_test_train_split(model)` → project subclass sets grid → `grid_fit` sweeps `ParameterGrid`
 (fresh `HypothesisFunction` per combination, `epoch` rounds of gradient descent) → evaluator records
 each permutation → `print_evaluation` reports the best. The smoke version of this trace is

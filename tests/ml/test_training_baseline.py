@@ -41,6 +41,7 @@ from mllib.ml.projects.ad_click_logistic_regression import (
 
 HERE = Path(__file__).resolve().parent
 DATA_PATH = HERE.parents[1] / "data" / "ad_click_dataset.csv"
+CONFIG_PATH = HERE.parents[1] / "data" / "configs" / "ad_click_transformations.json"
 SNAPSHOT_PATH = HERE / "baseline_snapshot.json"
 
 SPLIT_SEED = 20260828
@@ -104,7 +105,7 @@ def _metrics(model) -> list[dict]:
 @pytest.fixture(scope="module")
 def orchestrator() -> DataOrchestrator:
     assert DATA_PATH.is_file(), f"dataset missing: {DATA_PATH}"
-    return DataOrchestrator(str(DATA_PATH), "csv", "Purchase")
+    return DataOrchestrator(str(DATA_PATH), "csv", str(CONFIG_PATH))
 
 
 @pytest.fixture(scope="module")
