@@ -9,21 +9,21 @@ hypothesis, expander, and loss are plugged in.
 
 ```
 src/mllib/
-  mathDomain/        hypothesis h(x)=w·x+b · hypothesisExpander Φ (polynomial features) · lossFunction
-                     (MSE, MAE, Perceptron, Hinge — each carries its own gradient) · costFunction ·
-                     regularizationFunction · graphBased/ (graph, tree, Gini split) ·
+  math/        hypothesis h(x)=w·x+b · hypothesis_expander Φ (polynomial features) · loss_function
+                     (MSE, MAE, Perceptron, Hinge — each carries its own gradient) · cost_function ·
+                     regularization_function · graphBased/ (graph, tree, Gini split) ·
                      algorithmImplementations/ (template-method BFS/DFS) · probabilityBased/
-  mlDomain/          MyLinearRegression · MyLogisticRegression · MyPerceptron · MySVM · DecisionTree ·
+  ml/          MyLinearRegression · MyLogisticRegression · MyPerceptron · MySVM · DecisionTree ·
                      ProbabilisticKNN · modelEvaluators/ · projectSpecificFiles/ (ad-click grids)
-  dataDomain/        DataOrchestrator (load → transform → split) · transformers
-tests/               mirrors src/mllib; the training baseline and its snapshot live in tests/mlDomain/
+  data/        data_orchestrator (load → transform → split) · transformers
+tests/               mirrors src/mllib; the training baseline and its snapshot live in tests/ml/
 data/                datasets (≤ 1 MB each, D-19) · configs/ (transformer JSON)
 examples/            composition roots: ad-click model comparison, Boston housing vs sklearn, graph search vs networkx
 docs/                plan, backlog, decisions, learning log, reviews, reports
 notebooks/           coursework notebooks
 ```
 
-Subpackage and module names are still `camelCase`; slices 4.2–4.3 move them to PEP 8.
+Class, method, and variable names are still `camelCase`; slice 4.3 moves them to PEP 8.
 
 ## Run
 
@@ -37,9 +37,9 @@ Requires [`uv`](https://docs.astral.sh/uv/); it installs Python 3.12 from `.pyth
 ## How a model is composed
 
 ```python
-from mllib.mathDomain.hypothesis import HypothesisFunction
-from mllib.mathDomain.lossFunction import MSE
-from mllib.mlDomain.linearRegression import MyLinearRegression
+from mllib.math.hypothesis import HypothesisFunction
+from mllib.math.loss_function import MSE
+from mllib.ml.linear_regression import MyLinearRegression
 
 h = HypothesisFunction(initial_weights, initial_bias)  # h(x) = w·x + b
 model = MyLinearRegression(h, MSE(), learningRate=3e-6, epochs=15_000)

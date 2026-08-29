@@ -100,37 +100,37 @@ plugin — do **not** resurrect a second web app here unless a decision record s
 
 
 ### BL-07 — Probability placeholders: sum rule, product rule, Bayes rule, prior, Gaussian prior · `kept` · CS 6344 pairing
-`MlLib/mathDomain/probabilityBased/sumRule.py`, `productRule.py` — `pass` bodies, but imported by `test_probabilityBased.py`.
-Implement alongside `bayesRule.py` / `prior.py` when probability is covered.
+`MlLib/math/probability/sum_rule.py`, `product_rule.py` — `pass` bodies, but imported by `test_probability.py`.
+Implement alongside `bayes_rule.py` / `prior.py` when probability is covered.
 
 ### BL-08 — InformationGain / ChiSquare split criteria · `kept`
-`MlLib/mathDomain/graphBased/splitFunction.py` — placeholder subclasses beside a working `Gini`. Removing cleanly touches the
+`MlLib/math/graph/split_function.py` — placeholder subclasses beside a working `Gini`. Removing cleanly touches the
 `SplitFunction` hierarchy and `DecisionTree` injection (> 1 h). Implement when decision trees are revisited (BL-13).
 
 ### BL-09 — Declarative `TransformerPipeline` · `kept` · Phase 6 (R1)
-`MlLib/dataDomain/DataOrchestrator.py:41,53` — the pipeline class is written but commented out ("finish above pipeline arch when
+`MlLib/data/data_orchestrator.py:41,53` — the pipeline class is written but commented out ("finish above pipeline arch when
 time allows"). Target: transformations declared in `ProjectSpecificDataClasses/*.json`, loaded by class name; retire the
 `temp*Transformer` methods and the `if model == …` ladder in `get_transformed_data`.
 
 ### BL-10 — Regression/classification task enum · `kept` · Phase 5 (R3)
-`costFunction.py:7`, `lossFunction.py:9`, `regularizationFunction.py:4` all want an enum "later". One `TaskKind` enum.
+`cost_function.py:7`, `loss_function.py:9`, `regularization_function.py:4` all want an enum "later". One `TaskKind` enum.
 
 ### BL-11 — Trained-model exporter · `kept` · re-entry 1–2 h
-`MlLib/mlDomain/projectSpecificFiles/adClickPredictionLogReg.py:29,52` — `self.exporter = None`. Intent: persist fitted weights
+`MlLib/ml/projects/ad_click_logistic_regression.py:29,52` — `self.exporter = None`. Intent: persist fitted weights
 + hypothesis config + evaluator record so a trained model can be reloaded without re-running the grid.
 
 ### BL-12 — `hypothesis.py:43` call expander to reshape data · `kept` · Phase 5 (R2)
 Folds into the shared gradient-descent base.
 
 ### BL-13 — Decision tree debt · `kept`
-`MlLib/mlDomain/decisionTree.py:23` refactor onto `graphBased` utilities · `:115` missing no-split error handling (fixed in
+`MlLib/ml/decision_tree.py:23` refactor onto `graphBased` utilities · `:115` missing no-split error handling (fixed in
 slice 3.4) · `:133` "abstracted later".
 
 ### BL-14 — Formerly never-imported modules · smoke-tested in slice 3.6
 Survey (2026-08-28) called these "real implementations"; on inspection only two were: `graphBased/visualizer.py`
-(matplotlib/networkx animation) and `linearAlgebraHelpers.py` (`QuadraticFormHelper.computeQ`). Both now have smoke
-tests. `probabilityBased/bayesRule.py`, `prior.py`, `gaussianPrior.py` are placeholders → folded into BL-07;
-`regularizationFunction.py` is a placeholder → folded into BL-10. `gaussianPrior.py` assigned the *type* `float`
+(matplotlib/networkx animation) and `linear_algebra_helpers.py` (`QuadraticFormHelper.computeQ`). Both now have smoke
+tests. `probabilityBased/bayes_rule.py`, `prior.py`, `gaussian_prior.py` are placeholders → folded into BL-07;
+`regularization_function.py` is a placeholder → folded into BL-10. `gaussian_prior.py` assigned the *type* `float`
 to `variance` — fixed. Kept by owner decision (D-4 named set), tagged in slice 3.7.
 
 ### BL-16 — Auto-generated metadata markers · `deleted` · Phase 5 (R3)
@@ -144,7 +144,7 @@ North star (D-2): MlLib models plug into tradePlatform as strategy plugins with 
 (`docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
 
 ### BL-20 — Logistic/linear duplication · `kept` · Phase 5 (R2)
-`MlLib/mlDomain/logisticRegression.py:10,36`. Only real difference is `computePrediction` vs `computeClassification`, already
+`MlLib/ml/logistic_regression.py:10,36`. Only real difference is `computePrediction` vs `computeClassification`, already
 polymorphic on `HypothesisFunction`.
 
 ### BL-23 — Classifier predicts all-ones on ad-click data · `fix` · slice 5.3b

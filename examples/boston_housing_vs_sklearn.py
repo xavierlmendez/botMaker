@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from mllib.mathDomain.hypothesis import HypothesisFunction
-from mllib.mathDomain.lossFunction import MSE
-from mllib.mlDomain.linearRegression import MyLinearRegression
+from mllib.math.hypothesis import HypothesisFunction
+from mllib.math.loss_function import MSE
+from mllib.ml.linear_regression import MyLinearRegression
 
 
 class BostonHousingDataset:

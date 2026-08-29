@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from mllib.dataDomain.DataOrchestrator import DataOrchestrator
-from mllib.mlDomain.projectSpecificFiles.adClickPredictionLogReg import (
+from mllib.data.data_orchestrator import DataOrchestrator
+from mllib.ml.projects.ad_click_logistic_regression import (
     LogisticRegression,
     LogisticRegressionWithAgeBinning,
 )
