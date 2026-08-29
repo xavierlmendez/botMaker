@@ -94,24 +94,10 @@ pydantic ≥ 2.6, python 3.11-slim image on port 8000. Full source: `git show e2
 Re-entry path: when tradePlatform needs MlLib models, build the seam there (it already has a FastAPI app) and expose MlLib as a
 plugin — do **not** resurrect a second web app here unless a decision record says otherwise.
 
-### BL-02 — Neural network · `deleted` · re-entry 0
-`MlLib/mlDomain/neuralNetwork.py` was a 0-line file. Intent: a hand-built MLP as the third model in the ad-click comparison
-(commented-out call in `AdClickModelProjectBuildScript.buildModels`). Candidate CS 6344 topic.
 
-### BL-03 — CSV source controller · `deleted` · re-entry 0
-`MlLib/dataDomain/sourceControllers/CsvController.py` was 0 lines. Intent: abstract `DataOrchestrator.load_data` behind a
-source-controller interface (csv / dataframe / …). Folds into BL-09.
 
-### BL-04 — Iterative deepening search · `deleted` · re-entry 30 min
-`MlLib/mathDomain/algorithmImplementations/iterativeDeepening.py` was 0 lines. Pattern to follow: `depthFirstSearch.py` on
-`abstractGraphAlgorithm.AbstractGraphAlgorithm` (`run() → _search() → _notify_evaluator()` with a frozen `SearchContext`).
 
-### BL-05 — `algorithmImplementations/testScript.py` · `deleted` · re-entry 0
-Empty scratch file.
 
-### BL-06 — AI domain · `deleted` · re-entry 0
-`MlLib/aiDomain/` held only an empty `__init__.py`. Intent: agent/LLM-driven model selection and explanation on top of the
-evaluator records. No design existed.
 
 ### BL-07 — Sum rule / product rule · `kept` · CS 6344 pairing
 `MlLib/mathDomain/probabilityBased/sumRule.py`, `productRule.py` — `pass` bodies, but imported by `test_probabilityBased.py`.
@@ -146,19 +132,12 @@ slice 3.4) · `:133` "abstracted later".
 Real implementations (8–34 lines); kept by owner decision, each gets one smoke test so the keep rule holds.
 *Correction 2026-08-28:* `depthFirstSearch.py` was listed here but is a stub (returns an empty traversal) — see BL-25.
 
-### BL-15 — Duplicate DFS · `deleted` · re-entry 0
-`MlLib/mathDomain/graphBased/searchAlgorithms/DFS.py` (13 lines) superseded by `algorithmImplementations/depthFirstSearch.py`.
 
 ### BL-16 — Auto-generated metadata markers · `deleted` · Phase 5 (R3)
 ~25 × `# TODO: review metadata (auto-generated)` plus the hand-typed `metadata = {…}` dicts they annotate. Replaced by an
 introspection helper.
 
-### BL-17 — Project scripts · `moved` → `examples/` (slice 3.5)
-`projectScripts/AdClickModelProjectBuildScript.py`, `testScript.py` (Boston housing vs sklearn comparison),
-`KNNClassifierTestScript.py` (imports only). `sandbox.py` deleted as scratch.
 
-### BL-18 — `graphBased/tests/nxGraphExample.py` · `moved` → `examples/`
-Not a test; a worked networkx example.
 
 ### BL-19 — tradePlatform plugin seam · `backlog-only`
 North star (D-2): MlLib models plug into tradePlatform as strategy plugins with descriptors introspected at the boundary
@@ -187,6 +166,35 @@ slice 3.1 when its import root was fixed and the algorithm modules became import
 smoke test can pass for it, so slice 3.6 implements rather than merely tests it.
 
 ## Closed
+
+### BL-18 — `graphBased/tests/nxGraphExample.py` · closed in slice 3.5 (moved to examples/graph_search_vs_networkx.py)
+Not a test; a worked networkx example.
+
+### BL-17 — Project scripts · closed in slice 3.5 (moved to examples/ad_click_model_comparison.py and boston_housing_vs_sklearn.py; sandbox.py and the import-only KNNClassifierTestScript.py deleted; MlLib/run_all_tests.py deleted — pytest config lives in pyproject)
+`projectScripts/AdClickModelProjectBuildScript.py`, `testScript.py` (Boston housing vs sklearn comparison),
+`KNNClassifierTestScript.py` (imports only). `sandbox.py` deleted as scratch.
+
+### BL-15 — Duplicate DFS · closed in slice 3.5 (deleted)
+`MlLib/mathDomain/graphBased/searchAlgorithms/DFS.py` (13 lines) superseded by `algorithmImplementations/depthFirstSearch.py`.
+
+### BL-06 — AI domain · closed in slice 3.5 (deleted)
+`MlLib/aiDomain/` held only an empty `__init__.py`. Intent: agent/LLM-driven model selection and explanation on top of the
+evaluator records. No design existed.
+
+### BL-05 — `algorithmImplementations/testScript.py` · closed in slice 3.5 (deleted)
+Empty scratch file.
+
+### BL-04 — Iterative deepening search · closed in slice 3.5 (deleted)
+`MlLib/mathDomain/algorithmImplementations/iterativeDeepening.py` was 0 lines. Pattern to follow: `depthFirstSearch.py` on
+`abstractGraphAlgorithm.AbstractGraphAlgorithm` (`run() → _search() → _notify_evaluator()` with a frozen `SearchContext`).
+
+### BL-03 — CSV source controller · closed in slice 3.5 (deleted)
+`MlLib/dataDomain/sourceControllers/CsvController.py` was 0 lines. Intent: abstract `DataOrchestrator.load_data` behind a
+source-controller interface (csv / dataframe / …). Folds into BL-09.
+
+### BL-02 — Neural network · closed in slice 3.5 (deleted)
+`MlLib/mlDomain/neuralNetwork.py` was a 0-line file. Intent: a hand-built MLP as the third model in the ad-click comparison
+(commented-out call in `AdClickModelProjectBuildScript.buildModels`). Candidate CS 6344 topic.
 
 ### BL-22 — Confusion-matrix FP/FN swapped · closed in slice 3.4c (one vectorised base implementation, sklearn-checked; snapshot regenerated: precision 1.0→0.6585, recall 0.6585→1.0)
 `genericEvaluator.py:141,145`: "falsePositives" counts target=1/pred=0 (a false negative) and vice versa; reported precision is

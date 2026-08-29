@@ -6,7 +6,7 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 ## Linear regression by gradient descent · 2025-12
 - **What.** h(x) = w·x + b, fit by minimising MSE (or MAE) with batch gradient descent.
 - **Where.** `mlDomain/linearRegression.py` · `mathDomain/hypothesis.py` · `mathDomain/lossFunction.py` · test `mlDomain/tests/test_linearRegression.py`
-- **Design.** The loss object carries its own gradient (`computeGradient`), so the model never knows which loss it is minimising. The Boston-housing comparison against sklearn lives in `projectScripts/testScript.py`.
+- **Design.** The loss object carries its own gradient (`computeGradient`), so the model never knows which loss it is minimising. The Boston-housing comparison against sklearn lives in `examples/boston_housing_vs_sklearn.py`.
 - **What was confusing.** Learning rate scale: unscaled features needed ~3e-6 and 15k epochs to converge.
 
 ## Polynomial regression as a hypothesis expander · 2025-12-14
