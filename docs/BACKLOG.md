@@ -1,7 +1,7 @@
 # Backlog — stripped initiatives and code-level TODOs
 
 Registry of everything that was removed from the tree, or left in with a `TODO(BL-nn)` tag, under the strip rule in
-`docs/REFACTOR_PLAN.md` (D-4). Phase-level milestones live in the orchestrator repo (`projects/botmaker.md`); this file is the
+`docs/plans/2026-08-refactor.md` (D-4). Phase-level milestones live in the orchestrator repo (`projects/botmaker.md`); this file is the
 code-adjacent detail. When an item is done, move it to the **Closed** section with the commit that closed it.
 
 Every in-code `TODO` must reference an id here: `# TODO(BL-nn): …`. CI rejects any other form.
@@ -126,13 +126,11 @@ to `variance` — fixed. Kept by owner decision (D-4 named set), tagged in slice
 North star (D-2): MlLib models plug into tradePlatform as strategy plugins with descriptors introspected at the boundary
 (`docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
 
-### BL-24 — Lint debt behind temporary per-file ignores · `fix` · slices 3.5–3.7, 4.2–4.3, 5.1
-`pyproject.toml [tool.ruff.lint.per-file-ignores] "src/**"` lists rules the pre-refactor code violates so
-the ruff gate can be on from slice 2.2. Counts at 2026-08-28 after safe auto-fixes and formatting:
-E501 ×130 (long comments/strings) · ~~TD004 ×17~~ (cleared 3.7) · RUF012 ×12 (metadata dicts → 5.1) · F841 ×9 ·
-RUF059 ×6 · B007 ×5 · E402 ×4 · E711 ×3 · RUF002 ×2 · SIM113 ×1 · B905 ×1 (→ 3.5/3.6) · ~~N-rules~~ (cleared 4.2/4.3: 216 identifiers renamed; `X`, `X_*`, `Q` exempted as ML convention).
-Rule: a slice that touches a file fixes that file's ignored violations; a code leaves the list when its
-count reaches zero. Nothing is added to the list without a backlog entry.
+### BL-24 — Lint debt behind temporary per-file ignores · `fix`
+`pyproject.toml [tool.ruff.lint.per-file-ignores]` lists rules the code still violates so the ruff gate stays on.
+Counts at close-out 2026-08-29 (src+examples): E501 ×149, F841 ×2, B007 ×2, E711 ×3, B905 ×1, E402 ×3. Cleared during
+the refactor: TD004, RUF012, the N naming rules (216 identifiers). Rule: a slice that touches a file fixes that
+file's ignored violations; a code leaves the list when its count reaches zero; nothing is added without an entry.
 
 ### BL-26 — Perceptron and SVM onto the descent base · `kept`
 `ml/perceptron.py` and `ml/svm.py` are identical except for the update sign and use the three-argument

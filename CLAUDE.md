@@ -9,9 +9,8 @@ model classes — sklearn is used only for `train_test_split` and `ParameterGrid
 ## Read before working (in order, only what the task needs)
 
 1. `docs/DECISIONS.md` — settled decisions; don't re-litigate, append new ones
-2. `docs/REFACTOR_PLAN.md` — the active migration plan; work happens in its numbered slices
-3. `docs/BACKLOG.md` — every `TODO(BL-nn)` in code resolves here
-4. `docs/ARCHITECTURE.md` — decomposition, contracts, extension points (dated reviews in `docs/reviews/`)
+2. `docs/BACKLOG.md` — open initiatives; new work starts from an entry here (or adds one)
+3. `docs/ARCHITECTURE.md` — decomposition, contracts, extension points (dated reviews in `docs/reviews/`)
 
 ## Hard rules
 
@@ -36,8 +35,8 @@ Lint/format: `uv run ruff check . && uv run ruff format --check .` — also run 
 
 ## Conventions
 
-- Current code is `camelCase`; slice 4.2/4.3 moves to PEP 8 `snake_case`. Don't mix styles within a file;
-  new files follow PEP 8 now.
+- PEP 8 names throughout (`snake_case` modules/functions/attributes, `CapWords` classes); ruff's `N` rules
+  enforce it. `X`, `X_*`, `Q` are the only exemptions (design matrix, quadratic form).
 - Commits: `<type>(<scope>): <imperative summary>`, scope ∈ `math ml data docs ci chore`.
 - Dates ISO 8601. Line length 100.
 - A decision with lasting consequences → `docs/DECISIONS.md`; a technique implemented by hand →

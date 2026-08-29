@@ -23,8 +23,6 @@ docs/                plan, backlog, decisions, learning log, reviews, reports
 notebooks/           coursework notebooks
 ```
 
-Class, method, and variable names are still `camelCase`; slice 4.3 moves them to PEP 8.
-
 ## Run
 
 ```
@@ -51,12 +49,12 @@ inject `PolynomialRegressionExpander(degree=3)` into the hypothesis for polynomi
 
 ## Status
 
-Refactor plan (`docs/REFACTOR_PLAN.md`) Phases 0–6 complete; Phase 7 close-out pending. Known
-issues are tracked in `docs/BACKLOG.md` (notably BL-21..23, found while building the training baseline).
+The 2026-08 refactor is complete (`docs/plans/2026-08-refactor.md`, D-21). Open work is the backlog
+(`docs/BACKLOG.md`); the next initiatives pair with CS 6344 (probability placeholders, PCA/SVD).
 
 ## Documents
 
-- `docs/REFACTOR_PLAN.md` — phases and slices
+- `docs/plans/` — executed plans, archived with a "what changed" section
 - `docs/DECISIONS.md` — decision log
 - `docs/BACKLOG.md` — stripped initiatives and tagged TODOs
 - `docs/LEARNING_LOG.md` — one entry per technique implemented by hand

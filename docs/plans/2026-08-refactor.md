@@ -1,6 +1,7 @@
 # BotMaker / MlLib — Refactor & Framework Plan
 
-Status: **draft for owner review** · Written 2026-08-28 · Owner: Xavier
+Status: **complete** · Written 2026-08-28 · Executed 2026-08-28 → 2026-08-29 (PRs #1–#21) · Owner: Xavier
+Archived from `docs/REFACTOR_PLAN.md` in slice 7.1. See §7 for what changed against the plan.
 Supersedes nothing; builds on `docs/reviews/2026-07-18-architecture-review.md` (2026-07-18).
 
 ---
@@ -290,3 +291,36 @@ Conventions for this section: every slice is one PR on a branch named as shown, 
 1. Confirm or overrule A-1…A-7 (reply with the ids).
 2. Run Phase 0.1 (local deletes — the plan does not perform these for you).
 3. Open the first branch: `chore/gitignore`.
+
+---
+
+## 7. What changed vs. the plan (written at close-out, 2026-08-29)
+
+**Schedule.** Planned ≈24 h over ~5 weeks (~2026-09-30); executed in two sittings on 2026-08-28/29 as 21 PRs.
+The per-slice estimates were about right; the calendar estimate assumed evenings, not sessions.
+
+**Slices added.** 3.4b (BL-21 pandas-3 read-only arrays), 3.4c (BL-22 swapped FP/FN), 5.3b (BL-23 degenerate
+classifier) — all three found by *building the baseline test* in the pre-work, which is the single most valuable
+thing this plan did. 3.0 (the baseline as a gate on every code slice).
+
+**Slices absorbed.** 4.4, 5.4 and 6.4 (docs-after-the-fact) never ran as separate PRs: every rename/refactor slice
+updated the docs in the same PR, which is what CONTRIBUTING rule 6/7 demands anyway.
+
+**Findings that changed the record.** The survey overstated BL-14 (only 2 of 6 "never-imported modules" were real
+implementations; DFS was a stub → BL-25, implemented in 3.6). `.idea/` was never tracked. The base
+`MyLogisticRegression.__init__` had always been broken (missing `degree` argument) — F4 was hiding a `TypeError`.
+The ad-click dataset has no linear signal (sklearn logistic 0.650 CV vs 0.650 majority), so the "degenerate
+classifier" was half data; the model half (label-space mismatch) was real and is fixed.
+
+**Process corrections.** Two self-inflicted errors were caught by gates rather than review: a 178 MB `.pptx` that
+the `src/` move re-exposed (caught by `check-added-large-files`), and an over-broad rename that touched attributes
+in a renames-only slice (caught by the imports-only diff check). One process error was mine: syncing `main` on
+"continue" before verifying the PR had actually been merged — fixed by checking `gh pr list` first, every time.
+
+**Backlog at close.** 26 entries: 16 closed, 10 open — BL-01 (web seam, build in tradePlatform), BL-07/08/11/13
+(learning-paired implementations), BL-14 (record), BL-19 (plugin seam), BL-24 (lint debt, counts in `pyproject`),
+BL-26 (perceptron/SVM onto the descent base). None block the CS 6344 work; BL-07 is its natural first pairing.
+
+**Numbers.** Tests 27 → 87 (+ baseline); `DataOrchestrator` 378 → 87 lines; `MyLinearRegression` 76 → 11;
+46 metadata dicts → 46 docstrings + `describe()`; 415 naming violations → 0; ruff/pre-commit/CI gates on;
+`main` protected.
