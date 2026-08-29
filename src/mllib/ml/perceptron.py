@@ -7,9 +7,9 @@ from mllib.math.loss_function import LossFunction
 class MyPerceptron:  # prefixing with my for the comparison script, rename later when cleaning up files
     def __init__(
         self,
-        hypothesisFunction: HypothesisFunction,
-        lossFunction: LossFunction,
-        learningRate=0.001,
+        hypothesis_function: HypothesisFunction,
+        loss_function: LossFunction,
+        learning_rate=0.001,
         epochs=10,
     ):
         self.metadata = {
@@ -17,50 +17,54 @@ class MyPerceptron:  # prefixing with my for the comparison script, rename later
             "description": "Perceptron implementation using sub-gradient updates for classification.",
         }
         # TODO(BL-16): derive metadata by introspection
-        self.learningModel = hypothesisFunction
-        self.lossFunction = lossFunction
-        self.learningRate = learningRate
+        self.learning_model = hypothesis_function
+        self.loss_function = loss_function
+        self.learning_rate = learning_rate
         self.epochs = epochs
 
-    def fit(self, dataValues, dataTargets):
+    def fit(self, data_values, data_targets):
         for epoch in range(self.epochs):
-            subGradientDirectionMatrix, subGradientDiasDirectionMatrix = (
-                self.calculateSubGradientDescent(dataValues, dataTargets)
+            sub_gradient_direction_matrix, sub_gradient_dias_direction_matrix = (
+                self.calculate_sub_gradient_descent(data_values, data_targets)
             )
-            self.updateWeights(subGradientDirectionMatrix, subGradientDiasDirectionMatrix)
-            error = self.calculateError(dataValues, dataTargets)
+            self.update_weights(sub_gradient_direction_matrix, sub_gradient_dias_direction_matrix)
+            error = self.calculate_error(data_values, data_targets)
             print(f"Epoch: {epoch}, Error: {error}")
         return self
 
     def predict(self, data):
-        return np.sign(self.learningModel.computeClassification(data))
+        return np.sign(self.learning_model.compute_classification(data))
 
-    def predictValues(self, dataValues):
-        predictedValues = []
-        for data in dataValues:
-            predictedValues.append(self.predict(data))
-        return np.array(predictedValues)
+    def predict_values(self, data_values):
+        predicted_values = []
+        for data in data_values:
+            predicted_values.append(self.predict(data))
+        return np.array(predicted_values)
 
-    def evaluate(self, dataValues, dataTargets):
+    def evaluate(self, data_values, data_targets):
         pass
 
-    def calculateSubGradientDescent(self, dataValues, dataTargets):
+    def calculate_sub_gradient_descent(self, data_values, data_targets):
         # calculate the gradient
-        predicted = self.predictValues(dataValues)
-        subGradientDirection = self.lossFunction.computeGradient(dataTargets, predicted, dataValues)
-        subGradientBiasDirection = self.lossFunction.computeBias(dataTargets, predicted)
-        return subGradientDirection, subGradientBiasDirection
+        predicted = self.predict_values(data_values)
+        sub_gradient_direction = self.loss_function.compute_gradient(
+            data_targets, predicted, data_values
+        )
+        sub_gradient_bias_direction = self.loss_function.compute_bias(data_targets, predicted)
+        return sub_gradient_direction, sub_gradient_bias_direction
 
-    def updateWeights(self, subGradientDirection, subGradientBiasDirection):
+    def update_weights(self, sub_gradient_direction, sub_gradient_bias_direction):
         # update the weights and bias
-        print("sub gradient:", subGradientDirection)
-        newWeights = self.learningModel.getWeights() + self.learningRate * subGradientDirection
-        print("updated weights:", newWeights)
-        newBias = self.learningModel.getBias() + self.learningRate * subGradientBiasDirection
-        self.learningModel.updateWeights(newWeights)
-        self.learningModel.updateBias(newBias)
+        print("sub gradient:", sub_gradient_direction)
+        new_weights = (
+            self.learning_model.get_weights() + self.learning_rate * sub_gradient_direction
+        )
+        print("updated weights:", new_weights)
+        new_bias = self.learning_model.get_bias() + self.learning_rate * sub_gradient_bias_direction
+        self.learning_model.update_weights(new_weights)
+        self.learning_model.update_bias(new_bias)
 
-    def calculateError(self, dataValues, dataTargets):
-        predicted = self.predictValues(dataValues)
-        misclassified = predicted != dataTargets
+    def calculate_error(self, data_values, data_targets):
+        predicted = self.predict_values(data_values)
+        misclassified = predicted != data_targets
         return np.mean(misclassified)

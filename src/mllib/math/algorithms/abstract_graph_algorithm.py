@@ -15,7 +15,7 @@ class SearchContext:
     start_node_id: int
     target_node_criteria: Callable[[Any], bool] | None = None
     max_depth: int | None = None
-    allowRevisiting: bool = False
+    allow_revisiting: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

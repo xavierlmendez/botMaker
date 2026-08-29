@@ -99,9 +99,9 @@ plugin — do **not** resurrect a second web app here unless a decision record s
 
 
 
-### BL-07 — Probability placeholders: sum rule, product rule, Bayes rule, prior, Gaussian prior · `kept` · CS 6344 pairing
+### BL-07 — Probability placeholders: sum rule, product rule, Bayes rule, Prior, Gaussian Prior · `kept` · CS 6344 pairing
 `MlLib/math/probability/sum_rule.py`, `product_rule.py` — `pass` bodies, but imported by `test_probability.py`.
-Implement alongside `bayes_rule.py` / `prior.py` when probability is covered.
+Implement alongside `bayes_rule.py` / `Prior.py` when probability is covered.
 
 ### BL-08 — InformationGain / ChiSquare split criteria · `kept`
 `MlLib/math/graph/split_function.py` — placeholder subclasses beside a working `Gini`. Removing cleanly touches the
@@ -128,8 +128,8 @@ slice 3.4) · `:133` "abstracted later".
 
 ### BL-14 — Formerly never-imported modules · smoke-tested in slice 3.6
 Survey (2026-08-28) called these "real implementations"; on inspection only two were: `graphBased/visualizer.py`
-(matplotlib/networkx animation) and `linear_algebra_helpers.py` (`QuadraticFormHelper.computeQ`). Both now have smoke
-tests. `probabilityBased/bayes_rule.py`, `prior.py`, `gaussian_prior.py` are placeholders → folded into BL-07;
+(matplotlib/networkx animation) and `linear_algebra_helpers.py` (`QuadraticFormHelper.compute_q`). Both now have smoke
+tests. `probabilityBased/bayes_rule.py`, `Prior.py`, `gaussian_prior.py` are placeholders → folded into BL-07;
 `regularization_function.py` is a placeholder → folded into BL-10. `gaussian_prior.py` assigned the *type* `float`
 to `variance` — fixed. Kept by owner decision (D-4 named set), tagged in slice 3.7.
 
@@ -144,18 +144,18 @@ North star (D-2): MlLib models plug into tradePlatform as strategy plugins with 
 (`docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
 
 ### BL-20 — Logistic/linear duplication · `kept` · Phase 5 (R2)
-`MlLib/ml/logistic_regression.py:10,36`. Only real difference is `computePrediction` vs `computeClassification`, already
+`MlLib/ml/logistic_regression.py:10,36`. Only real difference is `compute_prediction` vs `compute_classification`, already
 polymorphic on `HypothesisFunction`.
 
 ### BL-23 — Classifier predicts all-ones on ad-click data · `fix` · slice 5.3b
 Every smoke-grid permutation (and the historic example output) yields TP=1317, TN=0 → accuracy = majority rate 0.6585.
-Suspects: classification threshold in `HypothesisFunction.computeClassification`, unscaled features, gradient sign.
+Suspects: classification threshold in `HypothesisFunction.compute_classification`, unscaled features, gradient sign.
 
 ### BL-24 — Lint debt behind temporary per-file ignores · `fix` · slices 3.5–3.7, 4.2–4.3, 5.1
 `pyproject.toml [tool.ruff.lint.per-file-ignores] "src/**"` lists rules the pre-refactor code violates so
 the ruff gate can be on from slice 2.2. Counts at 2026-08-28 after safe auto-fixes and formatting:
 E501 ×130 (long comments/strings) · ~~TD004 ×17~~ (cleared 3.7) · RUF012 ×12 (metadata dicts → 5.1) · F841 ×9 ·
-RUF059 ×6 · B007 ×5 · E402 ×4 · E711 ×3 · RUF002 ×2 · SIM113 ×1 · B905 ×1 (→ 3.5/3.6) · N-rules (→ 4.2/4.3).
+RUF059 ×6 · B007 ×5 · E402 ×4 · E711 ×3 · RUF002 ×2 · SIM113 ×1 · B905 ×1 (→ 3.5/3.6) · ~~N-rules~~ (cleared 4.2/4.3: 216 identifiers renamed; `X`, `X_*`, `Q` exempted as ML convention).
 Rule: a slice that touches a file fixes that file's ignored violations; a code leaves the list when its
 count reaches zero. Nothing is added to the list without a backlog entry.
 

@@ -13,18 +13,18 @@ from mllib.ml.logistic_regression import MyLogisticRegression
 
 def _build_model() -> MyLogisticRegression:
     model = MyLogisticRegression.__new__(MyLogisticRegression)
-    model.numWeights = 2
-    model.learningRate = 0.1
+    model.num_weights = 2
+    model.learning_rate = 0.1
     model.epochs = 1
-    model.lossFunction = MSE()
+    model.loss_function = MSE()
     model.evaluator = LogisticRegressionModelEvaluator()
 
     expander = PolynomialRegressionExpander(degree=1)
-    model.learningModel = HypothesisFunction(
+    model.learning_model = HypothesisFunction(
         np.array([1.0, -1.0]),
         0.0,
         degree=1,
-        hypothesisExpander=expander,
+        hypothesis_expander=expander,
     )
     return model
 
@@ -39,7 +39,7 @@ def test_predict_values_classification_signs():
         ]
     )
 
-    predictions = model.predictValues(data_values)
+    predictions = model.predict_values(data_values)
 
     assert np.allclose(predictions, np.array([1.0, -1.0]))
 
@@ -55,8 +55,8 @@ def test_calculate_gradient_descent_updates_weights():
     )
     data_targets = np.array([1.0, 1.0])
 
-    new_weights, new_bias = model.calculateGradientDescent(data_values, data_targets)
-    model.updateWeights(new_weights, new_bias)
+    new_weights, new_bias = model.calculate_gradient_descent(data_values, data_targets)
+    model.update_weights(new_weights, new_bias)
 
-    assert np.allclose(model.learningModel.getWeights(), np.array([1.0, -0.8]))
-    assert np.isclose(model.learningModel.getBias(), 0.2)
+    assert np.allclose(model.learning_model.get_weights(), np.array([1.0, -0.8]))
+    assert np.isclose(model.learning_model.get_bias(), 0.2)

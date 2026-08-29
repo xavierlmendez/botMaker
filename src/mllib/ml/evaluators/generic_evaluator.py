@@ -11,116 +11,120 @@ class ModelEvaluator:
             "description": "Base evaluator for computing and persisting model evaluation metrics.",
         }
         # TODO(BL-16): derive metadata by introspection
-        self.runIteration = 0
-        self.evaluationRecord: dict[int, dict] = {}
+        self.run_iteration = 0
+        self.evaluation_record: dict[int, dict] = {}
 
-    def updateTestingPredictionData(
-        self, test_values: ndarray, testTargets: ndarray, predictions: ndarray, evaluationMetaData
+    def update_testing_prediction_data(
+        self,
+        test_values: ndarray,
+        test_targets: ndarray,
+        predictions: ndarray,
+        evaluation_meta_data,
     ):
-        self.runIteration += 1
+        self.run_iteration += 1
         self.test_values = test_values
         # Own copies: callers may pass read-only views (pandas >= 3 copy-on-write `.to_numpy()`),
         # and setConfusionMatrixValues normalises labels in place.
-        self.testTargets = np.array(testTargets, copy=True)
+        self.test_targets = np.array(test_targets, copy=True)
         self.predictions = np.array(predictions, copy=True)
-        self.evaluationMetaData = evaluationMetaData
-        self.correctPredictions = 0
-        self.truePositives = 0
-        self.falsePositives = 0
-        self.trueNegatives = 0
-        self.falseNegatives = 0
-        self.evaluateModel()
-        self.persistEvaluationRecord()
+        self.evaluation_meta_data = evaluation_meta_data
+        self.correct_predictions = 0
+        self.true_positives = 0
+        self.false_positives = 0
+        self.true_negatives = 0
+        self.false_negatives = 0
+        self.evaluate_model()
+        self.persist_evaluation_record()
 
-    def setConfusionMatrixValues(self):
+    def set_confusion_matrix_values(self):
         # Labels are normalised so {-1, 0} both mean "negative" (np.sign classifiers emit -1).
         self.predictions[self.predictions == -1] = 0
-        self.testTargets[self.testTargets == -1] = 0
-        targets, predictions = self.testTargets, self.predictions
-        self.truePositives = int(((targets == 1) & (predictions == 1)).sum())
-        self.falsePositives = int(((targets == 0) & (predictions == 1)).sum())
-        self.trueNegatives = int(((targets == 0) & (predictions == 0)).sum())
-        self.falseNegatives = int(((targets == 1) & (predictions == 0)).sum())
+        self.test_targets[self.test_targets == -1] = 0
+        targets, predictions = self.test_targets, self.predictions
+        self.true_positives = int(((targets == 1) & (predictions == 1)).sum())
+        self.false_positives = int(((targets == 0) & (predictions == 1)).sum())
+        self.true_negatives = int(((targets == 0) & (predictions == 0)).sum())
+        self.false_negatives = int(((targets == 1) & (predictions == 0)).sum())
 
-    def getAccuracy(self):
-        correctPredictions = 0
-        countTotalPredictions = self.predictions.size
+    def get_accuracy(self):
+        correct_predictions = 0
+        count_total_predictions = self.predictions.size
 
-        for i in range(countTotalPredictions):
-            if self.testTargets[i] == self.predictions[i]:
-                correctPredictions += 1
+        for i in range(count_total_predictions):
+            if self.test_targets[i] == self.predictions[i]:
+                correct_predictions += 1
 
         # set to self to reuse for future calculations that would run after this
-        self.correctPredictions = correctPredictions
-        return correctPredictions / countTotalPredictions
+        self.correct_predictions = correct_predictions
+        return correct_predictions / count_total_predictions
 
-    def persistEvaluationRecord(self):
+    def persist_evaluation_record(self):
         # Base record: the confusion-matrix counts every evaluator shares. Subclasses extend
         # this dict with their own metrics (see LogisticRegressionModelEvaluator).
-        self.evaluationRecord[self.runIteration] = {
-            "modelData": self.evaluationMetaData,
-            "correctPredictions": self.correctPredictions,
-            "truePositives": self.truePositives,
-            "falsePositives": self.falsePositives,
-            "trueNegatives": self.trueNegatives,
-            "falseNegatives": self.falseNegatives,
+        self.evaluation_record[self.run_iteration] = {
+            "modelData": self.evaluation_meta_data,
+            "correctPredictions": self.correct_predictions,
+            "truePositives": self.true_positives,
+            "falsePositives": self.false_positives,
+            "trueNegatives": self.true_negatives,
+            "falseNegatives": self.false_negatives,
         }
 
-    def printEvaluation(self, printBestModelStatsOnly=False):
-        if not printBestModelStatsOnly:
-            formattedEvalJson = dumps(self.evaluationRecord, indent=4)
-            print(formattedEvalJson)
-        self.printEvaluationStats()
+    def print_evaluation(self, print_best_model_stats_only=False):
+        if not print_best_model_stats_only:
+            formatted_eval_json = dumps(self.evaluation_record, indent=4)
+            print(formatted_eval_json)
+        self.print_evaluation_stats()
 
-    def printEvaluationStats(self):
-        eval_data = self.evaluationRecord
+    def print_evaluation_stats(self):
+        eval_data = self.evaluation_record
 
-        bestAccuracy = {"iteration": None, "value": float("-inf")}
-        bestPrecision = {"iteration": None, "value": float("-inf")}
-        bestRecall = {"iteration": None, "value": float("-inf")}
+        best_accuracy = {"iteration": None, "value": float("-inf")}
+        best_precision = {"iteration": None, "value": float("-inf")}
+        best_recall = {"iteration": None, "value": float("-inf")}
 
-        for iteration, metrics in self.evaluationRecord.items():
+        for iteration, metrics in self.evaluation_record.items():
             accuracy = metrics.get("accuracy")
             precision = metrics.get("precision")
             recall = metrics.get("recall")
 
-            if accuracy > bestAccuracy["value"]:
-                bestAccuracy = {"iteration": iteration, "value": accuracy}
+            if accuracy > best_accuracy["value"]:
+                best_accuracy = {"iteration": iteration, "value": accuracy}
 
-            if precision > bestPrecision["value"]:
-                bestPrecision = {"iteration": iteration, "value": precision}
+            if precision > best_precision["value"]:
+                best_precision = {"iteration": iteration, "value": precision}
 
-            if recall > bestRecall["value"]:
-                bestRecall = {"iteration": iteration, "value": recall}
-        modelName = self.evaluationMetaData["modelName"]
-        print(f"\n Evaluation Summary : {modelName} ")
+            if recall > best_recall["value"]:
+                best_recall = {"iteration": iteration, "value": recall}
+        model_name = self.evaluation_meta_data["modelName"]
+        print(f"\n Evaluation Summary : {model_name} ")
 
         print(
-            f"\tBest Accuracy : {bestAccuracy['value']:.4f} (Iteration {bestAccuracy['iteration']})"
+            f"\tBest Accuracy : {best_accuracy['value']:.4f} (Iteration {best_accuracy['iteration']})"
         )
 
         print(
-            f"\tBest Precision: {bestPrecision['value']:.4f} "
-            f"\t(Iteration {bestPrecision['iteration']})"
+            f"\tBest Precision: {best_precision['value']:.4f} "
+            f"\t(Iteration {best_precision['iteration']})"
         )
 
         print(
-            f"\tBest Recall   : {bestRecall['value']:.4f} \t(Iteration {bestRecall['iteration']})"
+            f"\tBest Recall   : {best_recall['value']:.4f} \t(Iteration {best_recall['iteration']})"
         )
-        bestModelIterations = [
-            bestAccuracy["iteration"]
+        best_model_iterations = [
+            best_accuracy["iteration"]
         ]  # [bestAccuracy['iteration'], bestPrecision['iteration'], bestRecall['iteration']]
-        bestModelIterations = list(
-            set(bestModelIterations)
+        best_model_iterations = list(
+            set(best_model_iterations)
         )  # remove duplicate if the same model is best for multiple metrics
 
-        for iteration in bestModelIterations:
+        for iteration in best_model_iterations:
             print(f"\n (Iteration {iteration})")
-            modelIteration = self.evaluationRecord.get(iteration)
-            formattedEvalJson = dumps(modelIteration, indent=4)
-            print(formattedEvalJson)
+            model_iteration = self.evaluation_record.get(iteration)
+            formatted_eval_json = dumps(model_iteration, indent=4)
+            print(formatted_eval_json)
 
-    def evaluateModel(self):
+    def evaluate_model(self):
         raise NotImplementedError("Subclasses must implement evaluateModel()")
 
 
@@ -132,52 +136,52 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
             "description": "Evaluator for logistic regression classification metrics.",
         }
         # TODO(BL-16): derive metadata by introspection
-        self.evaluationMetaData = None
+        self.evaluation_meta_data = None
 
-    def evaluateModel(self):
-        self.setConfusionMatrixValues()
-        self.accuracy = self.getAccuracy()
-        self.precision = self.getPrecision()
-        self.recall = self.getRecall()
+    def evaluate_model(self):
+        self.set_confusion_matrix_values()
+        self.accuracy = self.get_accuracy()
+        self.precision = self.get_precision()
+        self.recall = self.get_recall()
 
-    def getPrecision(self):
-        return self.truePositives / (
-            (self.truePositives + self.falsePositives) or 1
+    def get_precision(self):
+        return self.true_positives / (
+            (self.true_positives + self.false_positives) or 1
         )  # Account for divide by zero
 
-    def getRecall(self):
-        return self.truePositives / ((self.truePositives + self.falseNegatives) or 1)
+    def get_recall(self):
+        return self.true_positives / ((self.true_positives + self.false_negatives) or 1)
 
-    def getMSE(self):
+    def get_mse(self):
         pass
 
-    def persistEvaluationRecord(self):
+    def persist_evaluation_record(self):
         # since the json package cant serialize python class objects we'll replace the class object with a class name str
-        parsedMetaData = dict(self.evaluationMetaData)
+        parsed_meta_data = dict(self.evaluation_meta_data)
 
-        for potentialClassObject in parsedMetaData:
-            if hasattr(parsedMetaData[potentialClassObject], "__class__") and not isinstance(
-                parsedMetaData[potentialClassObject], (str, int, float, bool, list, dict)
+        for potential_class_object in parsed_meta_data:
+            if hasattr(parsed_meta_data[potential_class_object], "__class__") and not isinstance(
+                parsed_meta_data[potential_class_object], (str, int, float, bool, list, dict)
             ):
-                parsedMetaData[potentialClassObject] = parsedMetaData[
-                    potentialClassObject
+                parsed_meta_data[potential_class_object] = parsed_meta_data[
+                    potential_class_object
                 ].__class__.__name__
 
-        self.evaluationRecord[self.runIteration] = {
-            "modelData": parsedMetaData,
-            "correctPredictions": self.correctPredictions,
-            "truePositives": self.truePositives,
-            "falsePositives": self.falsePositives,
-            "trueNegatives": self.trueNegatives,
-            "falseNegatives": self.falseNegatives,
+        self.evaluation_record[self.run_iteration] = {
+            "modelData": parsed_meta_data,
+            "correctPredictions": self.correct_predictions,
+            "truePositives": self.true_positives,
+            "falsePositives": self.false_positives,
+            "trueNegatives": self.true_negatives,
+            "falseNegatives": self.false_negatives,
             "accuracy": self.accuracy,
             "precision": self.precision,
             "recall": self.recall,
         }
 
-    def classObjectDeserializer(self):
+    def class_object_deserializer(self):
 
-        return self.parsedMetaData
+        return self.parsed_meta_data
 
 
 class DecisionTreeModelEvaluator(ModelEvaluator):
@@ -188,50 +192,50 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
             "description": "Evaluator for decision tree classification metrics.",
         }
         # TODO(BL-16): derive metadata by introspection
-        self.evaluationMetaData = None
+        self.evaluation_meta_data = None
 
-    def evaluateModel(self):
-        self.setConfusionMatrixValues()
-        self.accuracy = self.getAccuracy()
-        self.precision = self.getPrecision()
-        self.recall = self.getRecall()
+    def evaluate_model(self):
+        self.set_confusion_matrix_values()
+        self.accuracy = self.get_accuracy()
+        self.precision = self.get_precision()
+        self.recall = self.get_recall()
 
-    def getAccuracy(self):
-        correctPredictions = 0
-        countTotalPredictions = self.predictions.__len__()
+    def get_accuracy(self):
+        correct_predictions = 0
+        count_total_predictions = self.predictions.__len__()
 
-        for i in range(countTotalPredictions):
-            if self.testTargets[i] == self.predictions[i]:
-                correctPredictions += 1
+        for i in range(count_total_predictions):
+            if self.test_targets[i] == self.predictions[i]:
+                correct_predictions += 1
 
         # set to self to reuse for future calculations that would run after this
-        self.correctPredictions = correctPredictions
-        return correctPredictions / countTotalPredictions
+        self.correct_predictions = correct_predictions
+        return correct_predictions / count_total_predictions
 
-    def getPrecision(self):
-        return self.truePositives / (
-            (self.truePositives + self.falsePositives) or 0.000000001
+    def get_precision(self):
+        return self.true_positives / (
+            (self.true_positives + self.false_positives) or 0.000000001
         )  # Account for divide by zero
 
-    def getRecall(self):
-        return self.truePositives / ((self.truePositives + self.falseNegatives) or 0.000000001)
+    def get_recall(self):
+        return self.true_positives / ((self.true_positives + self.false_negatives) or 0.000000001)
 
-    def getMSE(self):
+    def get_mse(self):
         pass
 
-    def persistEvaluationRecord(self):
+    def persist_evaluation_record(self):
         # since the json package cant serialize python class objects we'll replace the class object with a class name str
-        parsedMetaData = dict(self.evaluationMetaData)
-        if "lossFunction" in parsedMetaData:
-            parsedMetaData["lossFunction"] = parsedMetaData["lossFunction"].__class__.__name__
+        parsed_meta_data = dict(self.evaluation_meta_data)
+        if "lossFunction" in parsed_meta_data:
+            parsed_meta_data["lossFunction"] = parsed_meta_data["lossFunction"].__class__.__name__
 
-        self.evaluationRecord[self.runIteration] = {
-            "modelData": parsedMetaData,
-            "correctPredictions": self.correctPredictions,
-            "truePositives": self.truePositives,
-            "falsePositives": self.falsePositives,
-            "trueNegatives": self.trueNegatives,
-            "falseNegatives": self.falseNegatives,
+        self.evaluation_record[self.run_iteration] = {
+            "modelData": parsed_meta_data,
+            "correctPredictions": self.correct_predictions,
+            "truePositives": self.true_positives,
+            "falsePositives": self.false_positives,
+            "trueNegatives": self.true_negatives,
+            "falseNegatives": self.false_negatives,
             "accuracy": self.accuracy,
             "precision": self.precision,
             "recall": self.recall,

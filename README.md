@@ -42,7 +42,7 @@ from mllib.math.loss_function import MSE
 from mllib.ml.linear_regression import MyLinearRegression
 
 h = HypothesisFunction(initial_weights, initial_bias)  # h(x) = w·x + b
-model = MyLinearRegression(h, MSE(), learningRate=3e-6, epochs=15_000)
+model = MyLinearRegression(h, MSE(), learning_rate=3e-6, epochs=15_000)
 model.fit(X_train, y_train)
 ```
 

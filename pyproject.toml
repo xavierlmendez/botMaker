@@ -49,21 +49,22 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Pre-refactor debt, tracked as BL-24 in docs/BACKLOG.md. Each code is removed from this list by the
 # slice that burns it down (Phase 3: E402 F841 RUF059 B007 E711 SIM113 B905 RUF002 RUF012 E501;
-# slice 4.3: the N naming rules). Do not add codes here; fix the code or open a backlog entry.
+# naming rules cleared in 4.2/4.3). Do not add codes here; fix the code or open a backlog entry.
 "src/**" = [
   # (examples/** shares this list below)
-  "N801", "N802", "N803", "N806", "N815", "N816",   # camelCase classes/methods/vars (D-17, slice 4.3)
   "E501",    # long comment/string lines (130 after format)
   "RUF012",  # mutable class-level metadata dicts — removed by introspection in slice 5.1
   "F841", "RUF059", "B007", "E711", "SIM113", "B905", "E402", "RUF002",   # slice 3.5/3.6 cleanups
 ]
-"tests/**" = ["N802", "N803", "N806", "N816", "B905", "E402", "RUF012", "RUF059", "F841"]  # camelCase test names until 4.3
+"tests/**" = ["B905", "E402", "RUF012", "RUF059", "F841"]
 "examples/**" = [
-  "N801", "N802", "N803", "N806", "N815", "N816",   # camelCase classes/methods/vars (D-17, slice 4.3)
   "E501",    # long comment/string lines (130 after format)
   "RUF012",  # mutable class-level metadata dicts — removed by introspection in slice 5.1
   "F841", "RUF059", "B007", "E711", "SIM113", "B905", "E402", "RUF002",   # slice 3.5/3.6 cleanups
 ]
+
+[tool.ruff.lint.pep8-naming]
+ignore-names = ["X", "X_*", "Q"]   # ML convention: design matrix and quadratic form
 
 [tool.ruff.lint.isort]
 known-first-party = ["mllib"]

@@ -18,11 +18,11 @@ PREDICTIONS = np.array([1, 0, 1, 1, 0, 0, 1, 1])  # 3 TP, 2 FP, 2 TN, 1 FN
 )
 def test_counts_match_sklearn(evaluator_cls):
     evaluator = evaluator_cls()
-    evaluator.updateTestingPredictionData(np.zeros((8, 1)), TARGETS, PREDICTIONS, {})
+    evaluator.update_testing_prediction_data(np.zeros((8, 1)), TARGETS, PREDICTIONS, {})
 
     tn, fp, fn, tp = confusion_matrix(TARGETS, PREDICTIONS).ravel()
-    assert (evaluator.truePositives, evaluator.falsePositives) == (tp, fp) == (3, 2)
-    assert (evaluator.trueNegatives, evaluator.falseNegatives) == (tn, fn) == (2, 1)
+    assert (evaluator.true_positives, evaluator.false_positives) == (tp, fp) == (3, 2)
+    assert (evaluator.true_negatives, evaluator.false_negatives) == (tn, fn) == (2, 1)
     assert evaluator.precision == pytest.approx(precision_score(TARGETS, PREDICTIONS))
     assert evaluator.recall == pytest.approx(recall_score(TARGETS, PREDICTIONS))
 
@@ -32,7 +32,7 @@ def test_minus_one_labels_count_as_negative():
     targets = np.array([1, -1, 1, -1])
     predictions = np.array([1, 1, -1, -1])  # sign-classifier output
 
-    evaluator.updateTestingPredictionData(np.zeros((4, 1)), targets, predictions, {})
+    evaluator.update_testing_prediction_data(np.zeros((4, 1)), targets, predictions, {})
 
-    assert (evaluator.truePositives, evaluator.falsePositives) == (1, 1)
-    assert (evaluator.trueNegatives, evaluator.falseNegatives) == (1, 1)
+    assert (evaluator.true_positives, evaluator.false_positives) == (1, 1)
+    assert (evaluator.true_negatives, evaluator.false_negatives) == (1, 1)

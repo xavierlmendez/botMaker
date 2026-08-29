@@ -30,7 +30,7 @@ class GraphNode:
 
 
 class Graph:
-    def __init__(self, initNodes=None):
+    def __init__(self, init_nodes=None):
         self.metadata = {
             "name": "Graph Structure",
             "description": "Undirected graph structure with nodes, edges, and adjacency helpers.",
@@ -38,50 +38,50 @@ class Graph:
         # TODO(BL-16): derive metadata by introspection
         self.nodes: dict[int, GraphNode] = {}
         self.edges = []  # (Bi)directional edges will have to be on a directional graph implementation
-        self.idIncrementor = 0  # Prefer this as searching burned identifiers will add to run time
+        self.id_incrementor = 0  # Prefer this as searching burned identifiers will add to run time
 
-        if initNodes is not None:
-            for nodeId in initNodes:
-                self.nodes[nodeId] = initNodes[nodeId]
+        if init_nodes is not None:
+            for node_id in init_nodes:
+                self.nodes[node_id] = init_nodes[node_id]
 
-    def addNode(self, data=None):
-        self.idIncrementor += 1
-        nodeId = self.idIncrementor
+    def add_node(self, data=None):
+        self.id_incrementor += 1
+        node_id = self.id_incrementor
 
-        newNode = GraphNode(nodeId, data)
-        self.nodes[nodeId] = newNode
-        return nodeId
+        new_node = GraphNode(node_id, data)
+        self.nodes[node_id] = new_node
+        return node_id
 
-    def addEdge(self, nodeIdOne, nodeIdTwo):
-        if nodeIdOne not in self.nodes:
-            raise KeyError(f"Unknown node: {nodeIdOne}")
-        if nodeIdTwo not in self.nodes:
-            raise KeyError(f"Unknown node: {nodeIdTwo}")
+    def add_edge(self, node_id_one, node_id_two):
+        if node_id_one not in self.nodes:
+            raise KeyError(f"Unknown node: {node_id_one}")
+        if node_id_two not in self.nodes:
+            raise KeyError(f"Unknown node: {node_id_two}")
 
-        newEdge = Edge(nodeIdOne, nodeIdTwo)
-        if newEdge in self.edges:
-            raise KeyError(f"Duplicate edge: {newEdge}")
+        new_edge = Edge(node_id_one, node_id_two)
+        if new_edge in self.edges:
+            raise KeyError(f"Duplicate edge: {new_edge}")
 
-        self.edges.append(newEdge)
-        self.nodes[nodeIdOne].neighbors.add(nodeIdTwo)
-        self.nodes[nodeIdTwo].neighbors.add(nodeIdOne)
+        self.edges.append(new_edge)
+        self.nodes[node_id_one].neighbors.add(node_id_two)
+        self.nodes[node_id_two].neighbors.add(node_id_one)
 
-    def removeNode(self, nodeId):
-        if nodeId not in self.nodes:
-            raise KeyError(f"Unknown node: {nodeId}")
+    def remove_node(self, node_id):
+        if node_id not in self.nodes:
+            raise KeyError(f"Unknown node: {node_id}")
 
-        for connectedNodeId in self.nodes[nodeId].neighbors:
-            self.nodes[connectedNodeId].neighbors.remove(nodeId)
+        for connected_node_id in self.nodes[node_id].neighbors:
+            self.nodes[connected_node_id].neighbors.remove(node_id)
 
-        del self.nodes[nodeId]
+        del self.nodes[node_id]
 
-    def getNxGraph(self):
+    def get_nx_graph(self):
         graph = nx.Graph()
-        for nodeId in self.nodes:
-            graph.add_node(nodeId)
+        for node_id in self.nodes:
+            graph.add_node(node_id)
 
-        for nodeId in self.nodes:
-            for neighborId in self.nodes[nodeId].neighbors:
-                graph.add_edge(nodeId, neighborId)
+        for node_id in self.nodes:
+            for neighbor_id in self.nodes[node_id].neighbors:
+                graph.add_edge(node_id, neighbor_id)
 
         return graph

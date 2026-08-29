@@ -16,145 +16,148 @@ from mllib.ml.evaluators.generic_evaluator import LogisticRegressionModelEvaluat
 
 class MyLogisticRegression:  # prefixing with my for the comparison script, rename later when cleaning up files
     # choosing 0.001 for default learning rate bc thats what adam uses
-    def __init__(self, learningRate=0.001, epochs=10, numWeights=1):
+    def __init__(self, learning_rate=0.001, epochs=10, num_weights=1):
         self.metadata = {
             "name": "Logistic Regression Base Class",
             "description": "Core logistic regression implementation with training, prediction, and evaluation helpers.",
         }
         # TODO(BL-16): derive metadata by introspection
-        seededRand = np.random.default_rng(10)  # seeting a seed for random initial weights,
-        self.numWeights = numWeights  # number of feature weights; project subclasses pass theirs
-        initialWeights = seededRand.random(self.numWeights)
-        initialBias = 0
+        seeded_rand = np.random.default_rng(10)  # seeting a seed for random initial weights,
+        self.num_weights = num_weights  # number of feature weights; project subclasses pass theirs
+        initial_weights = seeded_rand.random(self.num_weights)
+        initial_bias = 0
         # Same construction gridFit uses per permutation; a plain linear hypothesis by default.
-        self.learningModel = HypothesisFunction(
-            initialWeights,
-            initialBias,
+        self.learning_model = HypothesisFunction(
+            initial_weights,
+            initial_bias,
             degree=1,
-            hypothesisExpander=PolynomialRegressionExpander(1),
+            hypothesis_expander=PolynomialRegressionExpander(1),
         )
-        self.lossFunction = MSE()
-        self.learningRate = learningRate
+        self.loss_function = MSE()
+        self.learning_rate = learning_rate
         self.epochs = epochs
         self.evaluator = LogisticRegressionModelEvaluator()
-        self.hyperparameterGridOptions = None
+        self.hyperparameter_grid_options = None
 
-    def gridFit(
-        self, trainValues, testValues, trainTargets, testTargets
+    def grid_fit(
+        self, train_values, test_values, train_targets, test_targets
     ):  # TODO(BL-20): move the train/test split into gridFit as a grid parameter
-        hyperparameterCombinations = list(ParameterGrid(self.hyperparameterGridOptions))
-        modelImplementationName = self.hyperparameterGridOptions[0]["modelName"][0]
+        hyperparameter_combinations = list(ParameterGrid(self.hyperparameter_grid_options))
+        model_implementation_name = self.hyperparameter_grid_options[0]["modelName"][0]
         print(
-            f" Starting model training for {type(self).__name__} implementation: {modelImplementationName}\n"
+            f" Starting model training for {type(self).__name__} implementation: {model_implementation_name}\n"
         )
 
-        countModels = hyperparameterCombinations.__len__()
-        print(f" Total model permutations: {countModels}")
+        count_models = hyperparameter_combinations.__len__()
+        print(f" Total model permutations: {count_models}")
 
-        modelNumber = 0
-        startTime = time.perf_counter()
-        for parameterSetting in hyperparameterCombinations:
-            modelNumber += 1
+        model_number = 0
+        start_time = time.perf_counter()
+        for parameter_setting in hyperparameter_combinations:
+            model_number += 1
 
-            self.lossFunction = parameterSetting["lossFunction"]
-            self.epochs = parameterSetting["epoch"]
-            self.learningRate = parameterSetting["learningRate"]
-            seededRand = np.random.default_rng(parameterSetting["weightRandSeed"])
-            initialWeights = seededRand.random(self.numWeights)
-            initialBias = parameterSetting["initialBias"]
-            self.learningModel = HypothesisFunction(
-                initialWeights,
-                initialBias,
-                parameterSetting["polynomialDegree"],
-                parameterSetting["HypothesisExpander"],
+            self.loss_function = parameter_setting["lossFunction"]
+            self.epochs = parameter_setting["epoch"]
+            self.learning_rate = parameter_setting["learningRate"]
+            seeded_rand = np.random.default_rng(parameter_setting["weightRandSeed"])
+            initial_weights = seeded_rand.random(self.num_weights)
+            initial_bias = parameter_setting["initialBias"]
+            self.learning_model = HypothesisFunction(
+                initial_weights,
+                initial_bias,
+                parameter_setting["polynomialDegree"],
+                parameter_setting["HypothesisExpander"],
             )
-            hypothesisSpaceAdjustedWeights = self.learningModel.hypothesisExpander.expandHypothesis(
-                initialWeights
+            hypothesis_space_adjusted_weights = (
+                self.learning_model.hypothesis_expander.expand_hypothesis(initial_weights)
             )
-            self.updateWeights(hypothesisSpaceAdjustedWeights, initialBias)
+            self.update_weights(hypothesis_space_adjusted_weights, initial_bias)
 
             for epoch in range(self.epochs):
-                newWeights, newBias = self.calculateGradientDescent(trainValues, trainTargets)
-                self.updateWeights(newWeights, newBias)
-                cost = self.calculateCostFunction(trainValues, trainTargets)
+                new_weights, new_bias = self.calculate_gradient_descent(train_values, train_targets)
+                self.update_weights(new_weights, new_bias)
+                cost = self.calculate_cost_function(train_values, train_targets)
 
-            self.evaluate(testValues, testTargets, parameterSetting)
+            self.evaluate(test_values, test_targets, parameter_setting)
 
             if (
-                modelNumber % 1 == 0
+                model_number % 1 == 0
             ):  # modify depending on number of permutations i.e. 300+ then probably modulo 40 or 80
-                print(f"\tModel Number {modelNumber}/{countModels} complete")
+                print(f"\tModel Number {model_number}/{count_models} complete")
 
-        endTime = time.perf_counter()
-        timeElapsed = endTime - startTime
-        timePerModel = timeElapsed / countModels
-        print(f" Training Time Elapsed: {timeElapsed}, time per model: {timePerModel}")
+        end_time = time.perf_counter()
+        time_elapsed = end_time - start_time
+        time_per_model = time_elapsed / count_models
+        print(f" Training Time Elapsed: {time_elapsed}, time per model: {time_per_model}")
 
-    def fit(self, dataValues, dataTargets):
+    def fit(self, data_values, data_targets):
         # for n epochs
         # calculate the cost function - in the gradientDescent function
         # compute the gradient
         # update the weights
         # repeat
         for epoch in range(self.epochs):
-            newWeights, newBias = self.calculateGradientDescent(dataValues, dataTargets)
-            self.updateWeights(newWeights, newBias)
-            cost = self.calculateCostFunction(dataValues, dataTargets)
+            new_weights, new_bias = self.calculate_gradient_descent(data_values, data_targets)
+            self.update_weights(new_weights, new_bias)
+            cost = self.calculate_cost_function(data_values, data_targets)
             # use evaluator class here to aggregate data on performance during training
         return self
 
     def predict(self, data):
-        return self.learningModel.computeClassification(data)
+        return self.learning_model.compute_classification(data)
 
-    def predictValues(self, dataValues, isDataframe=False):
-        predictedValues = []
-        for data in dataValues:
-            predictedValues.append(self.predict(data))
-        return array(predictedValues)
+    def predict_values(self, data_values, is_dataframe=False):
+        predicted_values = []
+        for data in data_values:
+            predicted_values.append(self.predict(data))
+        return array(predicted_values)
 
-    def evaluate(self, dataValues, dataTargets, evaluationMetaData):
+    def evaluate(self, data_values, data_targets, evaluation_meta_data):
         # Standardize Inputs for compatibility with pandas dataframes as parameters
-        dataValues, dataTargets = self.dataFrameCrossCapatibility(dataValues, dataTargets)
-        predictedValues = self.predictValues(dataValues, dataTargets)
-        self.evaluator.updateTestingPredictionData(
-            dataValues, dataTargets, predictedValues, evaluationMetaData
+        data_values, data_targets = self.data_frame_cross_capatibility(data_values, data_targets)
+        predicted_values = self.predict_values(data_values, data_targets)
+        self.evaluator.update_testing_prediction_data(
+            data_values, data_targets, predicted_values, evaluation_meta_data
         )
 
-    def calculateGradientDescent(self, dataValues, dataTargets):
+    def calculate_gradient_descent(self, data_values, data_targets):
         # standardize Inputs for compatibility with pandas dataframes as parameters
-        dataValues, dataTargets = self.dataFrameCrossCapatibility(dataValues, dataTargets)
+        data_values, data_targets = self.data_frame_cross_capatibility(data_values, data_targets)
 
         # calculate the gradient
-        predicted = self.predictValues(dataValues)
-        gradientDescentAdjustedDataTargets = self.lossFunction.computeGradient(
-            dataTargets, predicted
+        predicted = self.predict_values(data_values)
+        gradient_descent_adjusted_data_targets = self.loss_function.compute_gradient(
+            data_targets, predicted
         )
-        dataValues = self.learningModel.hypothesisExpander.fitDataToHypothesis(dataValues)
-        gradientDescentAdjustedWeights = dataValues.T @ gradientDescentAdjustedDataTargets
-        adjustedBias = sum(gradientDescentAdjustedDataTargets)
-        return gradientDescentAdjustedWeights, adjustedBias
+        data_values = self.learning_model.hypothesis_expander.fit_data_to_hypothesis(data_values)
+        gradient_descent_adjusted_weights = data_values.T @ gradient_descent_adjusted_data_targets
+        adjusted_bias = sum(gradient_descent_adjusted_data_targets)
+        return gradient_descent_adjusted_weights, adjusted_bias
 
-    def updateWeights(self, gradientDescentAdjustedWeights, gradientDescentAdjustedBias):
+    def update_weights(self, gradient_descent_adjusted_weights, gradient_descent_adjusted_bias):
         # update the weights and bias
-        newWeights = (
-            self.learningModel.getWeights() - self.learningRate * gradientDescentAdjustedWeights
+        new_weights = (
+            self.learning_model.get_weights()
+            - self.learning_rate * gradient_descent_adjusted_weights
         )
-        newBias = self.learningModel.getBias() - self.learningRate * gradientDescentAdjustedBias
-        self.learningModel.updateWeights(newWeights)
-        self.learningModel.updateBias(newBias)
+        new_bias = (
+            self.learning_model.get_bias() - self.learning_rate * gradient_descent_adjusted_bias
+        )
+        self.learning_model.update_weights(new_weights)
+        self.learning_model.update_bias(new_bias)
 
-    def calculateCostFunction(self, dataValues, dataTargets):
+    def calculate_cost_function(self, data_values, data_targets):
         # Standardize Inputs for compatibility with pandas dataframes as parameters
-        dataValues, dataTargets = self.dataFrameCrossCapatibility(dataValues, dataTargets)
+        data_values, data_targets = self.data_frame_cross_capatibility(data_values, data_targets)
 
         # here were putting together the cost function as a set of linear equations
         # doing it this way to leverage linear algebra packages
-        predicted = self.predictValues(dataValues)
-        lossAcrossData = self.lossFunction.computeLoss(dataTargets, predicted)
-        return mean(lossAcrossData)
+        predicted = self.predict_values(data_values)
+        loss_across_data = self.loss_function.compute_loss(data_targets, predicted)
+        return mean(loss_across_data)
 
-    def dataFrameCrossCapatibility(self, dataValues, dataTargets):
-        if isinstance(dataValues, pd.DataFrame):
-            dataValues = dataValues.to_numpy()
-            dataTargets = np.asarray(dataTargets).ravel()
-        return dataValues, dataTargets
+    def data_frame_cross_capatibility(self, data_values, data_targets):
+        if isinstance(data_values, pd.DataFrame):
+            data_values = data_values.to_numpy()
+            data_targets = np.asarray(data_targets).ravel()
+        return data_values, data_targets

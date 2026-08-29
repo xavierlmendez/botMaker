@@ -9,23 +9,23 @@ class SplitFunction:
         }
         # TODO(BL-16): derive metadata by introspection
 
-    def calculateSplit(self, dataValues, dataTargets):
+    def calculate_split(self, data_values, data_targets):
         return "class"
 
-    def classProbabilities(self, columnValues: pd.DataFrame, dataTargets):
-        classesInColumn = columnValues.unique()
-        classProbabilities: dict[str, float] = {}
+    def class_probabilities(self, column_values: pd.DataFrame, data_targets):
+        classes_in_column = column_values.unique()
+        class_probabilities: dict[str, float] = {}
 
-        for uniqueClass in classesInColumn:
-            recordCriteria = columnValues == uniqueClass
-            total = columnValues.count()
-            numTargetsWithClass = dataTargets[recordCriteria].sum()
+        for unique_class in classes_in_column:
+            record_criteria = column_values == unique_class
+            total = column_values.count()
+            num_targets_with_class = data_targets[record_criteria].sum()
 
-            if numTargetsWithClass != 0:
-                probabilityOfClass = numTargetsWithClass / total
-                classProbabilities[uniqueClass] = probabilityOfClass
+            if num_targets_with_class != 0:
+                probability_of_class = num_targets_with_class / total
+                class_probabilities[unique_class] = probability_of_class
 
-        return classProbabilities
+        return class_probabilities
 
 
 class GiniImpurity(SplitFunction):
@@ -35,23 +35,23 @@ class GiniImpurity(SplitFunction):
     }
 
     # TODO(BL-16): derive metadata by introspection
-    def calculateGiniImpurities(self, dataValues, dataTargets):
-        columns = dataValues.columns
-        giniImpurities: dict[str, int] = {}
+    def calculate_gini_impurities(self, data_values, data_targets):
+        columns = data_values.columns
+        gini_impurities: dict[str, int] = {}
 
-        for columnName in columns:
-            column = dataValues[columnName]
-            classProbabilities = self.classProbabilities(column, dataTargets)
-            giniImpurities[columnName] = 1 - sum(
-                p**2 for p in classProbabilities.values()
+        for column_name in columns:
+            column = data_values[column_name]
+            class_probabilities = self.class_probabilities(column, data_targets)
+            gini_impurities[column_name] = 1 - sum(
+                p**2 for p in class_probabilities.values()
             )  # 1 - summation of class probabilits squard is gini impurity formula
 
-        return giniImpurities
+        return gini_impurities
 
-    def calculateSplit(self, dataValues, dataTargets):
-        giniImpurities = self.calculateGiniImpurities(dataValues, dataTargets)
+    def calculate_split(self, data_values, data_targets):
+        gini_impurities = self.calculate_gini_impurities(data_values, data_targets)
         return max(
-            giniImpurities, key=lambda col: abs(giniImpurities[col] - 0.5)
+            gini_impurities, key=lambda col: abs(gini_impurities[col] - 0.5)
         )  # the value furthest from .5 provides the most information
 
 

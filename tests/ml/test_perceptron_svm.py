@@ -12,11 +12,11 @@ def build_hypothesis():
     weights = np.array([1.0, -1.0])
     bias = 0.0
     expander = PolynomialRegressionExpander(degree=1)
-    return HypothesisFunction(weights, bias, degree=1, hypothesisExpander=expander)
+    return HypothesisFunction(weights, bias, degree=1, hypothesis_expander=expander)
 
 
 def test_perceptron_predict_values():
-    model = MyPerceptron(build_hypothesis(), PerceptronLoss(), learningRate=0.1, epochs=1)
+    model = MyPerceptron(build_hypothesis(), PerceptronLoss(), learning_rate=0.1, epochs=1)
 
     data_values = np.array(
         [
@@ -25,13 +25,13 @@ def test_perceptron_predict_values():
         ]
     )
 
-    predictions = model.predictValues(data_values)
+    predictions = model.predict_values(data_values)
 
     assert np.allclose(predictions, np.array([1.0, -1.0]))
 
 
 def test_svm_predict_values():
-    model = MySVM(build_hypothesis(), HingeLoss(), learningRate=0.1, epochs=1)
+    model = MySVM(build_hypothesis(), HingeLoss(), learning_rate=0.1, epochs=1)
 
     data_values = np.array(
         [
@@ -40,7 +40,7 @@ def test_svm_predict_values():
         ]
     )
 
-    predictions = model.predictValues(data_values)
+    predictions = model.predict_values(data_values)
 
     assert np.allclose(predictions, np.array([1.0, -1.0]))
 

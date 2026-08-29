@@ -15,15 +15,15 @@ class Visualizer:
         # TODO(BL-16): derive metadata by introspection
 
     # tutorial used https://www.youtube.com/watch?v=7XVTnCrWDPY
-    def show(self, graph: Graph, traversalOrder=None, position=None):
+    def show(self, graph: Graph, traversal_order=None, position=None):
         plt.figure()
         plt.title(graph.name)
-        if traversalOrder is not None:
-            for i, node in enumerate(traversalOrder, start=1):
+        if traversal_order is not None:
+            for i, node in enumerate(traversal_order, start=1):
                 plt.clf()
                 plt.title(graph.name)
                 nx.draw(
-                    graph.getNxGraph(),
+                    graph.get_nx_graph(),
                     position,
                     node_size=500,
                     with_labels=True,

@@ -7,7 +7,7 @@ class RegularizationFunction:
             "description": "A library class serving as a template for loss function classes that compute loss between a single predicted and actual value",
         }
 
-    def computePenalty(self, actual, predicted):
+    def compute_penalty(self, actual, predicted):
         pass
 
     def compute(self, actual, predicted):

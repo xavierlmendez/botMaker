@@ -34,34 +34,34 @@ interfaces. Adding a loss or an expander never touches a model.
 
 | Interface | Must provide | Used by |
 |---|---|---|
-| `LossFunction` | `computeLoss(actual, predicted)`, `computeGradient(actual, predicted[, dataValues])`; margin losses also `computeBias` | every gradient-descent model |
-| `HypothesisExpander` | `expandHypothesis(weights)`, `fitDataToHypothesis(data)` | `HypothesisFunction` |
-| `HypothesisFunction` | `computePrediction(x)`, `computeClassification(x)`; owns weights, bias, expander | every model |
+| `LossFunction` | `compute_loss(actual, predicted)`, `compute_gradient(actual, predicted[, data_values])`; margin losses also `compute_bias` | every gradient-descent model |
+| `HypothesisExpander` | `expand_hypothesis(weights)`, `fit_data_to_hypothesis(data)` | `HypothesisFunction` |
+| `HypothesisFunction` | `compute_prediction(x)`, `compute_classification(x)`; owns weights, bias, expander | every model |
 | `SplitFunction` | impurity of a candidate split | `DecisionTree` |
-| `ModelEvaluator` | `updateTestingPredictionData(...)`, `evaluateModel()`, `persistEvaluationRecord()` | every model's `evaluate` |
+| `ModelEvaluator` | `update_testing_prediction_data(...)`, `evaluate_model()`, `persist_evaluation_record()` | every model's `evaluate` |
 | `AbstractGraphAlgorithm` | `_search(ctx)`; the ABC owns `run()` and `_notify_evaluator()`; `SearchContext` is frozen | graph algorithms |
 
 **Two-tier specialisation.** A library base (`MyLogisticRegression`) plus a thin project subclass that
-carries only `numWeights` and a hyper-parameter grid (`projectSpecificFiles/ad_click_logistic_regression.py`).
+carries only `num_weights` and a hyper-parameter grid (`projectSpecificFiles/ad_click_logistic_regression.py`).
 The subclass must call `super().__init__()` (F4/slice 3.3) — a project class that skips it is a bug.
 
-**Evaluation records.** `evaluator.evaluationRecord[iteration]` is a JSON-serialisable dict with
+**Evaluation records.** `evaluator.evaluation_record[iteration]` is a JSON-serialisable dict with
 `modelData`, confusion-matrix counts, `accuracy`, `precision`, `recall`. The training baseline test
 depends on this shape; changing it means regenerating the snapshot deliberately.
 
 ## 3. Pipeline trace (ad-click project)
 
 `DataOrchestrator(csv, 'csv', …)` → transformer builds one dataframe per model shape →
-`build_test_train_split(model)` → project subclass sets grid → `gridFit` sweeps `ParameterGrid`
+`build_test_train_split(model)` → project subclass sets grid → `grid_fit` sweeps `ParameterGrid`
 (fresh `HypothesisFunction` per combination, `epoch` rounds of gradient descent) → evaluator records
-each permutation → `printEvaluation` reports the best. The smoke version of this trace is
+each permutation → `print_evaluation` reports the best. The smoke version of this trace is
 `tests/ml/test_training_baseline.py`.
 
 ## 4. Extension points — how to add things
 
 - **A loss:** subclass `LossFunction` in `math/loss_function.py`; implement loss + gradient; add a
   unit test that checks the gradient numerically; add a learning-log entry.
-- **A model:** compose from `HypothesisFunction` + a loss; expose `fit`, `predict`, `predictValues`,
+- **A model:** compose from `HypothesisFunction` + a loss; expose `fit`, `predict`, `predict_values`,
   `evaluate`; give it an evaluator; add it to the smoke grid only if it is part of a project comparison.
 - **A graph algorithm:** subclass `AbstractGraphAlgorithm`; implement `_search`; never override `run`.
 - **A transformer (after R1):** subclass the transformer ABC; declare it by class name in the project's
@@ -75,7 +75,7 @@ each permutation → `printEvaluation` reports the best. The smoke version of th
 | Linear/logistic duplication (F2) | `linear_regression.py`, `logistic_regression.py` | Phase 5 (R2, BL-20) |
 | Hand-typed drifting `metadata` dicts (F3) | ~25 classes | Phase 5 (R3, BL-16) |
 | Subclass skips `super().__init__()` (F4) | `ad_click_logistic_regression.py` | slice 3.3 |
-| Base `persistEvaluationRecord` builds a set literal (F5) | `generic_evaluator.py:44` | slice 3.2 |
+| Base `persist_evaluation_record` builds a set literal (F5) | `generic_evaluator.py:44` | slice 3.2 |
 | Web layer was a stub (F6) | `fastapi_app/` | removed, BL-01 |
 | Copy-on-write incompatibility, swapped FP/FN, degenerate classifier | `generic_evaluator.py`, training loop | BL-21, BL-22, BL-23 |
 | `camelCase` modules and methods; nested `tests/` dirs; two import roots | everywhere | Phase 4 (D-17, D-18) |

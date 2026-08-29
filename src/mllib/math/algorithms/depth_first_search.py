@@ -35,7 +35,7 @@ class DepthFirstSearch(AbstractGraphAlgorithm):
 
         while stack:
             node_id, depth = stack.pop()
-            if not context.allowRevisiting:
+            if not context.allow_revisiting:
                 if node_id in visited:
                     continue
                 visited.add(node_id)
@@ -50,7 +50,7 @@ class DepthFirstSearch(AbstractGraphAlgorithm):
                 continue
 
             for neighbor_id in sorted(node.neighbors, reverse=True):
-                if context.allowRevisiting or neighbor_id not in visited:
+                if context.allow_revisiting or neighbor_id not in visited:
                     stack.append((neighbor_id, depth + 1))
 
         return traversal_order
