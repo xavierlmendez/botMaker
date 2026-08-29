@@ -72,3 +72,18 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
   the gradient before training. It is preserved verbatim because the baseline pins it; whether it is a bug is
   part of BL-23.
 - **Reference.** Gang of Four, Template Method; the loss-gradient projection is the chain rule through h.
+
+## Declarative data pipelines · 2026-08-29
+- **What.** A project's feature engineering as data: a JSON file naming transformer classes and their arguments
+  per frame, resolved by name from a closed registry and run in order. The orchestrator no longer knows any
+  project; it loads a config.
+- **Where.** `src/mllib/data/pipeline.py` · `src/mllib/data/transformers/` · `data/configs/ad_click_transformations.json`
+  · tests `tests/data/` (fingerprints of the original hand-written frames are the regression oracle).
+- **Design.** `fit` learns state (means, category levels, bin edges) and `transform` applies it, so the same
+  pipeline encodes *new* data consistently — the hand-written version could only transform the frame it was
+  given. Name resolution is restricted to `mllib.data.transformers` so config cannot execute arbitrary code.
+- **What was confusing.** Two silent dependencies in the legacy code surfaced only when replaced by objects:
+  the bin edges were monotonic only because NaN-filling shrank the std, and one-hot `drop_first` dropped a
+  *different* level on data with fewer categories. Both are now explicit (`BinByStdRanges` clips edges;
+  `OneHotEncode` records levels at fit).
+- **Reference.** sklearn's `TransformerMixin` / `Pipeline` contract, which this mirrors deliberately.

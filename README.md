@@ -51,7 +51,7 @@ inject `PolynomialRegressionExpander(degree=3)` into the hypothesis for polynomi
 
 ## Status
 
-Under an active refactor (`docs/REFACTOR_PLAN.md`): Phase 0 complete, Phase 1 in progress. Known
+Refactor plan (`docs/REFACTOR_PLAN.md`) Phases 0–6 complete; Phase 7 close-out pending. Known
 issues are tracked in `docs/BACKLOG.md` (notably BL-21..23, found while building the training baseline).
 
 ## Documents

@@ -1,10 +1,11 @@
 """Declarative pipelines: config -> transformers by name -> frames identical to the legacy code."""
 
+import hashlib
+import json
 from pathlib import Path
 
 import pandas as pd
 import pytest
-from pandas.testing import assert_frame_equal
 
 from mllib.data.data_orchestrator import DataOrchestrator
 from mllib.data.pipeline import ProjectTransformations, TransformerPipeline
@@ -12,6 +13,15 @@ from mllib.data.transformers import DropColumns, OneHotEncode
 
 DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "ad_click_dataset.csv"
 CONFIG_PATH = DATA_PATH.parent / "configs" / "ad_click_transformations.json"
+FINGERPRINTS = json.loads((Path(__file__).parent / "frame_fingerprints.json").read_text())
+
+
+def _fingerprint(frame):
+    return {
+        "shape": list(frame.shape),
+        "columns": [str(c) for c in frame.columns],
+        "sha256": hashlib.sha256(frame.astype(str).to_csv(index=False).encode()).hexdigest(),
+    }
 
 
 def test_from_config_resolves_transformers_by_name_in_order():
@@ -56,15 +66,10 @@ def test_project_config_declares_target_and_four_frames():
 
 
 @pytest.mark.skipif(not DATA_PATH.is_file(), reason="ad-click dataset not present")
-def test_orchestrator_frames_from_config_match_the_legacy_transformer():
+def test_orchestrator_frames_from_config_match_the_recorded_legacy_frames():
     orchestrator = DataOrchestrator(str(DATA_PATH), "csv", str(CONFIG_PATH))
-    legacy = orchestrator.data_transformer
-    assert_frame_equal(orchestrator.frames["logisticReg"], legacy.logistic_model_data_frame)
-    assert_frame_equal(
-        orchestrator.frames["logisticRegWithAgeBinning"],
-        legacy.logistic_model_with_age_binning_data_frame,
-    )
-    assert_frame_equal(orchestrator.frames["decisionTree"], legacy.decision_tree_data_frame)
+    for name, expected in FINGERPRINTS.items():
+        assert _fingerprint(orchestrator.frames[name]) == expected, name
     X, y = orchestrator.get_transformed_data("logisticReg")
     assert "click" not in X.columns and y.name == "click"
     with pytest.raises(KeyError, match="unknown frame"):
