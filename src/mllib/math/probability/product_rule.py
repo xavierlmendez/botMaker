@@ -1,4 +1,4 @@
-class productRule:
+class ProductRule:
     metadata = {
         "name": "Product Rule",
         "description": "Placeholder for probability product rule utilities.",

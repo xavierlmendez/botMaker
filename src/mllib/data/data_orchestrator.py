@@ -36,29 +36,29 @@ class DataTransformer:
         # self.pipeline = TransformerPipeline()
 
         # TODO(BL-09): replaced by the declarative TransformerPipeline
-        self.buildTransformedDataframes(df)
+        self.build_transformed_dataframes(df)
 
-    def transformData(self, model: str):
-        self.transforedData = self.transformerPipeline.excute()
+    def transform_data(self, model: str):
+        self.transfored_data = self.transformer_pipeline.excute()
         pass
 
-    def addTransformation(self, column: str, transformation: str):
+    def add_transformation(self, column: str, transformation: str):
         if transformation not in self.transformations[column]:
             self.transformations = np.append(self.transformations[column], transformation)
 
     # TODO(BL-09): finish the declarative TransformerPipeline
-    def buildTransformedDataframes(self, df: DataFrame):
-        self.logisticModelDataFrame = self.tempLogisticRegModelTransformer(df)
-        self.logisticModelWithAgeBinningDataFrame = (
-            self.tempLogisticRegModelWithAgeBinningTransformer(df)
+    def build_transformed_dataframes(self, df: DataFrame):
+        self.logistic_model_data_frame = self.temp_logistic_reg_model_transformer(df)
+        self.logistic_model_with_age_binning_data_frame = (
+            self.temp_logistic_reg_model_with_age_binning_transformer(df)
         )
-        self.decisionTreeDataFrame = self.tempDecisionTreeTransformer(df)
-        self.neuralNetworkDataFrame = self.tempNeuralNetworkModelTransformer(df)
+        self.decision_tree_data_frame = self.temp_decision_tree_transformer(df)
+        self.neural_network_data_frame = self.temp_neural_network_model_transformer(df)
 
-    def tempLogisticRegModelTransformer(self, df: DataFrame):
-        transformedDataFrame = df
+    def temp_logistic_reg_model_transformer(self, df: DataFrame):
+        transformed_data_frame = df
 
-        allColumnsForEasyReference = np.array(
+        all_columns_for_easy_reference = np.array(
             [
                 "id",
                 "full_name",
@@ -72,15 +72,15 @@ class DataTransformer:
             ]
         )
 
-        columnsToRemove = np.array(
+        columns_to_remove = np.array(
             [
                 "id",
                 "full_name",
             ]
         )
-        transformedDataFrame = self.removeColumns(transformedDataFrame, columnsToRemove)
+        transformed_data_frame = self.remove_columns(transformed_data_frame, columns_to_remove)
 
-        columnsToOneHotEncode = np.array(
+        columns_to_one_hot_encode = np.array(
             [
                 "gender",
                 "device_type",
@@ -89,34 +89,34 @@ class DataTransformer:
                 "time_of_day",
             ]
         )
-        transformedDataFrame = self.oneHotEncodeCategoricalColumns(
-            transformedDataFrame, columnsToOneHotEncode
+        transformed_data_frame = self.one_hot_encode_categorical_columns(
+            transformed_data_frame, columns_to_one_hot_encode
         )
 
-        columnsToStandardize = np.array(
+        columns_to_standardize = np.array(
             [
                 "age",
             ]
         )
-        transformedDataFrame = self.standardizeNumericColumns(
-            transformedDataFrame, columnsToStandardize
+        transformed_data_frame = self.standardize_numeric_columns(
+            transformed_data_frame, columns_to_standardize
         )
 
-        valuesToReplaceWithAverage = np.array(
+        values_to_replace_with_average = np.array(
             [
                 np.nan,
             ]
         )
-        transformedDataFrame = self.replaceValuesWithNumericAvg(
-            transformedDataFrame, columnsToStandardize, valuesToReplaceWithAverage
+        transformed_data_frame = self.replace_values_with_numeric_avg(
+            transformed_data_frame, columns_to_standardize, values_to_replace_with_average
         )
 
-        return transformedDataFrame
+        return transformed_data_frame
 
-    def tempLogisticRegModelWithAgeBinningTransformer(self, df: DataFrame):
-        transformedDataFrame = df
+    def temp_logistic_reg_model_with_age_binning_transformer(self, df: DataFrame):
+        transformed_data_frame = df
 
-        allColumnsForEasyReference = np.array(
+        all_columns_for_easy_reference = np.array(
             [
                 "id",
                 "full_name",
@@ -130,38 +130,38 @@ class DataTransformer:
             ]
         )
 
-        columnsToRemove = np.array(
+        columns_to_remove = np.array(
             [
                 "id",
                 "full_name",
             ]
         )
-        transformedDataFrame = self.removeColumns(transformedDataFrame, columnsToRemove)
+        transformed_data_frame = self.remove_columns(transformed_data_frame, columns_to_remove)
 
-        columnsToStandardize = np.array(
+        columns_to_standardize = np.array(
             [
                 "age",
             ]
         )
-        transformedDataFrame = self.standardizeNumericColumns(
-            transformedDataFrame, columnsToStandardize
+        transformed_data_frame = self.standardize_numeric_columns(
+            transformed_data_frame, columns_to_standardize
         )
 
-        valuesToReplaceWithAverage = np.array(
+        values_to_replace_with_average = np.array(
             [
                 np.nan,
             ]
         )
-        transformedDataFrame = self.replaceValuesWithNumericAvg(
-            transformedDataFrame, columnsToStandardize, valuesToReplaceWithAverage
+        transformed_data_frame = self.replace_values_with_numeric_avg(
+            transformed_data_frame, columns_to_standardize, values_to_replace_with_average
         )
 
-        columnsToBin = np.array(["age"])
-        transformedDataFrame = self.binNumericColumnsByStdRanges(
-            transformedDataFrame, columnsToBin
+        columns_to_bin = np.array(["age"])
+        transformed_data_frame = self.bin_numeric_columns_by_std_ranges(
+            transformed_data_frame, columns_to_bin
         )  # using ten bins for now
 
-        columnsToOneHotEncode = np.array(
+        columns_to_one_hot_encode = np.array(
             [
                 "age",
                 "gender",
@@ -171,16 +171,16 @@ class DataTransformer:
                 "time_of_day",
             ]
         )
-        transformedDataFrame = self.oneHotEncodeCategoricalColumns(
-            transformedDataFrame, columnsToOneHotEncode
+        transformed_data_frame = self.one_hot_encode_categorical_columns(
+            transformed_data_frame, columns_to_one_hot_encode
         )
 
-        return transformedDataFrame
+        return transformed_data_frame
 
-    def tempDecisionTreeTransformer(self, df: DataFrame):
-        transformedDataFrame = df
+    def temp_decision_tree_transformer(self, df: DataFrame):
+        transformed_data_frame = df
 
-        allColumnsForEasyReference = np.array(
+        all_columns_for_easy_reference = np.array(
             [
                 "id",
                 "full_name",
@@ -194,85 +194,85 @@ class DataTransformer:
             ]
         )
 
-        transformedDataFrame = self.replaceNanWithString(df, allColumnsForEasyReference)
+        transformed_data_frame = self.replace_nan_with_string(df, all_columns_for_easy_reference)
 
-        columnsToRemove = np.array(
+        columns_to_remove = np.array(
             [
                 "id",
                 "full_name",
             ]
         )
-        transformedDataFrame = self.removeColumns(transformedDataFrame, columnsToRemove)
+        transformed_data_frame = self.remove_columns(transformed_data_frame, columns_to_remove)
 
-        columnsToStandardize = np.array(
+        columns_to_standardize = np.array(
             [
                 "age",
             ]
         )
-        transformedDataFrame = self.standardizeNumericColumns(
-            transformedDataFrame, columnsToStandardize
+        transformed_data_frame = self.standardize_numeric_columns(
+            transformed_data_frame, columns_to_standardize
         )
 
-        valuesToReplaceWithAverage = np.array(
+        values_to_replace_with_average = np.array(
             [
                 np.nan,
             ]
         )
-        transformedDataFrame = self.replaceValuesWithNumericAvg(
-            transformedDataFrame, columnsToStandardize, valuesToReplaceWithAverage
+        transformed_data_frame = self.replace_values_with_numeric_avg(
+            transformed_data_frame, columns_to_standardize, values_to_replace_with_average
         )
 
-        columnsToBin = np.array(["age"])
-        transformedDataFrame = self.binNumericColumnsByStdRanges(
-            transformedDataFrame, columnsToBin
+        columns_to_bin = np.array(["age"])
+        transformed_data_frame = self.bin_numeric_columns_by_std_ranges(
+            transformed_data_frame, columns_to_bin
         )  # using ten bins for now
 
-        return transformedDataFrame
+        return transformed_data_frame
 
-    def tempNeuralNetworkModelTransformer(self, df: DataFrame):
-        transformedDataFrame = df
+    def temp_neural_network_model_transformer(self, df: DataFrame):
+        transformed_data_frame = df
         # TODO(BL-09): transformations move to config-driven transformer classes
-        return transformedDataFrame
+        return transformed_data_frame
 
     # TODO(BL-09): migrate to the TransformerPipeline
-    def oneHotEncodeCategoricalColumns(self, df, columns: np.ndarray, asBoolean=False):
-        dtypeOption = bool if asBoolean else float
+    def one_hot_encode_categorical_columns(self, df, columns: np.ndarray, as_boolean=False):
+        dtype_option = bool if as_boolean else float
         # Data set for click prediction project has blanks so setting dummy_na to true here
-        df = pd.get_dummies(df, columns=columns, drop_first=True, dummy_na=True, dtype=dtypeOption)
+        df = pd.get_dummies(df, columns=columns, drop_first=True, dummy_na=True, dtype=dtype_option)
         return df
 
-    def standardizeNumericColumns(self, df, columns: np.ndarray):
+    def standardize_numeric_columns(self, df, columns: np.ndarray):
         sc = StandardScaler()  # TODO(BL-09): hand-built encoder becomes a transformer class
         # to allow for signature of res = func(df, columnsToStandardize) and in place scaling + other scaling options in the signature
         df[columns] = sc.fit_transform(df[columns])
         return df
 
-    def replaceValuesWithNumericAvg(self, df, columns: np.ndarray, values: np.ndarray):
+    def replace_values_with_numeric_avg(self, df, columns: np.ndarray, values: np.ndarray):
         for col in columns:
-            colMean = df[col].mean()
+            col_mean = df[col].mean()
             for val in values:
-                df[col] = df[col].replace(val, colMean)
+                df[col] = df[col].replace(val, col_mean)
 
         return df
 
-    def replaceNanWithString(self, df, columns: np.ndarray):
+    def replace_nan_with_string(self, df, columns: np.ndarray):
         for col in columns:
-            strNan = "nan"
-            df[col] = df[col].replace(np.nan, strNan)
+            str_nan = "nan"
+            df[col] = df[col].replace(np.nan, str_nan)
         return df
 
-    def removeColumns(self, transformedDataFrame, columnsToRemove):
-        return transformedDataFrame.drop(
-            columns=columnsToRemove
+    def remove_columns(self, transformed_data_frame, columns_to_remove):
+        return transformed_data_frame.drop(
+            columns=columns_to_remove
         )  # Kinda silly to put in another function but ill leave it for consistency
 
-    def binNumericColumnsByStdRanges(self, df, columns: np.ndarray):
+    def bin_numeric_columns_by_std_ranges(self, df, columns: np.ndarray):
         # only need this for one column atm # TODO(BL-09): generalise to many columns in the pipeline
         std = df["age"].std()
         mean = df["age"].mean()
         min = df["age"].min()
         max = df["age"].max()
-        binRanges = [
+        bin_ranges = [
             min,
             mean - 2 * std,
             mean - 1 * std,
@@ -284,32 +284,32 @@ class DataTransformer:
             max,
         ]
         df["age"] = pd.cut(
-            df["age"], bins=binRanges
+            df["age"], bins=bin_ranges
         )  # might add labels some how here in the future but for now this is getting one hot encoded anyway
 
         return df
 
 
 class DataOrchestrator:
-    def __init__(self, dataSource, dataSourceType: str, transformationFile: str):
+    def __init__(self, data_source, data_source_type: str, transformation_file: str):
         self.metadata = {
             "name": "Data Orchestrator",
             "description": "This will be moved to an abstract class that uses dependency injection in the future to allow for reuse across many use cases",
         }
-        self.dataFrame = pd.DataFrame()  # to be overridden in the load_data function
-        self.source = dataSource
-        self.dataSourceType = dataSourceType
-        self.transformationFile = transformationFile
+        self.data_frame = pd.DataFrame()  # to be overridden in the load_data function
+        self.source = data_source
+        self.data_source_type = data_source_type
+        self.transformation_file = transformation_file
         self.load_data()
-        self.dataTransformer = DataTransformer(self.dataFrame)
+        self.data_transformer = DataTransformer(self.data_frame)
 
     def load_data(self):
-        if self.dataSourceType == "csvFilePath" or self.dataSourceType == "csv":
+        if self.data_source_type == "csvFilePath" or self.data_source_type == "csv":
             # cvs implementation for now but will make this abstract and dependent on a dataLoader implementation
-            self.dataFrame = pd.read_csv(self.source, header=0)
+            self.data_frame = pd.read_csv(self.source, header=0)
 
-        if self.dataSourceType == "pandasDataFrame" or self.dataSourceType == "pd":
-            self.dataFrame = self.source
+        if self.data_source_type == "pandasDataFrame" or self.data_source_type == "pd":
+            self.data_frame = self.source
 
     def clean_data(self):
         # implement later, luckily the datasets used so far have been clean or cleaning as acceptable to be in the transformer
@@ -319,17 +319,17 @@ class DataOrchestrator:
         # TODO(BL-09): model-name ladder retired with the pipeline
         # TODO(BL-09): model-name ladder retired with the pipeline
         if model == "logisticReg":
-            dataFrame = self.dataTransformer.logisticModelDataFrame
+            data_frame = self.data_transformer.logistic_model_data_frame
         elif model == "logisticRegWithAgeBinning":
-            dataFrame = self.dataTransformer.logisticModelWithAgeBinningDataFrame
+            data_frame = self.data_transformer.logistic_model_with_age_binning_data_frame
         elif model == "decisionTree":
-            dataFrame = self.dataTransformer.decisionTreeDataFrame
+            data_frame = self.data_transformer.decision_tree_data_frame
         elif model == "neuralNetwork":
-            dataFrame = self.dataTransformer.neuralNetworkDataFrame
+            data_frame = self.data_transformer.neural_network_data_frame
 
         # pull out the target column (RN only using this for purchase project refactor in future to have this column defined upstream)
-        X = dataFrame.drop(columns=["click"])
-        y = dataFrame["click"]
+        X = data_frame.drop(columns=["click"])
+        y = data_frame["click"]
         return X, y
 
     def build_test_train_split(self, model: str):
@@ -338,41 +338,43 @@ class DataOrchestrator:
 
     # helper/ functions that can be deleted in the future
 
-    def print_Data_Short_Summary_View(self):
+    def print_data_short_summary_view(self):
         print("Record Preview:")
-        print(self.dataFrame.head(5))
-        print(f"\n Shape: {self.dataFrame.shape}")
+        print(self.data_frame.head(5))
+        print(f"\n Shape: {self.data_frame.shape}")
         print("\n Column Types:")
-        print(self.dataFrame.dtypes)
+        print(self.data_frame.dtypes)
         print("\n Numerical Summary:")
-        print(self.dataFrame.describe())
+        print(self.data_frame.describe())
         print("\n Memory Usage:")
-        print(self.dataFrame.memory_usage(deep=True).sum() / 1024**2, "MB")
-        print("\n Duplicate Rows:", self.dataFrame.duplicated().sum())
+        print(self.data_frame.memory_usage(deep=True).sum() / 1024**2, "MB")
+        print("\n Duplicate Rows:", self.data_frame.duplicated().sum())
 
-    def print_Data_Post_Transformation_View(self):
+    def print_data_post_transformation_view(self):
         print("\n Logistic Model Transformed Data Record Preview:")
-        print(self.dataTransformer.logisticModelDataFrame.head(5))
+        print(self.data_transformer.logistic_model_data_frame.head(5))
         print("\n Column Types:")
-        print(self.dataTransformer.logisticModelDataFrame.dtypes)
+        print(self.data_transformer.logistic_model_data_frame.dtypes)
         print("\n Numerical Summary:")
-        print(self.dataTransformer.logisticModelDataFrame.describe())
+        print(self.data_transformer.logistic_model_data_frame.describe())
         print("\n Memory Usage:")
         print(
-            self.dataTransformer.logisticModelDataFrame.memory_usage(deep=True).sum() / 1024**2,
+            self.data_transformer.logistic_model_data_frame.memory_usage(deep=True).sum() / 1024**2,
             "MB",
         )
-        print("\n Duplicate Rows:", self.dataTransformer.logisticModelDataFrame.duplicated().sum())
+        print(
+            "\n Duplicate Rows:", self.data_transformer.logistic_model_data_frame.duplicated().sum()
+        )
 
     # second view to play with such that im not messing with the summary view intended for the full pipeline run or other views
-    def print_Data_Verboise_Summary(self):
+    def print_data_verboise_summary(self):
         print("Record Preview:")
         pd.set_option("display.max_colwidth", None)
-        print(self.dataFrame.head(5))
-        print(f"\nShape: {self.dataFrame.shape}")
+        print(self.data_frame.head(5))
+        print(f"\nShape: {self.data_frame.shape}")
         print("\nColumn Types:")
-        print(self.dataFrame.dtypes)
+        print(self.data_frame.dtypes)
         print("\nNumerical Summary:")
-        print(self.dataFrame.describe())
+        print(self.data_frame.describe())
         print("\nMemory Usage:")
-        print(self.dataFrame.memory_usage(deep=True).sum() / 1024**2, "MB")
+        print(self.data_frame.memory_usage(deep=True).sum() / 1024**2, "MB")

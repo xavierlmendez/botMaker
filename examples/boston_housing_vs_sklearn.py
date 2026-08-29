@@ -81,19 +81,19 @@ r2_test = r2_score(y_test, y_pred_test)
 print("Test RMSE = " + str(rmse_test))
 print("Test R2 = " + str(r2_test))
 
-seededRand = np.random.default_rng(
+seeded_rand = np.random.default_rng(
     10
 )  # seeting a seed for random initial weights after a few tests
-initialWeights = seededRand.random(13)
-initialBias = 0
-hypothesisFunction = HypothesisFunction(initialWeights, initialBias)
+initial_weights = seeded_rand.random(13)
+initial_bias = 0
+hypothesis_function = HypothesisFunction(initial_weights, initial_bias)
 
-lossFunction = MSE()
-MSEBasedModel = MyLinearRegression(hypothesisFunction, lossFunction, 0.0000032, 15000)
+loss_function = MSE()
+MSEBasedModel = MyLinearRegression(hypothesis_function, loss_function, 0.0000032, 15000)
 MSEBasedModel.fit(X_train, y_train)
 
-preditctedMSETest = MSEBasedModel.predictValues(X_test)
-rmse_test = rmse(preditctedMSETest, y_test)
-r2_test = r2_score(y_test, preditctedMSETest)
+preditcted_mse_test = MSEBasedModel.predict_values(X_test)
+rmse_test = rmse(preditcted_mse_test, y_test)
+r2_test = r2_score(y_test, preditcted_mse_test)
 print("Test RMSE = " + str(rmse_test))
 print("Test R2 = " + str(r2_test))

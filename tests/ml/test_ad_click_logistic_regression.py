@@ -19,9 +19,9 @@ def test_fit_and_predict_work_without_grid_fit(model_cls, n_features):
     y = np.array([0, 1] * 4)
 
     model = model_cls()
-    assert model.numWeights == n_features
+    assert model.num_weights == n_features
     model.fit(X, y)  # AttributeError before F4: learningModel/lossFunction/epochs unset
 
-    predictions = model.predictValues(X)
+    predictions = model.predict_values(X)
     assert predictions.shape == (8,)
     assert set(np.unique(predictions)).issubset({-1, 0, 1})  # computeClassification uses np.sign

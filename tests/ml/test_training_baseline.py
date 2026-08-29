@@ -73,15 +73,15 @@ MODELS = {
 
 def _train(model_cls, split_key: str, orchestrator: DataOrchestrator):
     model = model_cls()
-    model.hyperparameterGridOptions = SMOKE_GRID
+    model.hyperparameter_grid_options = SMOKE_GRID
     np.random.seed(SPLIT_SEED)  # train_test_split has no random_state in DataOrchestrator
-    model.gridFit(*orchestrator.build_test_train_split(split_key))
+    model.grid_fit(*orchestrator.build_test_train_split(split_key))
     return model
 
 
 def _metrics(model) -> list[dict]:
     """Per-permutation metrics in evaluation order, JSON-serialisable."""
-    record = model.evaluator.evaluationRecord
+    record = model.evaluator.evaluation_record
     out = []
     for iteration in sorted(record):
         entry = record[iteration]

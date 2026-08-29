@@ -45,7 +45,7 @@ class BreadthFirstSearch(AbstractGraphAlgorithm):
                 continue
 
             for neighbor_id in sorted(node.neighbors):
-                if context.allowRevisiting or neighbor_id not in visited:
+                if context.allow_revisiting or neighbor_id not in visited:
                     visited.add(neighbor_id)
                     queue.append((neighbor_id, depth + 1))
 

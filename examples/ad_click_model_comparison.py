@@ -11,13 +11,13 @@ from mllib.ml.projects.ad_click_logistic_regression import (
 # from kagglehub import KaggleDatasetAdapter
 class AdClickPredictionModelBuilder:
     def __init__(self):
-        self.projectName = (
+        self.project_name = (
             "AdClickPrediction"  # Used to get other project specific files in downstream procecsses
         )
-        self.dataFilePath = str(
+        self.data_file_path = str(
             Path(__file__).resolve().parents[1] / "data" / "ad_click_dataset.csv"
         )
-        self.modelMetaData = {}  # This function will contain the end results of each model to be used on the frontend
+        self.model_meta_data = {}  # This function will contain the end results of each model to be used on the frontend
         self.models = {}
         self.metadata = {
             "name": "Ad Click Model Builder and Evaluator",
@@ -28,24 +28,24 @@ class AdClickPredictionModelBuilder:
         # if not isfile(self.dataFilePath):
         #    kagglehub.dataset_download("ranaghulamnabi/shopping-behavior-and-preferences-study")
 
-        self.dataOrchestrator = DataOrchestrator(self.dataFilePath, "csv", "Purchase")
+        self.data_orchestrator = DataOrchestrator(self.data_file_path, "csv", "Purchase")
 
-    def buildModels(self):
+    def build_models(self):
 
         # logisticReg decisionTree neuralNetwork
         print("\n Building Models...")
 
         # Logistic Regression
-        logisticModel = LogisticRegression()
-        logisticModel.gridFit(*self.dataOrchestrator.build_test_train_split("logisticReg"))
-        logisticModel.evaluator.printEvaluation(printBestModelStatsOnly=True)
+        logistic_model = LogisticRegression()
+        logistic_model.grid_fit(*self.data_orchestrator.build_test_train_split("logisticReg"))
+        logistic_model.evaluator.print_evaluation(print_best_model_stats_only=True)
 
         # Logistic Regression with binning age
-        logistic2Model = LogisticRegressionWithAgeBinning()
-        logistic2Model.gridFit(
-            *self.dataOrchestrator.build_test_train_split("logisticRegWithAgeBinning")
+        logistic2_model = LogisticRegressionWithAgeBinning()
+        logistic2_model.grid_fit(
+            *self.data_orchestrator.build_test_train_split("logisticRegWithAgeBinning")
         )
-        logistic2Model.evaluator.printEvaluation(printBestModelStatsOnly=True)
+        logistic2_model.evaluator.print_evaluation(print_best_model_stats_only=True)
 
         # Decision Tree
         # tree_X_train, tree_X_test, tree_y_train, tree_y_test = self.dataOrchestrator.build_test_train_split('decisionTree')
@@ -61,23 +61,23 @@ class AdClickPredictionModelBuilder:
     # neuralModel.fit(neural_X_train, neural_y_train)
     # neuralModelEval = treeModel.evaluate(neural_X_test, neural_y_test)
 
-    def compileModelComparison(self):
+    def compile_model_comparison(self):
         pass
 
-    def printModelComparison(self):
+    def print_model_comparison(self):
         pass
 
-    def compileArtifactForWebApp(self):
+    def compile_artifact_for_web_app(self):
         pass
 
 
-modelBuilder = AdClickPredictionModelBuilder()
+model_builder = AdClickPredictionModelBuilder()
 # modelBuilder.dataOrchestrator.print_Data_Short_Summary_View()
 # modelBuilder.dataOrchestrator.print_Data_Verboise_Summary()
 # modelBuilder.dataOrchestrator.transform_data() # currently triggered on data orchestrator init using preset transformations future updates will add more automation and control
 # rereview data post transformation
 # modelBuilder.dataOrchestrator.print_Data_Post_Transformation_View()
-modelBuilder.buildModels()
-modelBuilder.compileModelComparison()
-modelBuilder.printModelComparison()
-modelBuilder.compileArtifactForWebApp()
+model_builder.build_models()
+model_builder.compile_model_comparison()
+model_builder.print_model_comparison()
+model_builder.compile_artifact_for_web_app()

@@ -12,10 +12,10 @@ class LossFunction:
             "description": "A library class serving as a template for loss function classes that compute loss between a single predicted and actual value",
         }
 
-    def computeLoss(self, actual, predicted):
+    def compute_loss(self, actual, predicted):
         pass
 
-    def computeGradient(self, actual, predicted):
+    def compute_gradient(self, actual, predicted):
         pass
 
 
@@ -26,10 +26,10 @@ class MSE(LossFunction):
     }
 
     # TODO(BL-16): derive metadata by introspection
-    def computeLoss(self, actual, predicted):
+    def compute_loss(self, actual, predicted):
         return np.mean((actual - predicted) ** 2)
 
-    def computeGradient(self, actual, predicted):
+    def compute_gradient(self, actual, predicted):
         n = actual.shape[0]
         return (2.0 / n) * (predicted - actual)
 
@@ -41,10 +41,10 @@ class MAE(LossFunction):
     }
 
     # TODO(BL-16): derive metadata by introspection
-    def computeLoss(self, actual, predicted):
+    def compute_loss(self, actual, predicted):
         return np.mean(abs(actual - predicted))
 
-    def computeGradient(self, actual, predicted):
+    def compute_gradient(self, actual, predicted):
         return np.sign(predicted - actual)
 
 
@@ -55,17 +55,17 @@ class PerceptronLoss(LossFunction):
     }
 
     # TODO(BL-16): derive metadata by introspection
-    def computeLoss(self, actual: np.ndarray, predicted: np.ndarray):
+    def compute_loss(self, actual: np.ndarray, predicted: np.ndarray):
         return np.maximum(0.0, -actual * predicted)
 
-    def computeGradient(self, actual, predicted, dataValues):
+    def compute_gradient(self, actual, predicted, data_values):
         # this is actually a sub gradient but reusing the function name for consistency
-        zeroIfClassifiedCorrectly = actual * predicted <= 0
-        return dataValues.T @ (zeroIfClassifiedCorrectly * actual)
+        zero_if_classified_correctly = actual * predicted <= 0
+        return data_values.T @ (zero_if_classified_correctly * actual)
 
-    def computeBias(self, actual, predicted):
-        zeroIfClassifiedCorrectly = actual * predicted <= 0
-        return (zeroIfClassifiedCorrectly * actual).sum()
+    def compute_bias(self, actual, predicted):
+        zero_if_classified_correctly = actual * predicted <= 0
+        return (zero_if_classified_correctly * actual).sum()
 
 
 class HingeLoss(LossFunction):
@@ -75,14 +75,14 @@ class HingeLoss(LossFunction):
     }
 
     # TODO(BL-16): derive metadata by introspection
-    def computeLoss(self, actual, predicted):
+    def compute_loss(self, actual, predicted):
         return np.maximum(0.0, 1.0 - actual * predicted)
 
-    def computeGradient(self, actual, predicted, dataValues):
+    def compute_gradient(self, actual, predicted, data_values):
         # this is actually a sub gradient but reusing the function name for consistency
-        zeroIfClassifiedCorrectly = actual * predicted <= 0
-        return dataValues.T @ (zeroIfClassifiedCorrectly * -actual)
+        zero_if_classified_correctly = actual * predicted <= 0
+        return data_values.T @ (zero_if_classified_correctly * -actual)
 
-    def computeBias(self, actual, predicted):
-        zeroIfClassifiedCorrectly = actual * predicted <= 0
-        return (zeroIfClassifiedCorrectly * actual).sum()
+    def compute_bias(self, actual, predicted):
+        zero_if_classified_correctly = actual * predicted <= 0
+        return (zero_if_classified_correctly * actual).sum()

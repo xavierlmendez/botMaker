@@ -2,24 +2,24 @@ import numpy as np
 
 
 class TreeNode:
-    def __init__(self, parentNode=None, data=None, children: np.ndarray = None):
+    def __init__(self, parent_node=None, data=None, children: np.ndarray = None):
         self.metadata = {
             "name": "Tree Node",
             "description": "Generic tree node with parent/children tracking.",
         }
         # TODO(BL-16): derive metadata by introspection
-        self.parentNode = parentNode
+        self.parent_node = parent_node
         self.data = data  # leaving abstract here to allow more options in the decision tree and other tree implementations
-        self.childNodes = []
-        self.childNodeCount = 0
-        self.isLeafNode = False
+        self.child_nodes = []
+        self.child_node_count = 0
+        self.is_leaf_node = False
 
-    def addChild(self, child: object):
-        self.childNodeCount += 1
-        self.childNodes.append(child)
-        child.parentNode = self  # if not set on init then this will correct
+    def add_child(self, child: object):
+        self.child_node_count += 1
+        self.child_nodes.append(child)
+        child.parent_node = self  # if not set on init then this will correct
 
-    def removeChild(self, child: object):
-        self.childNodeCount -= 1
-        self.childNodes.remove(child)
-        child.parentNode = None  # if not set on init then this will correct
+    def remove_child(self, child: object):
+        self.child_node_count -= 1
+        self.child_nodes.remove(child)
+        child.parent_node = None  # if not set on init then this will correct

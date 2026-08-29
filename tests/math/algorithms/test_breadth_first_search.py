@@ -7,16 +7,16 @@ from mllib.math.graph.graph_structures import Graph
 
 def build_graph():
     graph = Graph()
-    node_a = graph.addNode(data="A")
-    node_b = graph.addNode(data="B")
-    node_c = graph.addNode(data="C")
-    node_d = graph.addNode(data="D")
-    node_e = graph.addNode(data="E")
+    node_a = graph.add_node(data="A")
+    node_b = graph.add_node(data="B")
+    node_c = graph.add_node(data="C")
+    node_d = graph.add_node(data="D")
+    node_e = graph.add_node(data="E")
 
-    graph.addEdge(node_a, node_b)
-    graph.addEdge(node_a, node_c)
-    graph.addEdge(node_b, node_d)
-    graph.addEdge(node_c, node_e)
+    graph.add_edge(node_a, node_b)
+    graph.add_edge(node_a, node_c)
+    graph.add_edge(node_b, node_d)
+    graph.add_edge(node_c, node_e)
 
     return graph, node_a, node_b, node_c, node_d, node_e
 
@@ -42,10 +42,10 @@ def test_bfs_stops_on_target_criteria_match():
 
 def test_bfs_terminates_on_cycle_without_revisiting():
     graph = Graph()
-    a = graph.addNode(data="A")
-    b = graph.addNode(data="B")
-    graph.addEdge(a, b)
-    graph.addEdge(b, a)
+    a = graph.add_node(data="A")
+    b = graph.add_node(data="B")
+    graph.add_edge(a, b)
+    graph.add_edge(b, a)
 
     context = SearchContext(start_node_id=a, target_node_criteria=lambda node: False)
     traversal = BreadthFirstSearch(graph).run(context)

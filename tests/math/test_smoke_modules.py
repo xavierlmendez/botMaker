@@ -15,14 +15,14 @@ from mllib.math.regularization_function import RegularizationFunction
 
 
 def test_quadratic_form_helper_builds_diagonal_of_squares():
-    Q = QuadraticFormHelper().computeQ(np.array([1.0, 2.0, 3.0]))
+    Q = QuadraticFormHelper().compute_q(np.array([1.0, 2.0, 3.0]))
     assert np.array_equal(Q, np.diag([1.0, 4.0, 9.0]))
 
 
 def test_visualizer_show_without_traversal_draws_nothing_and_does_not_block():
     graph = Graph()
     graph.name = "smoke"
-    graph.addNode(data="A")
+    graph.add_node(data="A")
     Visualizer().show(graph)  # traversalOrder=None: figure + title only
 
 
@@ -33,5 +33,5 @@ def test_gaussian_prior_stores_mean_and_variance():
 
 def test_probability_and_regularization_placeholders_construct():
     # BL-07 / BL-10: bodies are placeholders until the CS 6344 pairing; constructing must not fail.
-    assert BayesRule().probabilityEvent == 0
-    assert RegularizationFunction().computePenalty(1, 1) is None
+    assert BayesRule().probability_event == 0
+    assert RegularizationFunction().compute_penalty(1, 1) is None

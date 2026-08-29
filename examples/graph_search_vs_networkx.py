@@ -9,38 +9,38 @@ from mllib.math.graph.graph_structures import Graph
 def main():
     # Create a graph
     graph = Graph()
-    node_ids = [graph.addNode(data=f"Node {idx}") for idx in range(1, 16)]
+    node_ids = [graph.add_node(data=f"Node {idx}") for idx in range(1, 16)]
 
     # Backbone chain
     for i in range(len(node_ids) - 1):
-        graph.addEdge(node_ids[i], node_ids[i + 1])
+        graph.add_edge(node_ids[i], node_ids[i + 1])
 
     # Cross-link to add structure
-    graph.addEdge(node_ids[0], node_ids[4])
-    graph.addEdge(node_ids[2], node_ids[6])
-    graph.addEdge(node_ids[3], node_ids[7])
-    graph.addEdge(node_ids[5], node_ids[10])
-    graph.addEdge(node_ids[7], node_ids[12])
-    graph.addEdge(node_ids[8], node_ids[14])
+    graph.add_edge(node_ids[0], node_ids[4])
+    graph.add_edge(node_ids[2], node_ids[6])
+    graph.add_edge(node_ids[3], node_ids[7])
+    graph.add_edge(node_ids[5], node_ids[10])
+    graph.add_edge(node_ids[7], node_ids[12])
+    graph.add_edge(node_ids[8], node_ids[14])
 
     # Small clusters
-    graph.addEdge(node_ids[1], node_ids[3])
-    graph.addEdge(node_ids[9], node_ids[11])
-    graph.addEdge(node_ids[11], node_ids[13])
+    graph.add_edge(node_ids[1], node_ids[3])
+    graph.add_edge(node_ids[9], node_ids[11])
+    graph.add_edge(node_ids[11], node_ids[13])
 
-    nx_graph = graph.getNxGraph()
+    nx_graph = graph.get_nx_graph()
 
     # Compute layout
     pos = nx.spring_layout(nx_graph, seed=42)
 
     # Step-through traversal (BFS) with highlighting
     traversal = list(nx.bfs_tree(nx_graph, source=node_ids[0]).nodes())
-    searchContext = SearchContext(
+    search_context = SearchContext(
         start_node_id=node_ids[0],
         target_node_criteria=lambda node: node.node_id == 7,
     )
 
-    traversal_two = BreadthFirstSearch(graph).run(searchContext)
+    traversal_two = BreadthFirstSearch(graph).run(search_context)
 
     plt.figure()
     for step_index, current in enumerate(traversal_two, start=1):

@@ -7,15 +7,15 @@ from mllib.math.graph.graph_structures import Graph
 
 def build_graph():
     graph = Graph()
-    a = graph.addNode(data="A")
-    b = graph.addNode(data="B")
-    c = graph.addNode(data="C")
-    d = graph.addNode(data="D")
-    e = graph.addNode(data="E")
-    graph.addEdge(a, b)
-    graph.addEdge(a, c)
-    graph.addEdge(b, d)
-    graph.addEdge(c, e)
+    a = graph.add_node(data="A")
+    b = graph.add_node(data="B")
+    c = graph.add_node(data="C")
+    d = graph.add_node(data="D")
+    e = graph.add_node(data="E")
+    graph.add_edge(a, b)
+    graph.add_edge(a, c)
+    graph.add_edge(b, d)
+    graph.add_edge(c, e)
     return graph, a, b, c, d, e
 
 
@@ -39,10 +39,10 @@ def test_dfs_stops_on_target():
 
 def test_dfs_terminates_on_cycle_without_revisiting():
     graph = Graph()
-    a = graph.addNode(data="A")
-    b = graph.addNode(data="B")
-    graph.addEdge(a, b)
-    graph.addEdge(b, a)
+    a = graph.add_node(data="A")
+    b = graph.add_node(data="B")
+    graph.add_edge(a, b)
+    graph.add_edge(b, a)
     context = SearchContext(start_node_id=a, target_node_criteria=lambda node: False)
     assert DepthFirstSearch(graph).run(context) == [a, b]
 
