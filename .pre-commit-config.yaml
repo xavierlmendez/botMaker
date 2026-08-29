@@ -26,6 +26,6 @@ repos:
         files: ^(pyproject\.toml|uv\.lock)$
       - id: todo-needs-backlog-id
         name: TODO must reference BL-nn
-        entry: bash -c 'hits=$(grep -rn "#[[:space:]]*TODO" --include="*.py" MlLib examples 2>/dev/null | grep -v "TODO(BL-[0-9][0-9]*):"); if [ -n "$hits" ]; then echo "$hits"; echo "TODO without BL-nn id"; exit 1; fi'
+        entry: bash -c 'hits=$(grep -rn "#[[:space:]]*TODO" --include="*.py" src tests examples 2>/dev/null | grep -v "TODO(BL-[0-9][0-9]*):"); if [ -n "$hits" ]; then echo "$hits"; echo "TODO without BL-nn id"; exit 1; fi'
         language: system
         pass_filenames: false

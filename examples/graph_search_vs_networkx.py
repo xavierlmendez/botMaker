@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from MlLib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import SearchContext
-from MlLib.mathDomain.algorithmImplementations.breadthFirstSearch import BreadthFirstSearch
-from MlLib.mathDomain.graphBased.graphStructures import Graph
+from mllib.mathDomain.algorithmImplementations.abstractGraphAlgorithm import SearchContext
+from mllib.mathDomain.algorithmImplementations.breadthFirstSearch import BreadthFirstSearch
+from mllib.mathDomain.graphBased.graphStructures import Graph
 
 
 def main():

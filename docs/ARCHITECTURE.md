@@ -55,7 +55,7 @@ depends on this shape; changing it means regenerating the snapshot deliberately.
 `build_test_train_split(model)` → project subclass sets grid → `gridFit` sweeps `ParameterGrid`
 (fresh `HypothesisFunction` per combination, `epoch` rounds of gradient descent) → evaluator records
 each permutation → `printEvaluation` reports the best. The smoke version of this trace is
-`MlLib/mlDomain/tests/test_training_baseline.py`.
+`tests/mlDomain/test_training_baseline.py`.
 
 ## 4. Extension points — how to add things
 

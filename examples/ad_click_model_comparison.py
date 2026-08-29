@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from MlLib.dataDomain.DataOrchestrator import DataOrchestrator
-from MlLib.mlDomain.projectSpecificFiles.adClickPredictionLogReg import (
+from mllib.dataDomain.DataOrchestrator import DataOrchestrator
+from mllib.mlDomain.projectSpecificFiles.adClickPredictionLogReg import (
     LogisticRegression,
     LogisticRegressionWithAgeBinning,
 )
@@ -15,11 +15,7 @@ class AdClickPredictionModelBuilder:
             "AdClickPrediction"  # Used to get other project specific files in downstream procecsses
         )
         self.dataFilePath = str(
-            Path(__file__).resolve().parents[1]
-            / "MlLib"
-            / "dataDomain"
-            / "dataSets"
-            / "ad_click_dataset.csv"
+            Path(__file__).resolve().parents[1] / "data" / "ad_click_dataset.csv"
         )
         self.modelMetaData = {}  # This function will contain the end results of each model to be used on the frontend
         self.models = {}
