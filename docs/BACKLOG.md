@@ -116,9 +116,6 @@ time allows"). Target: transformations declared in `ProjectSpecificDataClasses/*
 `MlLib/ml/projects/ad_click_logistic_regression.py:29,52` — `self.exporter = None`. Intent: persist fitted weights
 + hypothesis config + evaluator record so a trained model can be reloaded without re-running the grid.
 
-### BL-12 — `hypothesis.py:43` call expander to reshape data · `kept` · Phase 5 (R2)
-Folds into the shared gradient-descent base.
-
 ### BL-13 — Decision tree debt · `kept`
 `MlLib/ml/decision_tree.py:23` refactor onto `graphBased` utilities · `:115` missing no-split error handling (fixed in
 slice 3.4) · `:133` "abstracted later".
@@ -134,10 +131,6 @@ to `variance` — fixed. Kept by owner decision (D-4 named set), tagged in slice
 North star (D-2): MlLib models plug into tradePlatform as strategy plugins with descriptors introspected at the boundary
 (`docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
 
-### BL-20 — Logistic/linear duplication · `kept` · Phase 5 (R2)
-`MlLib/ml/logistic_regression.py:10,36`. Only real difference is `compute_prediction` vs `compute_classification`, already
-polymorphic on `HypothesisFunction`.
-
 ### BL-23 — Classifier predicts all-ones on ad-click data · `fix` · slice 5.3b
 Every smoke-grid permutation (and the historic example output) yields TP=1317, TN=0 → accuracy = majority rate 0.6585.
 Suspects: classification threshold in `HypothesisFunction.compute_classification`, unscaled features, gradient sign.
@@ -150,7 +143,21 @@ RUF059 ×6 · B007 ×5 · E402 ×4 · E711 ×3 · RUF002 ×2 · SIM113 ×1 · B9
 Rule: a slice that touches a file fixes that file's ignored violations; a code leaves the list when its
 count reaches zero. Nothing is added to the list without a backlog entry.
 
+### BL-26 — Perceptron and SVM onto the descent base · `kept`
+`ml/perceptron.py` and `ml/svm.py` are identical except for the update sign and use the three-argument
+sub-gradient (`compute_gradient(actual, predicted, data_values)`) plus `compute_bias`. Aligning the loss
+gradient signature (return the weight gradient given the design matrix for every loss) would let both sit on
+`GradientDescentModel` with `predict_method = "compute_classification"`. Re-entry ≈ 1 h; needs the margin
+tests in `tests/ml/test_perceptron_svm.py` as the guard.
+
 ## Closed
+
+### BL-12 — `hypothesis.py:43` call expander to reshape data · closed in slice 5.3 (base `HypothesisExpander` is the identity; the descent base applies it uniformly)
+Folds into the shared gradient-descent base.
+
+### BL-20 — Logistic/linear duplication · closed in slice 5.3 (`GradientDescentModel` base; linear/logistic are thin subclasses; split moved into `grid_fit`)
+`MlLib/ml/logistic_regression.py:10,36`. Only real difference is `compute_prediction` vs `compute_classification`, already
+polymorphic on `HypothesisFunction`.
 
 ### BL-10 — Regression/classification task enum · closed in slice 5.2 (`TaskKind` enum; `task_kind` on loss/cost/regularization; surfaced by `describe()`)
 `cost_function.py:7`, `loss_function.py:9`, `regularization_function.py:4` all want an enum "later". One `TaskKind` enum.

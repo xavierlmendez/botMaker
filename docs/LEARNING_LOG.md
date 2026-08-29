@@ -54,3 +54,17 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 - **What was confusing.** Where to put the human text: the answer is the class docstring, which tooling already
   understands, not a parallel data structure.
 - **Reference.** Python `inspect` module; the world-model doctrine in tradePlatform's `PHILOSOPHY.md`.
+
+## Gradient descent as a template method · 2026-08-29
+- **What.** Batch gradient descent is the same loop whether the hypothesis outputs a value or a sign: predict,
+  take the loss gradient, project it through the design matrix (`Φ(X)ᵀ·∇`), step. Linear and logistic regression
+  differed by one method call — so the base class holds the loop and the subclass names the method.
+- **Where.** `src/mllib/ml/gradient_descent.py` · `linear_regression.py` (3 lines) · `logistic_regression.py`
+  (constructor, `grid_fit`, `evaluate`) · test `tests/ml/test_gradient_descent.py` (property-based: recovers
+  any line in [-3, 3]²).
+- **Design.** The identity `HypothesisExpander` makes "no feature map" a valid object instead of a `None` check,
+  so the gradient is always `Φ(X)ᵀ·∇` (BL-12). `grid_fit` now owns the split (BL-20).
+- **What was confusing.** The grid loop applies one descent-shaped step with the *expanded initial weights* as
+  the gradient before training. It is preserved verbatim because the baseline pins it; whether it is a bug is
+  part of BL-23.
+- **Reference.** Gang of Four, Template Method; the loss-gradient projection is the chain rule through h.

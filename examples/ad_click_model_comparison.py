@@ -35,13 +35,13 @@ class AdClickPredictionModelBuilder:
 
         # Logistic Regression
         logistic_model = LogisticRegression()
-        logistic_model.grid_fit(*self.data_orchestrator.build_test_train_split("logisticReg"))
+        logistic_model.grid_fit(*self.data_orchestrator.get_transformed_data("logisticReg"))
         logistic_model.evaluator.print_evaluation(print_best_model_stats_only=True)
 
         # Logistic Regression with binning age
         logistic2_model = LogisticRegressionWithAgeBinning()
         logistic2_model.grid_fit(
-            *self.data_orchestrator.build_test_train_split("logisticRegWithAgeBinning")
+            *self.data_orchestrator.get_transformed_data("logisticRegWithAgeBinning")
         )
         logistic2_model.evaluator.print_evaluation(print_best_model_stats_only=True)
 
