@@ -7,7 +7,7 @@ class SplitFunction:
             "name": "Split Function Base Class",
             "description": "Base class for decision tree split criteria implementations.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
 
     def calculateSplit(self, dataValues, dataTargets):
         return "class"
@@ -34,7 +34,7 @@ class GiniImpurity(SplitFunction):
         "description": "Split function using Gini impurity to choose the best feature.",
     }
 
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
     def calculateGiniImpurities(self, dataValues, dataTargets):
         columns = dataValues.columns
         giniImpurities: dict[str, int] = {}
@@ -61,7 +61,7 @@ class InformationGain(SplitFunction):
             "name": "Information Gain",
             "description": "Split function placeholder for information gain.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
 
 
 class ChiSquare(SplitFunction):
@@ -70,4 +70,4 @@ class ChiSquare(SplitFunction):
             "name": "Chi Square",
             "description": "Split function placeholder for chi-square based splitting.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection

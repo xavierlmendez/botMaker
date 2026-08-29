@@ -25,7 +25,7 @@ class MSE(LossFunction):
         "description": "Loss function computing mean squared error and its gradient.",
     }
 
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
     def computeLoss(self, actual, predicted):
         return np.mean((actual - predicted) ** 2)
 
@@ -40,7 +40,7 @@ class MAE(LossFunction):
         "description": "Loss function computing mean absolute error and its gradient.",
     }
 
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
     def computeLoss(self, actual, predicted):
         return np.mean(abs(actual - predicted))
 
@@ -54,7 +54,7 @@ class PerceptronLoss(LossFunction):
         "description": "Perceptron loss with sub-gradient and bias updates.",
     }
 
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
     def computeLoss(self, actual: np.ndarray, predicted: np.ndarray):
         return np.maximum(0.0, -actual * predicted)
 
@@ -74,7 +74,7 @@ class HingeLoss(LossFunction):
         "description": "Hinge loss for margin-based classifiers with sub-gradient updates.",
     }
 
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
     def computeLoss(self, actual, predicted):
         return np.maximum(0.0, 1.0 - actual * predicted)
 

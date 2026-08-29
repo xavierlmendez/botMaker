@@ -7,7 +7,7 @@ class TreeNode:
             "name": "Tree Node",
             "description": "Generic tree node with parent/children tracking.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.parentNode = parentNode
         self.data = data  # leaving abstract here to allow more options in the decision tree and other tree implementations
         self.childNodes = []

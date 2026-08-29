@@ -3,7 +3,7 @@ class ProbabilisticKNN:
         "name": "Probabilistic KNN",
         "description": "Probabilistic KNN skeleton for prior/likelihood/posterior-based classification.",
     }
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
 
     """
         how does ProbabilisticKNN work?

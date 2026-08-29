@@ -16,7 +16,7 @@ class MySVM:  # prefixing with my for the comparison script, rename later when c
             "name": "SVM Base Class",
             "description": "Support Vector Machine implementation using hinge-style sub-gradient updates.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.learningModel = hypothesisFunction
         self.lossFunction = lossFunction
         self.learningRate = learningRate

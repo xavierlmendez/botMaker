@@ -35,7 +35,7 @@ class DataTransformer:
         # self.transformations = transformations
         # self.pipeline = TransformerPipeline()
 
-        # TODO remove and create pipeline for future projects
+        # TODO(BL-09): replaced by the declarative TransformerPipeline
         self.buildTransformedDataframes(df)
 
     def transformData(self, model: str):
@@ -46,7 +46,7 @@ class DataTransformer:
         if transformation not in self.transformations[column]:
             self.transformations = np.append(self.transformations[column], transformation)
 
-    # TODO finish above pipeline arch when time allows, for current project just get it done
+    # TODO(BL-09): finish the declarative TransformerPipeline
     def buildTransformedDataframes(self, df: DataFrame):
         self.logisticModelDataFrame = self.tempLogisticRegModelTransformer(df)
         self.logisticModelWithAgeBinningDataFrame = (
@@ -231,10 +231,10 @@ class DataTransformer:
 
     def tempNeuralNetworkModelTransformer(self, df: DataFrame):
         transformedDataFrame = df
-        # TODO transformations
+        # TODO(BL-09): transformations move to config-driven transformer classes
         return transformedDataFrame
 
-    # TODO migrate below function to pipeline arch when time allows, for current project just get it done
+    # TODO(BL-09): migrate to the TransformerPipeline
     def oneHotEncodeCategoricalColumns(self, df, columns: np.ndarray, asBoolean=False):
         dtypeOption = bool if asBoolean else float
         # Data set for click prediction project has blanks so setting dummy_na to true here
@@ -242,9 +242,7 @@ class DataTransformer:
         return df
 
     def standardizeNumericColumns(self, df, columns: np.ndarray):
-        sc = (
-            StandardScaler()
-        )  # TODO implement custom version of this and move this function there directly
+        sc = StandardScaler()  # TODO(BL-09): hand-built encoder becomes a transformer class
         # to allow for signature of res = func(df, columnsToStandardize) and in place scaling + other scaling options in the signature
         df[columns] = sc.fit_transform(df[columns])
         return df
@@ -269,7 +267,7 @@ class DataTransformer:
         )  # Kinda silly to put in another function but ill leave it for consistency
 
     def binNumericColumnsByStdRanges(self, df, columns: np.ndarray):
-        # only need this for one column atm # TODO abstract to multiple for pipeline
+        # only need this for one column atm # TODO(BL-09): generalise to many columns in the pipeline
         std = df["age"].std()
         mean = df["age"].mean()
         min = df["age"].min()
@@ -318,8 +316,8 @@ class DataOrchestrator:
         pass
 
     def get_transformed_data(self, model: str):
-        # TODO add validation to handle case were dataframe may not be set if model input doesnt match case
-        # TODO switch to match case statement after upgrade from python 3.9
+        # TODO(BL-09): model-name ladder retired with the pipeline
+        # TODO(BL-09): model-name ladder retired with the pipeline
         if model == "logisticReg":
             dataFrame = self.dataTransformer.logisticModelDataFrame
         elif model == "logisticRegWithAgeBinning":

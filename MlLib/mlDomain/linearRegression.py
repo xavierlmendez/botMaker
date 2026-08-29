@@ -17,7 +17,7 @@ class MyLinearRegression:  # prefixing with my for the comparison script, rename
             "name": "Linear Regression Base Class",
             "description": "Core linear regression implementation with gradient descent and prediction helpers.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.learningModel = hypothesisFunction
         self.lossFunction = lossFunction
         self.learningRate = learningRate

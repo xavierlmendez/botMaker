@@ -1,5 +1,4 @@
-# from engineering-standards @ 56bfdb2 (configs/python/ci.yml). One temporary deviation, tracked:
-#  - the TODO(BL-nn) grep is added in slice 3.7 once TODOs are rewritten (BL-24)
+# from engineering-standards @ 56bfdb2 (configs/python/ci.yml); TODO grep paths adapted to this repo.
 name: ci
 
 on:
@@ -30,5 +29,9 @@ jobs:
         run: uv run ruff check .
       - name: Format
         run: uv run ruff format --check .
+      - name: TODOs reference the backlog
+        run: |
+          hits=$(grep -rn '#[[:space:]]*TODO' --include='*.py' MlLib examples | grep -v 'TODO(BL-[0-9][0-9]*):' || true)
+          if [ -n "$hits" ]; then echo "$hits"; echo "TODO without BL-nn id"; exit 1; fi
       - name: Test
         run: uv run pytest

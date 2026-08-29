@@ -5,6 +5,6 @@ class BaseTransformer:
         "description": "Abstract base class for column/data transformers.",
     }
 
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
     def transform(self, series):
         raise NotImplementedError

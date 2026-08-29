@@ -154,7 +154,7 @@ Suspects: classification threshold in `HypothesisFunction.computeClassification`
 ### BL-24 — Lint debt behind temporary per-file ignores · `fix` · slices 3.5–3.7, 4.2–4.3, 5.1
 `pyproject.toml [tool.ruff.lint.per-file-ignores] "MlLib/**"` lists rules the pre-refactor code violates so
 the ruff gate can be on from slice 2.2. Counts at 2026-08-28 after safe auto-fixes and formatting:
-E501 ×130 (long comments/strings) · TD004 ×17 (→ 3.7) · RUF012 ×12 (metadata dicts → 5.1) · F841 ×9 ·
+E501 ×130 (long comments/strings) · ~~TD004 ×17~~ (cleared 3.7) · RUF012 ×12 (metadata dicts → 5.1) · F841 ×9 ·
 RUF059 ×6 · B007 ×5 · E402 ×4 · E711 ×3 · RUF002 ×2 · SIM113 ×1 · B905 ×1 (→ 3.5/3.6) · N-rules (→ 4.2/4.3).
 Rule: a slice that touches a file fixes that file's ignored violations; a code leaves the list when its
 count reaches zero. Nothing is added to the list without a backlog entry.

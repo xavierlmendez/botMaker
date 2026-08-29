@@ -25,7 +25,7 @@ class AbstractGraphAlgorithm(ABC):
             "name": "Abstract Graph Algorithm",
             "description": "Base class for graph search algorithms with evaluator orchestration.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.graph = graph
         self.evaluator = evaluator
 

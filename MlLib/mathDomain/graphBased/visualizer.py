@@ -12,7 +12,7 @@ class Visualizer:
             "name": "Graph Visualizer",
             "description": "Utility for visualizing graph traversal with matplotlib and networkx.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
 
     # tutorial used https://www.youtube.com/watch?v=7XVTnCrWDPY
     def show(self, graph: Graph, traversalOrder=None, position=None):

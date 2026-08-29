@@ -6,7 +6,7 @@ from numpy import array, mean, sum
 from sklearn.model_selection import ParameterGrid
 
 # Linear and logistic are very similar however have a major difference in that logistic is for classification
-# TODO look into seeing if I can reuse the linear class without so much code duplication
+# TODO(BL-20): share a gradient-descent base with linear regression
 #  as the main difference is the compute prediction function
 from MlLib.mathDomain.hypothesis import HypothesisFunction
 from MlLib.mathDomain.hypothesisExpander import PolynomialRegressionExpander
@@ -21,7 +21,7 @@ class MyLogisticRegression:  # prefixing with my for the comparison script, rena
             "name": "Logistic Regression Base Class",
             "description": "Core logistic regression implementation with training, prediction, and evaluation helpers.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         seededRand = np.random.default_rng(10)  # seeting a seed for random initial weights,
         self.numWeights = numWeights  # number of feature weights; project subclasses pass theirs
         initialWeights = seededRand.random(self.numWeights)
@@ -41,7 +41,7 @@ class MyLogisticRegression:  # prefixing with my for the comparison script, rena
 
     def gridFit(
         self, trainValues, testValues, trainTargets, testTargets
-    ):  # TODO push down the test train split to this scope so that can be a parameter for the grid later
+    ):  # TODO(BL-20): move the train/test split into gridFit as a grid parameter
         hyperparameterCombinations = list(ParameterGrid(self.hyperparameterGridOptions))
         modelImplementationName = self.hyperparameterGridOptions[0]["modelName"][0]
         print(

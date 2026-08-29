@@ -16,7 +16,7 @@ class nodeSplitCriteria:
             "name": "Decision Tree Split Criteria",
             "description": "Encapsulates a column/value rule used to split nodes in a decision tree.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.column = column
         self.value = value
         self.criteriaFunction = criteriaFunc
@@ -25,13 +25,13 @@ class nodeSplitCriteria:
         return self.criteriaFunction(dataValue, self.value)
 
 
-class DecisionTree:  # TODO refactor to use graphBased utilities of MathDomain
+class DecisionTree:  # TODO(BL-13): rebuild on mathDomain.graphBased tree utilities
     def __init__(self, splitFunction: SplitFunction = None, root=None):
         self.metadata = {
             "name": "Decision Tree Base Class",
             "description": "Core decision tree implementation with training, prediction, and evaluation helpers.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.root = root
         if self.root == None:
             self.root = TreeNode()
@@ -159,7 +159,7 @@ class MyDecisionTree(DecisionTree):
             "name": "Decision Tree Project Wrapper",
             "description": "Project-specific decision tree wrapper for experimentation and extension.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
 
     def addNode(self, node: TreeNode):
         if self.root == None:

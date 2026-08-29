@@ -16,7 +16,7 @@ class MyPerceptron:  # prefixing with my for the comparison script, rename later
             "name": "Perceptron Base Class",
             "description": "Perceptron implementation using sub-gradient updates for classification.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.learningModel = hypothesisFunction
         self.lossFunction = lossFunction
         self.learningRate = learningRate
