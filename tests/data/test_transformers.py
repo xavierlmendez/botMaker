@@ -21,6 +21,7 @@ from mllib.data.transformers import (
 from mllib.describe import describe
 
 DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "ad_click_dataset.csv"
+CONFIG_PATH = DATA_PATH.parent / "configs" / "ad_click_transformations.json"
 
 
 def _frame():
@@ -62,12 +63,17 @@ def test_standardize_then_fill_learns_mean_and_scale():
     assert out["age"].mean() == pytest.approx(0.0)
 
 
-def test_one_hot_encode_reindexes_new_data_to_fitted_columns():
+def test_one_hot_encode_encodes_new_data_against_fitted_levels():
     encoder = OneHotEncode(["color"]).fit(_frame())
-    new = pd.DataFrame({"id": [9], "age": [30.0], "color": ["blue"]})
+    assert encoder.categories_ == {"color": ["blue", "red"]}
+    fitted_columns = list(encoder.transform(_frame()).columns)
+
+    new = pd.DataFrame({"id": [9, 10], "age": [30.0, 31.0], "color": ["blue", "green"]})
     out = encoder.transform(new)
-    assert list(out.columns) == list(encoder.encoded_columns_)
-    assert out.loc[0, "color_red"] == 0.0 and out.loc[0, "color_nan"] == 0.0
+
+    assert list(out.columns) == fitted_columns  # same columns, same dropped first level
+    assert out["color_red"].tolist() == [0.0, 0.0]
+    assert out["color_nan"].tolist() == [0.0, 1.0]  # unseen level lands in the missing column
 
 
 def test_bin_by_std_ranges_edges_are_increasing_and_bounded():
@@ -90,7 +96,7 @@ def test_transformers_are_self_describing():
 
 @pytest.mark.skipif(not DATA_PATH.is_file(), reason="ad-click dataset not present")
 def test_pipeline_of_transformers_reproduces_legacy_frames_exactly():
-    orchestrator = DataOrchestrator(str(DATA_PATH), "csv", "Purchase")
+    orchestrator = DataOrchestrator(str(DATA_PATH), "csv", str(CONFIG_PATH))
     raw = pd.read_csv(DATA_PATH, header=0)
     categorical = ["gender", "device_type", "ad_position", "browsing_history", "time_of_day"]
 

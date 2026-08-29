@@ -26,7 +26,13 @@ class AdClickPredictionModelBuilder:
         # if not isfile(self.dataFilePath):
         #    kagglehub.dataset_download("ranaghulamnabi/shopping-behavior-and-preferences-study")
 
-        self.data_orchestrator = DataOrchestrator(self.data_file_path, "csv", "Purchase")
+        config_path = str(
+            Path(__file__).resolve().parents[1]
+            / "data"
+            / "configs"
+            / "ad_click_transformations.json"
+        )
+        self.data_orchestrator = DataOrchestrator(self.data_file_path, "csv", config_path)
 
     def build_models(self):
 

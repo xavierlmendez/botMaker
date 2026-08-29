@@ -17,7 +17,7 @@ src/mllib/
                      ProbabilisticKNN · modelEvaluators/ · projectSpecificFiles/ (ad-click grids)
   data/        data_orchestrator (load → transform → split) · transformers
 tests/               mirrors src/mllib; the training baseline and its snapshot live in tests/ml/
-data/                datasets (≤ 1 MB each, D-19) · configs/ (transformer JSON)
+data/                datasets (≤ 1 MB each, D-19) · configs/ (per-project transformer pipelines, JSON)
 examples/            composition roots: ad-click model comparison, Boston housing vs sklearn, graph search vs networkx
 docs/                plan, backlog, decisions, learning log, reviews, reports
 notebooks/           coursework notebooks
