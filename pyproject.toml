@@ -47,21 +47,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Pre-refactor debt, tracked as BL-24 in docs/BACKLOG.md. Each code is removed from this list by the
-# slice that burns it down (Phase 3: E402 F841 RUF059 B007 E711 SIM113 B905 RUF002 RUF012 E501;
-# naming rules cleared in 4.2/4.3). Do not add codes here; fix the code or open a backlog entry.
-"src/**" = [
-  # (examples/** shares this list below)
-  "E501",    # long comment/string lines (130 after format)
-  "RUF012",  # mutable class-level metadata dicts — removed by introspection in slice 5.1
-  "F841", "RUF059", "B007", "E711", "SIM113", "B905", "E402", "RUF002",   # slice 3.5/3.6 cleanups
-]
-"tests/**" = ["B905", "E402", "RUF012", "RUF059", "F841"]
-"examples/**" = [
-  "E501",    # long comment/string lines (130 after format)
-  "RUF012",  # mutable class-level metadata dicts — removed by introspection in slice 5.1
-  "F841", "RUF059", "B007", "E711", "SIM113", "B905", "E402", "RUF002",   # slice 3.5/3.6 cleanups
-]
+# Remaining BL-24 lint debt (docs/BACKLOG.md). A code leaves this list when its count reaches zero;
+# nothing is added without a backlog entry. Counts at 2026-08-29: E501 x149, F841 x2, B007 x2, E711 x3, B905 x1, E402 x3.
+"src/**" = ["E501", "F841", "B007", "E711", "B905", "E402"]
+"examples/**" = ["E501", "F841", "B007", "E711", "B905", "E402"]
+"tests/**" = ["E402", "RUF059"]
 
 [tool.ruff.lint.pep8-naming]
 ignore-names = ["X", "X_*", "Q"]   # ML convention: design matrix and quadratic form

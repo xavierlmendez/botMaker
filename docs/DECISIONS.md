@@ -60,3 +60,10 @@ The orchestrator stays the state system. **Consequences.** Improvements flow bac
 
 ## D-20 — Reports and notebooks are kept, not deleted · 2026-08-28 · accepted
 **Decision.** `docs/reports/`, `notebooks/`.
+
+## D-21 — Refactor plan complete; the framework is the steady state · 2026-08-29 · accepted
+**Context.** `docs/plans/2026-08-refactor.md` executed as PRs #1–#21 (Phases 0–7). **Decision.** From here, the
+rules in `CONTRIBUTING.md` are not migration rules but the way the repository works: protected `main`, PR + CI,
+one-concern slices, `TODO(BL-nn)` only, tests with every change, decision and learning entries in the same PR.
+New work (CS 6344 pairings) starts from the open backlog. **Consequences.** `docs/REFACTOR_PLAN.md` no longer
+exists; plans live under `docs/plans/` and are archived, not deleted, when done.
