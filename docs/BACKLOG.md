@@ -168,10 +168,6 @@ North star (D-2): MlLib models plug into tradePlatform as strategy plugins with 
 `MlLib/mlDomain/logisticRegression.py:10,36`. Only real difference is `computePrediction` vs `computeClassification`, already
 polymorphic on `HypothesisFunction`.
 
-### BL-22 — Confusion-matrix FP/FN swapped · `fix` · slice 3.4c
-`genericEvaluator.py:141,145`: "falsePositives" counts target=1/pred=0 (a false negative) and vice versa; reported precision is
-really recall. Regenerate `baseline_snapshot.json` deliberately in the fixing PR.
-
 ### BL-23 — Classifier predicts all-ones on ad-click data · `fix` · slice 5.3b
 Every smoke-grid permutation (and the historic example output) yields TP=1317, TN=0 → accuracy = majority rate 0.6585.
 Suspects: classification threshold in `HypothesisFunction.computeClassification`, unscaled features, gradient sign.
@@ -191,6 +187,10 @@ slice 3.1 when its import root was fixed and the algorithm modules became import
 smoke test can pass for it, so slice 3.6 implements rather than merely tests it.
 
 ## Closed
+
+### BL-22 — Confusion-matrix FP/FN swapped · closed in slice 3.4c (one vectorised base implementation, sklearn-checked; snapshot regenerated: precision 1.0→0.6585, recall 0.6585→1.0)
+`genericEvaluator.py:141,145`: "falsePositives" counts target=1/pred=0 (a false negative) and vice versa; reported precision is
+really recall. Regenerate `baseline_snapshot.json` deliberately in the fixing PR.
 
 ### BL-21 — pandas ≥ 3 read-only arrays · closed in slice 3.4b (evaluator copies arrays on entry; `pandas<3` pin lifted)
 `MlLib/mlDomain/modelEvaluators/genericEvaluator.py:136-137` mutates copy-on-write views in place →

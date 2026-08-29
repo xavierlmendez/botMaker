@@ -42,4 +42,4 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 ## Model evaluation records · 2025-12
 - **What.** Accuracy / precision / recall from a hand-built confusion matrix, persisted per grid iteration.
 - **Where.** `mlDomain/modelEvaluators/genericEvaluator.py`
-- **Lesson.** BL-22: FP and FN were swapped — precision 1.0 was really recall. A hand-built 4-row test would have caught it; that test lands in slice 3.4c.
+- **Lesson.** BL-22 (fixed 2026-08-28): FP and FN were swapped in two duplicated copies of the loop — the reported precision 1.0 was really recall. Now one vectorised base implementation checked against sklearn on an 8-row hand-built case (`tests/test_confusionMatrix.py`). Duplicated code hid the bug twice.
