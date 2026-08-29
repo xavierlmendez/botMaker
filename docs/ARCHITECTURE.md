@@ -34,7 +34,7 @@ interfaces. Adding a loss or an expander never touches a model.
 
 | Interface | Must provide | Used by |
 |---|---|---|
-| `LossFunction` | `compute_loss(actual, predicted)`, `compute_gradient(actual, predicted[, data_values])`; margin losses also `compute_bias` | every gradient-descent model |
+| `LossFunction` | `compute_loss(actual, predicted)`, `compute_gradient(actual, predicted[, data_values])`; margin losses also `compute_bias`; class attribute `task_kind: TaskKind \| None` | every gradient-descent model |
 | `HypothesisExpander` | `expand_hypothesis(weights)`, `fit_data_to_hypothesis(data)` | `HypothesisFunction` |
 | `HypothesisFunction` | `compute_prediction(x)`, `compute_classification(x)`; owns weights, bias, expander | every model |
 | `SplitFunction` | impurity of a candidate split | `DecisionTree` |
