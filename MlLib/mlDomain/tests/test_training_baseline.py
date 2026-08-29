@@ -1,6 +1,6 @@
 """Pre-migration behavioural baseline for the model-training feature.
 
-Exercises the same path as ``projectScripts/AdClickModelProjectBuildScript.py``
+Exercises the same path as ``examples/ad_click_model_comparison.py``
 (real CSV -> DataOrchestrator -> project LogisticRegression classes -> gridFit ->
 LogisticRegressionModelEvaluator) but with a tiny hyper-parameter grid so it runs
 in seconds instead of hours, and with the global RNG seeded so the unseeded

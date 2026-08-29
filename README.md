@@ -17,7 +17,7 @@ MlLib/
                      ProbabilisticKNN · modelEvaluators/ (accuracy/precision/recall, records) ·
                      projectSpecificFiles/ (ad-click configurations with hyper-parameter grids)
   dataDomain/        DataOrchestrator (load → transform → split) · dataSets/ · transformer configs
-  projectScripts/    composition roots, e.g. AdClickModelProjectBuildScript.py
+examples/            composition roots: ad-click model comparison, Boston housing vs sklearn, graph search vs networkx
 docs/                plan, backlog, decisions, learning log, reviews, reports
 notebooks/           coursework notebooks
 ```
