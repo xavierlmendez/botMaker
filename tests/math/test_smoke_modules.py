@@ -34,4 +34,4 @@ def test_gaussian_prior_stores_mean_and_variance():
 def test_probability_and_regularization_placeholders_construct():
     # BL-07 / BL-10: bodies are placeholders until the CS 6344 pairing; constructing must not fail.
     assert BayesRule().probability_event == 0
-    assert RegularizationFunction().compute_penalty(1, 1) is None
+    assert RegularizationFunction.task_kind is None

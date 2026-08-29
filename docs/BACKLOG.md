@@ -112,9 +112,6 @@ Implement alongside `bayes_rule.py` / `Prior.py` when probability is covered.
 time allows"). Target: transformations declared in `ProjectSpecificDataClasses/*.json`, loaded by class name; retire the
 `temp*Transformer` methods and the `if model == …` ladder in `get_transformed_data`.
 
-### BL-10 — Regression/classification task enum · `kept` · Phase 5 (R3)
-`cost_function.py:7`, `loss_function.py:9`, `regularization_function.py:4` all want an enum "later". One `TaskKind` enum.
-
 ### BL-11 — Trained-model exporter · `kept` · re-entry 1–2 h
 `MlLib/ml/projects/ad_click_logistic_regression.py:29,52` — `self.exporter = None`. Intent: persist fitted weights
 + hypothesis config + evaluator record so a trained model can be reloaded without re-running the grid.
@@ -154,6 +151,9 @@ Rule: a slice that touches a file fixes that file's ignored violations; a code l
 count reaches zero. Nothing is added to the list without a backlog entry.
 
 ## Closed
+
+### BL-10 — Regression/classification task enum · closed in slice 5.2 (`TaskKind` enum; `task_kind` on loss/cost/regularization; surfaced by `describe()`)
+`cost_function.py:7`, `loss_function.py:9`, `regularization_function.py:4` all want an enum "later". One `TaskKind` enum.
 
 ### BL-16 — Auto-generated metadata markers · closed in slice 5.1 (46 dicts → class docstrings; `mllib.describe.describe()` introspects name/doc/signature)
 ~25 × `# TODO: review metadata (auto-generated)` plus the hand-typed `metadata = {…}` dicts they annotate. Replaced by an

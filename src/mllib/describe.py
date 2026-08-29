@@ -19,7 +19,8 @@ def describe(obj: Any) -> dict[str, Any]:
     Keys: ``name`` (class name), ``module`` (dotted module), ``kind`` (the MlLib domain — ``math``,
     ``ml``, ``data`` — or the module for anything outside the package), ``doc`` (first line of the
     class docstring, ``""`` if none), ``params`` (constructor parameter names, ``self`` excluded) and
-    ``signature`` (the constructor signature as text).
+    ``signature`` (the constructor signature as text) and ``task_kind`` ('regression' /
+    'classification' for components that declare one, else ``None``).
     """
     cls = obj if inspect.isclass(obj) else type(obj)
     try:
@@ -32,6 +33,7 @@ def describe(obj: Any) -> dict[str, Any]:
     parts = module.split(".")
     kind = parts[1] if parts[0] == "mllib" and len(parts) > 2 else module
     doc = inspect.getdoc(cls) or ""
+    task_kind = getattr(cls, "task_kind", None)
     return {
         "name": cls.__name__,
         "module": module,
@@ -39,4 +41,5 @@ def describe(obj: Any) -> dict[str, Any]:
         "doc": doc.splitlines()[0] if doc else "",
         "params": params,
         "signature": signature_text,
+        "task_kind": task_kind.value if task_kind is not None else None,
     }
