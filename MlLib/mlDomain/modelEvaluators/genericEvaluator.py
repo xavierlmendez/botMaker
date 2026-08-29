@@ -32,6 +32,16 @@ class ModelEvaluator:
         self.evaluateModel()
         self.persistEvaluationRecord()
 
+    def setConfusionMatrixValues(self):
+        # Labels are normalised so {-1, 0} both mean "negative" (np.sign classifiers emit -1).
+        self.predictions[self.predictions == -1] = 0
+        self.testTargets[self.testTargets == -1] = 0
+        targets, predictions = self.testTargets, self.predictions
+        self.truePositives = int(((targets == 1) & (predictions == 1)).sum())
+        self.falsePositives = int(((targets == 0) & (predictions == 1)).sum())
+        self.trueNegatives = int(((targets == 0) & (predictions == 0)).sum())
+        self.falseNegatives = int(((targets == 1) & (predictions == 0)).sum())
+
     def getAccuracy(self):
         correctPredictions = 0
         countTotalPredictions = self.predictions.size
@@ -130,30 +140,6 @@ class LogisticRegressionModelEvaluator(ModelEvaluator):
         self.precision = self.getPrecision()
         self.recall = self.getRecall()
 
-    def setConfusionMatrixValues(self):
-        truePositives = 0
-        falsePositives = 0
-        trueNegatives = 0
-        falseNegatives = 0
-        countTotalPredictions = self.predictions.size
-
-        self.predictions[self.predictions == -1] = 0  # standardize 0 and -1 to be zero
-        self.testTargets[self.testTargets == -1] = 0  # standardize 0 and -1 to be zero
-        for i in range(countTotalPredictions):
-            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 1:
-                truePositives += 1
-            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 1:
-                falsePositives += 1
-            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 0:
-                trueNegatives += 1
-            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 0:
-                falseNegatives += 1
-
-        self.truePositives = truePositives
-        self.falsePositives = falsePositives
-        self.trueNegatives = trueNegatives
-        self.falseNegatives = falseNegatives
-
     def getPrecision(self):
         return self.truePositives / (
             (self.truePositives + self.falsePositives) or 1
@@ -209,28 +195,6 @@ class DecisionTreeModelEvaluator(ModelEvaluator):
         self.accuracy = self.getAccuracy()
         self.precision = self.getPrecision()
         self.recall = self.getRecall()
-
-    def setConfusionMatrixValues(self):
-        truePositives = 0
-        falsePositives = 0
-        trueNegatives = 0
-        falseNegatives = 0
-        countTotalPredictions = self.predictions.__len__()
-        self.testTargets = self.testTargets.to_numpy()
-        for i in range(countTotalPredictions):
-            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 1:
-                truePositives += 1
-            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 1:
-                falsePositives += 1
-            if self.testTargets[i] == self.predictions[i] and self.testTargets[i] == 0:
-                trueNegatives += 1
-            if self.testTargets[i] != self.predictions[i] and self.testTargets[i] == 0:
-                falseNegatives += 1
-
-        self.truePositives = truePositives
-        self.falsePositives = falsePositives
-        self.trueNegatives = trueNegatives
-        self.falseNegatives = falseNegatives
 
     def getAccuracy(self):
         correctPredictions = 0
