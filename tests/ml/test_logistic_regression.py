@@ -60,3 +60,16 @@ def test_calculate_gradient_descent_updates_weights():
 
     assert np.allclose(model.learning_model.get_weights(), np.array([1.0, -0.8]))
     assert np.isclose(model.learning_model.get_bias(), 0.2)
+
+
+def test_learns_a_linearly_separable_problem_from_zero_one_labels():
+    # BL-23: before encode_targets, {0, 1} labels against sign outputs stalled near 0.4 accuracy.
+    rng = np.random.default_rng(0)
+    data_values = rng.normal(size=(400, 2))
+    labels = (data_values[:, 0] + 0.5 * data_values[:, 1] > 0.2).astype(int)
+
+    model = MyLogisticRegression(learning_rate=0.01, epochs=500, num_weights=2)
+    model.fit(data_values, labels)
+    predictions = np.where(model.predict_values(data_values) == -1, 0, 1)
+
+    assert (predictions == labels).mean() >= 0.98

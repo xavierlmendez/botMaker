@@ -17,7 +17,11 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 ## Logistic regression · 2025-12
 - **What.** Same descent loop as linear regression; the hypothesis's `compute_classification` thresholds the output.
 - **Where.** `ml/logistic_regression.py` · project configs in `ml/projects/ad_click_logistic_regression.py` · test `ml/tests/test_logistic_regression.py`
-- **Open question.** BL-23: on the ad-click data every grid permutation predicts all-ones. Threshold, scaling, or gradient sign — to be resolved in slice 5.3b and written up here.
+- **Resolved (BL-23, 2026-08-29).** The sign output lives in {-1, +1}; training it against {0, 1} labels meant the
+  gradient never pointed at the decision boundary — separable data stalled at 0.42. `encode_targets` maps labels to
+  ±1 and the same model reaches 1.0. The ad-click data itself has no linear signal (sklearn logistic 0.650 CV vs
+  0.650 majority), which is why the baseline was — and remains — at the majority rate. Lesson: check the label space
+  of the loss before blaming the optimiser; and know the ceiling of the data (a stronger model gets 0.715).
 
 ## Perceptron and svm with sub-gradient updates · 2025-12
 - **What.** Perceptron loss and hinge loss are non-differentiable at the margin; both models step along a sub-gradient.

@@ -47,8 +47,15 @@ class GradientDescentModel:
         data_values, _ = self.as_arrays(data_values, None)
         return np.array([self.predict(row) for row in data_values])
 
+    def encode_targets(self, data_targets):
+        """Map targets into the space the hypothesis predicts in. Identity for regression; a sign
+        classifier overrides this so the loss compares like with like (BL-23).
+        """
+        return data_targets
+
     def calculate_gradient_descent(self, data_values, data_targets):
         data_values, data_targets = self.as_arrays(data_values, data_targets)
+        data_targets = self.encode_targets(data_targets)
         predicted = self.predict_values(data_values)
         loss_gradient = self.loss_function.compute_gradient(data_targets, predicted)
         design = self.learning_model.hypothesis_expander.fit_data_to_hypothesis(data_values)
@@ -61,6 +68,7 @@ class GradientDescentModel:
 
     def calculate_cost_function(self, data_values, data_targets):
         data_values, data_targets = self.as_arrays(data_values, data_targets)
+        data_targets = self.encode_targets(data_targets)
         predicted = self.predict_values(data_values)
         return np.mean(self.loss_function.compute_loss(data_targets, predicted))
 
