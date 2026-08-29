@@ -38,6 +38,7 @@ interfaces. Adding a loss or an expander never touches a model.
 | `HypothesisExpander` | `expand_hypothesis(weights)`, `fit_data_to_hypothesis(data)` | `HypothesisFunction` |
 | `HypothesisFunction` | `compute_prediction(x)`, `compute_classification(x)`; owns weights, bias, expander | every model |
 | `SplitFunction` | impurity of a candidate split | `DecisionTree` |
+| `Transformer` | `fit(frame) -> self`, `transform(frame) -> new frame`, `fit_transform` | `TransformerPipeline` (6.2), `DataOrchestrator` |
 | `ModelEvaluator` | `update_testing_prediction_data(...)`, `evaluate_model()`, `persist_evaluation_record()` | every model's `evaluate` |
 | `AbstractGraphAlgorithm` | `_search(ctx)`; the ABC owns `run()` and `_notify_evaluator()`; `SearchContext` is frozen | graph algorithms |
 
@@ -74,8 +75,9 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 - **A model:** compose from `HypothesisFunction` + a loss; expose `fit`, `predict`, `predict_values`,
   `evaluate`; give it an evaluator; add it to the smoke grid only if it is part of a project comparison.
 - **A graph algorithm:** subclass `AbstractGraphAlgorithm`; implement `_search`; never override `run`.
-- **A transformer (after R1):** subclass the transformer ABC; declare it by class name in the project's
-  JSON config.
+- **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
+  `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
+  by class name in the project's JSON config.
 
 ## 5. Known structural debt and its schedule
 
