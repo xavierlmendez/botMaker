@@ -11,7 +11,7 @@ class Edge:
         "name": "Graph Edge",
         "description": "Simple edge representation connecting two node IDs with optional data.",
     }
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
     u: int
     v: int
     data: Any = None
@@ -23,7 +23,7 @@ class GraphNode:
         "name": "Graph Node",
         "description": "Graph node storing an ID, payload, and neighbor set.",
     }
-    # TODO: review metadata (auto-generated)
+    # TODO(BL-16): derive metadata by introspection
     node_id: int
     data: Any
     neighbors: set[int] = field(default_factory=set)
@@ -35,7 +35,7 @@ class Graph:
             "name": "Graph Structure",
             "description": "Undirected graph structure with nodes, edges, and adjacency helpers.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.nodes: dict[int, GraphNode] = {}
         self.edges = []  # (Bi)directional edges will have to be on a directional graph implementation
         self.idIncrementor = 0  # Prefer this as searching burned identifiers will add to run time

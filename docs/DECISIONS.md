@@ -33,7 +33,8 @@ set of untested ones also stays (BL-14). **Consequences.** `docs/BACKLOG.md` §3
 **Decision.** Claude prepares reviewable slices grouped in phases; Xavier reviews and commits every change.
 
 ## D-9 — GitHub Actions replaces AWS CodeBuild · 2026-08-27 · accepted
-**Consequences.** `buildspec.yaml` and `Dockerfile` removed (slice 0.3).
+**Consequences.** `buildspec.yaml` and `Dockerfile` removed (slice 0.3). *Update 2026-08-29:* the CodeBuild GitHub
+webhook (id 574383043) is still registered and fails on every push; it is not a required check. Deletion pending (owner).
 
 ## D-10 — Fix F4/F5 in the migration · 2026-08-27 · accepted
 ## D-11 — R1–R3 are in scope as scheduled phases · 2026-08-27 · accepted

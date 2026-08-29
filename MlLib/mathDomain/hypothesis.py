@@ -41,7 +41,7 @@ class HypothesisFunction:
 
     def computeClassification(self, data: np.ndarray):
         # multiplying the weights by the data and adding the bias
-        # TODO call hypothesisExpander to shape data if needed
+        # TODO(BL-12): expander reshapes data in the shared descent base
         data = self.hypothesisExpander.fitDataToHypothesis(data, True)
         if self.hypothesis.shape[0] != data.shape[0]:
             ahh = 1  # common issue when building so leaving this to break point on

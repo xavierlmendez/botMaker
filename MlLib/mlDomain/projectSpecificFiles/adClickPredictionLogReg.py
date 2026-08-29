@@ -13,7 +13,7 @@ class LogisticRegression(MyLogisticRegression):
             "name": "Ad Click Logistic Regression",
             "description": "Project-specific logistic regression configuration for ad click prediction.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = np.array(
             [
@@ -40,7 +40,9 @@ class LogisticRegression(MyLogisticRegression):
                 }
             ]
         )
-        self.exporter = None  # TODO implement exporter
+        self.exporter = (
+            None  # TODO(BL-11): persist fitted weights, hypothesis config and evaluator record
+        )
 
 
 class LogisticRegressionWithAgeBinning(MyLogisticRegression):
@@ -50,7 +52,7 @@ class LogisticRegressionWithAgeBinning(MyLogisticRegression):
             "name": "Ad Click Logistic Regression With Age Binning",
             "description": "Project-specific logistic regression with age binning for ad click prediction.",
         }
-        # TODO: review metadata (auto-generated)
+        # TODO(BL-16): derive metadata by introspection
         self.evaluator = LogisticRegressionModelEvaluator()
         self.hyperparameterGridOptions = np.array(
             [
@@ -77,4 +79,6 @@ class LogisticRegressionWithAgeBinning(MyLogisticRegression):
                 }
             ]
         )
-        self.exporter = None  # TODO implement exporter
+        self.exporter = (
+            None  # TODO(BL-11): persist fitted weights, hypothesis config and evaluator record
+        )
