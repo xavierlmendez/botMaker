@@ -87,3 +87,136 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
   *different* level on data with fewer categories. Both are now explicit (`BinByStdRanges` clips edges;
   `OneHotEncode` records levels at fit).
 - **Reference.** sklearn's `TransformerMixin` / `Pipeline` contract, which this mirrors deliberately.
+
+## A* over an implicit graph with an admissible bound · 2026-09-04
+- **What.** Best-first search where the graph is never built. The problem hands back successors on demand,
+  so a search space of C(n, k) subsets is explored without materializing it. The first goal state popped is
+  optimal, which is the whole point: A* does not just find a good answer, it proves no better one exists.
+- **Where.** `math/graph/abstract_graph_problem.py` · `math/search_cost_function.py` ·
+  `math/algorithms/a_star_search.py` · tests `tests/math/algorithms/test_a_star_search.py`.
+- **Design.** The objective is terminal-only: cost belongs to a completed solution, not to the path taken to
+  it, because the error of a chosen subset does not depend on the order its members were picked in. So there
+  is no accumulated `g` and the priority is the bound alone. Two states that name the same position must be
+  equal, which is why subsets are stored as ascending tuples — otherwise the same subset is expanded k!
+  times. The algorithm subclasses `AbstractGraphAlgorithm` and implements `_search`, so the evaluator
+  orchestration in the base `run` applies unchanged (D-23).
+- **What was confusing.** Admissibility and tightness do different jobs, and it is easy to conflate them. A
+  bound of zero is admissible whenever costs are non-negative, and A* with it still returns the optimum — it
+  just enumerates the entire reachable graph to get there. The tests pin both halves on the same instance:
+  the exact bound expands 4 states, the zero bound expands 11, and they return the same subset. Tightness is
+  a speed property, not a correctness one.
+- **Reference.** Hart, Nilsson & Raphael, *A formal basis for the heuristic determination of minimum cost
+  paths*, IEEE TSSC 1968; Pearl, *Heuristics*, 1984, for the first-goal-popped optimality argument.
+
+## Nyström landmark selection as column subset selection · 2026-09-04
+- **What.** Choosing k landmarks for the Nyström approximation of a positive semi-definite kernel is column
+  subset selection on K^{1/2}. The residual trace tr(K − K[:,S] K[S,S]⁺ K[S,:]) equals the squared Frobenius
+  residual of selecting the same columns of K^{1/2}, so a CSS search chooses landmarks unmodified. Paired
+  with the spectral bound, A* returns the landmark set no other set can beat, and says so.
+- **Where.** `math/graph/nystrom_landmark_problem.py` · tests
+  `tests/math/graph/test_nystrom_landmark_problem.py` · kernels in `tests/math/fixtures/`.
+- **Design.** The bound asks what the best conceivable finish could remove. After projecting the chosen
+  columns out of K^{1/2}, no r further *columns* can remove more energy than the top r *eigenvalues* of what
+  remains, because columns are a restricted choice of direction and eigenvectors are the unrestricted best.
+  Subtracting the eigenvalues therefore understates the true remaining error, which is what admissibility
+  needs. At the root the bound is exactly the rank-k eigenvalue tail, i.e. the SVD residual: the second
+  number the whole question needs, since it separates "this heuristic is bad" from "no subset can do better".
+- **What was confusing.** Two numerical details are load-bearing rather than decorative. A kernel built from
+  data carries small negative eigenvalues from rounding, and their square roots are not real, so they are
+  clipped before K^{1/2} is formed. And the bound is a difference of two large near-equal quantities: on a
+  badly scaled kernel it cancels to just below zero, and an unclamped negative bound sorts ahead of every
+  real state and empties the fringe. Both are one line and neither is optional. CI added a corollary:
+  *which side of zero* the cancellation lands on is rounding, and Apple's Accelerate and Linux's OpenBLAS
+  round it differently. A test that asserted the raw value was negative passed here and failed there. The
+  clamp is now pinned by injecting the overshoot through the class's own spectrum seam, and a separate test
+  asserts only the platform-independent half — that the clamped value is never negative.
+- **Cost.** The bound recomputes an SVD and an n×n eigendecomposition per child, which is O(n³) each and
+  caps this implementation near n = 40 (BL-27). The published method downdates the parent's spectrum by rank
+  one instead. Correct now, not yet fast.
+- **Reference.** Arai, Maung & Schweitzer, *Optimal column subset selection by A-star search*, AAAI 2015;
+  Williams & Seeger, *Using the Nyström method to speed up kernel machines*, NeurIPS 2000.
+
+## Greedy Nyström and pivoted Cholesky · 2026-09-04
+- **What.** The two deterministic landmark rules the literature actually uses, implemented so their gap to
+  the certified optimum can be measured. Greedy Nyström adds the column that removes the most residual
+  trace; pivoted Cholesky adds the column with the largest residual diagonal.
+- **Where.** `math/algorithms/nystrom_landmark_selectors.py` · tests
+  `tests/math/algorithms/test_nystrom_landmark_selectors.py`.
+- **Design.** Neither rule needs to try a column to score it. On the residual kernel R left by the current
+  selection, adding column j removes exactly ||R[:, j]||² / R[j, j] of the trace, so one sweep of the
+  residual ranks every candidate. Pivoted Cholesky reads only R[j, j], which is one number per column
+  instead of a norm, and that is the whole difference between them: the trace rule asks how much a column
+  explains about everything, the diagonal rule asks only how much is left unexplained about the column
+  itself. An outlier far from every other point scores high on the second and explains nothing.
+- **What was confusing.** Both rules are called "greedy" in conversation, and a harness that reports one
+  under that name while implementing the other changes the headline number. Worse, it is easy to invent a
+  third: greedily minimizing A*'s lower bound looks like the natural greedy rule when the bound is already
+  written, but no paper proposes it, because the bound credits a completion that greedy will never make.
+  It is kept here under a name that cannot be mistaken for the published one (D-22).
+- **Reference.** Farahat, Ghodsi & Kamel, *A novel greedy algorithm for Nyström approximation*, AISTATS
+  2011; Wan & Schweitzer, IJCAI 2021, Thm 2, for the identity between the trace rule and the f = u search.
+
+## RPCholesky, and reporting a randomized method honestly · 2026-09-04
+- **What.** Randomly pivoted Cholesky draws each landmark with probability proportional to the residual
+  diagonal instead of taking the largest, plus the summarization that turns any randomized selector into a
+  reportable number: mean, median and spread over independent seeds.
+- **Where.** `math/algorithms/nystrom_randomized_selectors.py` · tests
+  `tests/math/algorithms/test_nystrom_randomized_selectors.py`.
+- **Design.** The update is identical to deterministic pivoted Cholesky, so the two share one step function
+  and differ only in how the pivot is chosen. That is the entire idea: weighting by the residual diagonal
+  keeps the draw near what is still unexplained while leaving an outlier only a proportional chance of
+  being taken, which softens the failure the deterministic rule walks straight into. Every selector takes an
+  explicit seed, so a run is reproducible, and `summarize_randomized_selector` runs consecutive seeds.
+- **What was confusing.** Best-of-N random looks like a baseline and is not one. Drawing N subsets and
+  keeping the best spends N evaluations of the objective, so it is a crude optimizer whose quality is bought
+  rather than earned, and it approaches the optimum as N grows. Quoting best-of-32 as "random" alongside a
+  greedy rule that scores each candidate once compares two different budgets and flatters the wrong method.
+  The class name carries N for that reason, and a test asserts more draws never do worse (D-22).
+- **Reference.** Chen, Epperly, Tropp & Webber, *Randomly pivoted Cholesky*, CPAM 2025 (arXiv:2207.06503).
+
+## Measuring an optimality gap without overstating it · 2026-09-04
+- **What.** The harness that puts the landmark heuristics against the certified optimum on real data, and
+  reports the two gaps that the question actually has: how far a heuristic is from the best subset, and how
+  far the best subset is from the best rank-k subspace.
+- **Where.** `ml/projects/nystrom_uci_data.py` · `ml/projects/nystrom_uci_harness.py` · tests
+  `tests/ml/test_nystrom_uci_data.py`, `tests/ml/test_nystrom_uci_harness.py` · data `data/uci/`.
+- **Design.** Reporting only the first gap makes a heuristic look bad on a kernel where nothing could have
+  done well, so the SVD rank-k residual is printed beside every ratio: it is what the eigenvectors achieve
+  when free to be any direction, and no subset can beat it. The A* node count is printed beside C(n, k) for
+  the same reason in the other direction — a certificate that costs 363 states out of 9,880 subsets is a
+  different proposition from one that costs 9,000. Bandwidth is a first-class sweep parameter because it is
+  the knob that moves the spectrum between decaying and flat.
+- **What was confusing.** The first version of this harness inflated its own headline. It compared A*
+  against a greedy that minimized A*'s *lower bound*, a lookahead rule nobody publishes, and against the
+  best of 32 random draws labelled simply "random". Both flatter the optimum. Corrected, the standard greedy
+  is within 1.000–1.034× of optimal on these slices, a single random draw averages 1.22–1.42×, and
+  best-of-32 sits at 1.06–1.12× purely because it evaluates 32 of 9,880 subsets. Greedy pivoted Cholesky is
+  the one genuine outlier at 1.33–1.49×, which is the known failure RPCholesky was designed to soften. The
+  naming rules are now a decision (D-22) rather than a habit, because the error was invisible in the output.
+  Review caught the same failure once more, in this entry: the random-draw range was written from memory as
+  1.21–1.39 when the run says 1.22–1.42. Every figure quoted above is now read off the committed output.
+- **Scale.** At n = 40 brute force takes under a second, so nothing here is evidence about certification at
+  scale. BL-27 is the bound's cost and BL-28 is the experiment that would be evidence.
+- **Reference.** Dereziński, Khanna & Mahoney, *Improved guarantees and a multiple-descent curve for CSS and
+  the Nyström method*, IJCAI 2021, for the best-subset-versus-SVD ratio this reports.
+
+## Scoring siblings together: the Schur complement as shared work · 2026-09-04
+- **What.** When A* expands a parent it scores every child, and for subset selection the children differ
+  from the parent by one column each. One residual kernel of the parent prices all of them: adding column
+  j to selection S lowers the residual trace by exactly ||R_S[:, j]||² / R_S[j, j]. That is the greedy
+  selector's gain rule, reused as the search's child-scoring rule.
+- **Where.** `math/search_cost_function.py` (`lower_bounds`) · `math/algorithms/a_star_search.py` ·
+  `math/graph/nystrom_landmark_problem.py` · tests in `tests/math/graph/test_nystrom_landmark_problem.py`
+  and `tests/math/algorithms/test_a_star_search.py` · benchmark `examples/nystrom_batched_bounds.py`.
+- **Design.** The contract gains one method with a default, so the abstraction costs nothing for a problem
+  that has nothing to share, and the search calls it once per expansion in the order the problem generated
+  the children, so tie-breaking cannot drift. The profile that motivated it said something worth keeping:
+  91% of the search was not arithmetic but the per-call overhead of 8,000 pseudo-inverses of 3×3 blocks,
+  so the fix was to make fewer calls, not faster ones. The GPU question dissolved on the same evidence.
+- **What was confusing.** A test broke that had nothing wrong with it. The ten-point RBF chain is a
+  palindrome, so two mirror-image subsets have identical cost, and the batched and per-child arithmetic
+  differ in the last bit — enough to hand back the other mirror. "The optimal subset" is only defined up
+  to ties, and a brute-force oracle must return the set of optima, not the first one. The same phenomenon
+  at scale is the 2^k tie collapse the reproduction saw on wdbc at k = 15.
+- **Reference.** Farahat, Ghodsi & Kamel, AISTATS 2011 (the gain identity); Arai, Maung & Schweitzer,
+  AAAI 2015, §4, for the parent-once, child-cheap structure this is the first step toward.

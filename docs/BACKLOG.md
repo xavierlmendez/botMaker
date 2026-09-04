@@ -139,6 +139,27 @@ gradient signature (return the weight gradient given the design matrix for every
 `GradientDescentModel` with `predict_method = "compute_classification"`. Re-entry ≈ 1 h; needs the margin
 tests in `tests/ml/test_perceptron_svm.py` as the guard.
 
+### BL-27 — Nyström A* lower bound is O(n³) per child · `kept` · re-entry 1–2 days
+
+`NystromCssCostFunction.lower_bound` recomputes an SVD of the selected columns and an n×n `eigvalsh` of
+the deflated residual for every generated child. Correct (A* matches brute force on every bundled
+instance), but it caps the search at n ≈ 40. The AAAI-15 machinery — one root eigendecomposition, then a
+rank-one downdate of the parent's spectrum per child via the secular equation — makes each child O(k·r),
+and the `research/repro/astar-css` reimplementation already does it. Port it before any run at n ≥ 500
+(the `nystrom-certified-landmarks` first experiment). Marked at the bound itself in
+`src/mllib/math/graph/nystrom_landmark_problem.py`. Since slice 6.1 the natural home is
+`NystromCssCostFunction.lower_bounds`, which already decomposes the parent once for goal-depth children
+(D-24); the downdate extends the same method to every depth.
+
+### BL-28 — Nyström first-experiment grid · `backlog-only` · re-entry 1 day after BL-27
+
+The harness measures the two gaps on three 40-row slices at k = 3, which is a smoke test, not
+evidence. The `nystrom-certified-landmarks` first experiment needs: a Laplacian kernel beside the RBF
+one, a ridge-leverage-score baseline, n = 500–3000, k up to 10, five bandwidths per kernel, and
+RPCholesky averaged over ten draws. None of it is built and no interface here is pre-shaped for it.
+It is blocked on BL-27 regardless, since the bound is O(n³) per child, and until then the experiment
+runs on `research/repro/astar-css` with Y = K^{1/2}.
+
 ## Closed
 
 ### BL-09 — Declarative `TransformerPipeline` · closed in slice 6.3 (declarative `TransformerPipeline` from JSON config; `DataTransformer`, the `temp_*` methods and the model-name ladder deleted)

@@ -18,8 +18,8 @@ Math never imports ML; ML composes math; scripts (composition roots) wire data t
 
 | Layer | Contents | Role |
 |---|---|---|
-| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction`, `RegularizationFunction`, `graphBased/` (graph, tree, `SplitFunction`/Gini), `algorithmImplementations/` (BFS, DFS on an ABC), `probabilityBased/` | academic ideas as classes |
-| `ml` | `MyLinearRegression`, `MyLogisticRegression`, `MyPerceptron`, `MySVM`, `DecisionTree`, `ProbabilisticKNN`, `modelEvaluators/`, `projectSpecificFiles/` | models composed from primitives |
+| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction`, `RegularizationFunction`, `SearchCostFunction`, `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors), `probability/` | academic ideas as classes |
+| `ml` | `MyLinearRegression`, `MyLogisticRegression`, `MyPerceptron`, `MySVM`, `DecisionTree`, `ProbabilisticKNN`, `evaluators/`, `projects/` (ad-click grids, Nyström UCI harness) | models composed from primitives |
 | `data` | `data_orchestrator` (+ `DataTransformer`), datasets, transformer JSON configs | load → transform → split |
 | `projectScripts` | `AdClickModelProjectBuildScript` etc. | composition roots / experiments (→ `examples/` in slice 3.5) |
 
@@ -78,6 +78,11 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 - **A model:** compose from `HypothesisFunction` + a loss; expose `fit`, `predict`, `predict_values`,
   `evaluate`; give it an evaluator; add it to the smoke grid only if it is part of a project comparison.
 - **A graph algorithm:** subclass `AbstractGraphAlgorithm`; implement `_search`; never override `run`.
+- **A search over an implicit problem:** implement `AbstractGraphProblem` (`initial_state`, `is_goal`,
+  `successors`) and inject a `SearchCostFunction` (`lower_bound`, `goal_cost`) into `AStarSearch`. The
+  bound must be admissible and must equal `goal_cost` at a goal state, or the search stops being a proof
+  (D-23). States must be hashable and canonical, so one position is one node. When a parent's successors
+  share work, override `lower_bounds(parent, successors)`; the default scores them one at a time (D-24).
 - **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
   `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
   by class name in the project's JSON config.
