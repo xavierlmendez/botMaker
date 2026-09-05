@@ -13,6 +13,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from mllib.describe import describe
 from mllib.math.algorithms.a_star_search import AStarSearch
 from mllib.math.graph.nystrom_landmark_problem import (
     NystromCssCostFunction,
@@ -357,7 +358,7 @@ def test_batched_goal_depth_bounds_equal_the_per_child_costs(seed: int):
         assert list(batched) == pytest.approx(expected, abs=1e-10)
 
 
-def test_batched_bounds_fall_back_to_per_child_above_goal_depth():
+def test_downdated_bounds_above_goal_depth_equal_the_oracle():
     problem = NystromLandmarkProblem(random_rbf_kernel(9, seed=4), landmark_count=3)
     cost_function = NystromCssCostFunction(problem)
 
@@ -365,7 +366,9 @@ def test_batched_bounds_fall_back_to_per_child_above_goal_depth():
         successors = list(problem.successors(parent))
         batched = cost_function.lower_bounds(parent, successors)
 
-        assert list(batched) == pytest.approx(per_child_bounds(cost_function, successors))
+        assert list(batched) == pytest.approx(
+            per_child_bounds(cost_function, successors), abs=1e-8 * np.trace(problem.kernel_matrix)
+        )
 
 
 def test_batched_bounds_fall_back_when_the_successors_do_not_extend_the_parent():
@@ -420,3 +423,202 @@ def test_a_star_expands_the_same_states_whether_bounds_are_batched_or_not(seed: 
     assert batched.state == per_child.state
     assert batched.cost == pytest.approx(per_child.cost, rel=1e-12)
     assert batched.nodes_expanded == per_child.nodes_expanded
+
+
+class OracleOnlyCost(NystromCssCostFunction):
+    """The same objective priced one child at a time by the oracle: the engine-independence foil."""
+
+    lower_bounds = SearchCostFunction.lower_bounds
+
+
+def rbf_kernel_with_a_duplicated_point(seed: int) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    points = rng.standard_normal((7, 2))
+    points[3] = points[0]
+    return rbf_kernel_from_points(points)
+
+
+def every_parent(problem):
+    """Every state above goal depth, so every parent whose children the fast path prices."""
+    n = problem.kernel_matrix.shape[0]
+    for depth in range(problem.landmark_count - 1):
+        yield from itertools.combinations(range(n), depth)
+
+
+def bound_cases():
+    return [
+        pytest.param(load_kernel("identity_8x8.csv"), 3, id="identity"),
+        pytest.param(load_kernel("all_ones_8x8.csv"), 3, id="all-ones"),
+        pytest.param(load_kernel("rbf_chain_8x8.csv"), 4, id="chain-8"),
+        pytest.param(load_kernel("rbf_chain_10x10.csv"), 5, id="chain-10"),
+        pytest.param(random_rbf_kernel(9, seed=4), 3, id="random-rbf"),
+        pytest.param(rank_deficient_kernel(7, rank=2, scale=1e6, seed=2), 3, id="rank-deficient"),
+        pytest.param(rbf_kernel_with_a_duplicated_point(5), 3, id="duplicated-column"),
+    ]
+
+
+# --- the root decomposition the bound works in ---------------------------------------------
+
+
+def test_reduced_coordinates_reproduce_the_kernel_and_its_diagonal():
+    kernel = random_rbf_kernel(9, seed=1)
+    problem = NystromLandmarkProblem(kernel, landmark_count=2)
+    coordinates = problem.reduced_coordinates
+
+    assert problem.retained_rank == 9
+    assert coordinates.shape == (9, 9)
+    assert coordinates.T @ coordinates == pytest.approx(kernel, abs=1e-10)
+    assert np.sum(coordinates**2, axis=0) == pytest.approx(np.diag(kernel), abs=1e-10)
+
+
+def test_the_identity_keeps_every_mode_and_the_all_ones_kernel_keeps_one():
+    identity = NystromLandmarkProblem(load_kernel("identity_8x8.csv"), landmark_count=3)
+    all_ones = NystromLandmarkProblem(load_kernel("all_ones_8x8.csv"), landmark_count=3)
+
+    assert (identity.retained_rank, identity.dropped_mass) == (8, 0.0)
+    assert all_ones.retained_rank == 1
+    assert all_ones.dropped_mass == pytest.approx(0.0, abs=1e-12)
+
+
+def test_a_rank_deficient_kernel_drops_its_zero_modes():
+    kernel = rank_deficient_kernel(7, rank=3, scale=1.0, seed=0)
+    problem = NystromLandmarkProblem(kernel, landmark_count=2)
+
+    assert problem.retained_rank == 3
+    assert problem.reduced_coordinates.shape == (3, 7)
+    coordinates = problem.reduced_coordinates
+    assert coordinates.T @ coordinates == pytest.approx(kernel, abs=1e-9)
+
+
+# --- the downdated bound against the oracle, at every depth and every tolerance -----------
+
+
+@pytest.mark.parametrize("tolerance", [0.0, 1e-8, 1e-3])
+@pytest.mark.parametrize(("kernel", "landmark_count"), bound_cases())
+def test_downdated_bounds_equal_the_oracle_at_every_depth(kernel, landmark_count, tolerance):
+    problem = NystromLandmarkProblem(kernel, landmark_count, spectrum_mass_tolerance=tolerance)
+    cost_function = NystromCssCostFunction(problem)
+    slack = 1e-8 * float(np.trace(kernel))
+
+    for parent in every_parent(problem):
+        successors = list(problem.successors(parent))
+        if not successors:
+            continue
+        batched = list(cost_function.lower_bounds(parent, successors))
+        assert all(np.isfinite(batched)), parent
+        assert batched == pytest.approx(per_child_bounds(cost_function, successors), abs=slack)
+
+
+def test_a_duplicated_column_is_priced_as_its_parent():
+    # Column 3 repeats column 0, so after choosing 0 it is an explained column: the child keeps the
+    # parent's spectrum and its bound is the parent's remaining energy less one fewer completion.
+    problem = NystromLandmarkProblem(rbf_kernel_with_a_duplicated_point(5), landmark_count=3)
+    cost_function = NystromCssCostFunction(problem)
+    successors = list(problem.successors((0,)))
+    bounds = dict(
+        zip(
+            [child for _, child in successors],
+            cost_function.lower_bounds((0,), successors),
+            strict=True,
+        )
+    )
+
+    assert np.isfinite(bounds[(0, 3)])
+    assert bounds[(0, 3)] == pytest.approx(cost_function.lower_bound((0, 3)), abs=1e-10)
+    assert bounds[(0, 3)] >= max(b for child, b in bounds.items() if child != (0, 3)) - 1e-10
+
+
+def engine_independence_cases():
+    # The badly scaled rank-deficient kernel is excluded: every spanning subset costs zero there, so
+    # the frontier order is rounding, not engine (the search baseline learned the same lesson).
+    return [case for case in bound_cases() if case.id != "rank-deficient"]
+
+
+@pytest.mark.parametrize(("kernel", "landmark_count"), engine_independence_cases())
+def test_a_star_expands_the_same_states_with_the_downdate_as_with_the_oracle(
+    kernel, landmark_count
+):
+    problem = NystromLandmarkProblem(kernel, landmark_count)
+
+    downdated = AStarSearch(problem, NystromCssCostFunction(problem)).run()
+    oracle = AStarSearch(problem, OracleOnlyCost(problem)).run()
+    optima = brute_force_optima(problem, NystromCssCostFunction(problem), tolerance=1e-6)
+
+    assert downdated.nodes_expanded == oracle.nodes_expanded
+    assert downdated.state in optima
+    assert oracle.state in optima
+
+
+# --- spectrum truncation (D-26) ------------------------------------------------------------
+
+
+@pytest.mark.parametrize("tolerance", [-0.1, 1.0])
+def test_the_mass_tolerance_must_lie_in_the_unit_interval(tolerance):
+    with pytest.raises(ValueError, match="spectrum_mass_tolerance"):
+        NystromLandmarkProblem(np.eye(4), 2, spectrum_mass_tolerance=tolerance)
+
+
+@pytest.mark.parametrize("tolerance", [1e-10, 1e-4])
+def test_any_positive_tolerance_keeps_one_mode_of_the_all_ones_kernel(tolerance):
+    problem = NystromLandmarkProblem(
+        load_kernel("all_ones_8x8.csv"), 3, spectrum_mass_tolerance=tolerance
+    )
+    assert problem.retained_rank == 1
+
+
+def test_the_retained_rank_is_the_smallest_within_the_dropped_mass_tolerance():
+    # Points in three dimensions at unit bandwidth give a flat-ish spectrum (the last mode carries
+    # ~0.8% of the trace), so a 5% tolerance is what actually drops modes here.
+    kernel = random_rbf_kernel(12, seed=8)
+    problem = NystromLandmarkProblem(kernel, 3, spectrum_mass_tolerance=0.05)
+    spectrum = problem.eigenvalues
+    allowed = 0.05 * float(np.sum(spectrum))
+    r = problem.retained_rank
+
+    assert 1 <= r < 12
+    assert np.sum(spectrum[r:]) <= allowed
+    assert np.sum(spectrum[r - 1 :]) > allowed
+    assert problem.dropped_mass == pytest.approx(float(np.sum(spectrum[r:])))
+    assert problem.reduced_coordinates.shape == (r, 12)
+
+
+@pytest.mark.parametrize("tolerance", [1e-10, 1e-8, 1e-6, 1e-4])
+@pytest.mark.parametrize(("kernel", "landmark_count"), bound_cases())
+def test_a_truncated_bound_never_exceeds_any_completion_of_the_true_objective(
+    kernel, landmark_count, tolerance
+):
+    truncated = NystromLandmarkProblem(kernel, landmark_count, spectrum_mass_tolerance=tolerance)
+    bound_of = NystromCssCostFunction(truncated)
+    exact = NystromCssCostFunction(NystromLandmarkProblem(kernel, landmark_count))
+    slack = 1e-8 * float(np.trace(kernel))
+    n = kernel.shape[0]
+
+    for parent in every_parent(truncated):
+        successors = list(truncated.successors(parent))
+        if not successors:
+            continue
+        for (_, child), bound in zip(
+            successors, bound_of.lower_bounds(parent, successors), strict=True
+        ):
+            remaining = [i for i in range(child[-1] + 1, n)]
+            completions = itertools.combinations(remaining, landmark_count - len(child))
+            best_completion = min(exact.goal_cost((*child, *rest)) for rest in completions)
+            assert bound <= best_completion + slack, (child, tolerance)
+
+
+@pytest.mark.parametrize("tolerance", [1e-10, 1e-6, 1e-4])
+@pytest.mark.parametrize(("kernel", "landmark_count"), bound_cases())
+def test_a_star_on_a_truncated_spectrum_returns_a_member_of_the_optimum_set(
+    kernel, landmark_count, tolerance
+):
+    problem = NystromLandmarkProblem(kernel, landmark_count, spectrum_mass_tolerance=tolerance)
+    cost_function = NystromCssCostFunction(problem)
+
+    result = AStarSearch(problem, cost_function).run()
+
+    assert result.optimal
+    assert result.state in brute_force_optima(problem, cost_function, tolerance=1e-6)
+
+
+def test_the_mass_tolerance_appears_in_the_problem_descriptor():
+    assert "spectrum_mass_tolerance" in describe(NystromLandmarkProblem)["params"]

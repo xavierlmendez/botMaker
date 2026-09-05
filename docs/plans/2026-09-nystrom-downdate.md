@@ -1,7 +1,7 @@
 # Nyström A* bound — rank-one downdate and spectrum truncation (BL-27, BL-29)
 
-Status: **accepted** · Drafted 2026-09-04 · Grilled and rewritten 2026-09-04 (§8) · Owner: Xavier ·
-Implementer: a separate session; §7 is its brief. Review afterwards by the authoring session.
+Status: **complete** · Drafted 2026-09-04 · Grilled and rewritten 2026-09-04 (§8) · Executed 2026-09-04
+(§9) · Owner: Xavier · Implemented by the authoring session; A+C, D and F in one PR (owner's call, §9).
 Builds on `docs/plans/2026-09-nystrom-landmark-selection.md` (the port, PR #22) and on the research
 specification `~/develop/research/nystrom/harness/BL-27-rank-one-downdate.md` (the math, hazards,
 acceptance tests T1–T6). Where this plan and that spec disagree on *what*, the spec wins; on *how it
@@ -212,3 +212,64 @@ The first draft was interviewed against the repo before acceptance. Corrections,
 | 7 | Slice E with a ≤ 10 s test or a `slow` marker. | ≤ 3 s or research-side (P-11). | Suite budget; no marker convention exists and none is introduced for a test that may never ship. |
 | 8 | No glossary. | `CONTEXT.md`, `docs/REFERENCES.md`, eight term rulings (P-12); "frontier" over "fringe" and "open list" (fourth-edition Russell & Norvig usage). | Terms were drifting between the code (`still_needed`, `gamma_scale`), the spec (k̄, bandwidth) and the research plan (gap 1 / gap 2, H1 meaning two things). |
 | 9 | Two rules for "already explained". | Recorded as debt under BL-29 (P-10). | Unifying now would touch the D-24 path before the baseline exists to prove it moves nothing. |
+
+---
+
+## 9. What changed against the plan (2026-09-04, at close)
+
+Slices 0a, 0b and B landed as planned (PRs #25, #26, #27). The owner then collapsed A+C, D and F
+into a single PR for lack of time, and E was not built. Deviations, none silent:
+
+| # | Plan said | What happened | Why |
+|---|---|---|---|
+| 1 | One PR per slice (P-1). | A+C, D and this close arrive in one PR. Each slice's tests and records are still separable in the diff. | Owner's decision, 2026-09-04: time. Recorded here rather than by amending P-1. |
+| 2 | FR-2 parameter named `W`. | `weights`. | ruff N803 exempts only `X`, `X_*` and `Q` (CLAUDE.md). |
+| 3 | Slice E vendors the reference cells when S1 is frozen (P-11). | Not built. S1 does not exist yet; engine independence is asserted in-suite on the fixtures, seeded kernels and the search baseline's SPECTF cells. | The condition never became true within the PR. Research-side EXP-09a runs the reference set against botMaker when S1 exists. |
+| 4 | FR-10: example output byte-identical after every slice. | Two header lines changed deliberately ("batched vs per-child" became "per-child vs goal-depth-batched vs downdated"; the sweep is labelled "downdated bounds"). Every numeric row is identical. | The example gained its third path and the labels named the old one. Same rule the port's review applied: labels may change deliberately, numbers may not. |
+| 5 | FR-7 optimum membership under truncation at δ ∈ {1e-10, 1e-8, 1e-6, 1e-4}. | Admissibility is tested at all four; A* optimum membership at three (1e-10, 1e-6, 1e-4). The "smallest retained rank" test uses δ = 0.05 on a 12-point RBF kernel, because at 1e-3 that spectrum drops nothing. | Suite budget and a flat test spectrum; no claim is weakened. |
+| 6 | Engine independence on every bound case (FR-5). | The badly scaled rank-deficient kernel is excluded from the expansion-count assertion only: every spanning subset costs zero there, so frontier order is rounding. It stays in the equivalence and admissibility tests. | Same lesson as the search baseline's all-ones cell. |
+| 7 | BL-29 closed with "the P-10 unification line". | The line is its own entry, BL-30, so it can be picked up without reopening a closed item. | A closed entry with an open action inside it is not how the backlog reads. |
+| 8 | The all-ones kernel at the root. | Not in the plan: a child can need more landmarks than the retained rank. The solver's count is capped at the rank; every eigenvalue beyond it is zero. | Found by the existing rank-one fixture test on the first run of the bound. |
+
+### The number check
+
+The search baseline (13 cells) and the example output are unchanged in every number at δ = 0. The
+oracle and the downdated path agree at every state of every bound case at δ ∈ {0, 1e-8, 1e-3}, and
+A* expands the same states either way.
+
+**Measured with the project's own script** (`examples/nystrom_batched_bounds.py`, Apple Silicon,
+NumPy on Accelerate; SPECTF; timings are this machine's, expansion counts are not):
+
+| n | k | per-child (oracle) | goal-depth batched (D-24) | downdated (BL-27) | speedup vs oracle | vs batched | expanded |
+|---|---|---|---|---|---|---|---|
+| 40 | 3 | 0.35 s | 0.10 s | 0.06 s | 5.9× | 1.7× | 668 |
+| 60 | 3 | 1.51 s | 0.33 s | 0.15 s | 10.3× | 2.2× | 1,650 |
+| 80 | 3 | 3.62 s | 0.90 s | 0.26 s | 13.7× | 3.5× | 2,837 |
+| 40 | 4 | 2.47 s | 1.03 s | 0.74 s | 3.3× | 1.4× | 5,645 |
+| 60 | 4 | 13.23 s | 5.29 s | 2.22 s | 6.0× | 2.4× | 15,740 |
+
+| Full harness, 3 datasets × 3 bandwidths, n = 40, k = 3, 50 seeds | |
+|---|---|
+| downdated | 0.51 s |
+| per-child | 2.20 s |
+| speedup | 4.3× |
+
+The whole test suite dropped from about 21 s to about 10 s, because the search baseline's cells now
+run on the downdated engine. The spec's estimate of ≥ 10× on the n = 60, k = 5 row was not measured
+(that row is not in the example); at k = 4 the gain over the oracle is 6× and over the goal-depth
+batch 2.4×, and the remaining cost is the per-parent `eigh` at r = n, which is what D-26's
+truncation is for. §5's "if below 3×, profile" threshold was not crossed.
+
+### State at close
+
+| Gate | Result |
+|---|---|
+| `uv run ruff check .` / `ruff format --check .` | clean |
+| `uv run pytest` | 291 passed (205 after slice B; 86 added by A+C and D) |
+| Training baseline, search baseline, example numbers | untouched |
+| BL-24 lint debt | unchanged; no new per-file ignores |
+| Reviewer-agent | run on the combined diff before the PR (findings applied; see PR) |
+
+Records landed: BL-27 and BL-29 closed, BL-30 opened, D-26, three learning-log entries (secular
+equation; parent-once child-cheap; truncation admissibility), ARCHITECTURE §1. Research-side
+pointers (`harness/CHANGES.md` H1/H1b, EXP-09a's dependency) are the owner's edit.

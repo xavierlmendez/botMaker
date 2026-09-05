@@ -1,4 +1,4 @@
-A* alone, SPECTF, batched vs per-child bounds
+A* alone, SPECTF, per-child vs goal-depth-batched vs downdated bounds
    n  k  expanded  same  landmarks
   40  3       668  True  [7, 16, 32]
   60  3      1650  True  [17, 32, 43]
@@ -6,7 +6,7 @@ A* alone, SPECTF, batched vs per-child bounds
   40  4      5645  True  [7, 16, 17, 32]
   60  4     15740  True  [32, 43, 47, 59]
 
-A* alone, SPECTF n=40, k=3, expansions by bandwidth scale (batched bounds)
+A* alone, SPECTF n=40, k=3, expansions by bandwidth scale (downdated bounds)
  scale  expanded  landmarks
   0.25       363  [16, 17, 32]
    0.5       501  [17, 32, 34]

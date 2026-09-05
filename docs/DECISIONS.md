@@ -121,3 +121,20 @@ ceiling is retired.
 **Consequences.** `CONTRIBUTING.md` here and in `engineering-standards` say so (back-port by PR). The
 Nyström plan's deviation 4 is void: those slices were vertical and the right size. Reviewers judge a
 slice by whether it is complete end to end, not by its diffstat.
+
+## D-26 — The Nyström bound may be computed on a truncated spectrum; the objective never is · 2026-09-04 · accepted
+**Context.** After BL-27 the search decomposes each parent once, but for a full-rank kernel that is still
+n³ per parent, and the field-scale experiment (BL-28, EXP-09) needs n ≥ 1,000. Dropping the smallest
+eigenvalues at the root makes every parent cheap, but a bound computed on the wrong kernel is only useful if
+it is still a lower bound on the right one.
+**Decision.** `NystromLandmarkProblem` takes `spectrum_mass_tolerance` δ (default 0). The retained rank is the
+smallest whose dropped mass is within δ·tr(K), never above the numeric rank and never below one; the reduced
+coordinates, `kernel_sqrt` and therefore both bound paths (oracle and downdate) see the truncated kernel K̃,
+so D-24's "same value both paths" holds at every δ. `kernel_matrix`, `goal_cost` and the goal-depth batch
+stay exact on K. No correction term is added to the bound.
+**Why it is admissible.** The Schur complement is monotone on the PSD cone: K̃ ⪯ K implies every residual
+kernel of K̃ is ⪯ the corresponding residual of K, so the best completion under K̃ is never worse than under
+K, and a bound that is admissible for K̃ is admissible for K (learning-log entry of the same date). Tightness
+is not preserved and is measured, not proven (EXP-09a).
+**Consequences.** Every result record must carry its δ; a number without one is not comparable. δ = 0 keeps
+the search baseline byte-identical. The threshold rule for an explained column is left split (BL-30).

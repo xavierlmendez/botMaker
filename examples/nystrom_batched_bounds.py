@@ -1,7 +1,10 @@
-"""How much batched sibling scoring (D-24) buys the Nyström search, measured with project code.
+"""How much sharing a parent's work buys the Nyström search, measured with project code.
 
-Runs the certified A* selection with the batched bounds and with the contract's per-child default on
-the same kernels, then the full UCI harness both ways. Everything is deterministic; only the timings
+Three ways to price a parent's children, on the same kernels: the contract's per-child default (the
+oracle, one decomposition per child), batched at goal depth only (D-24 as first shipped) and the
+full downdate (BL-27: one decomposition per parent at every depth, which is what
+``NystromCssCostFunction`` now does). Then the full UCI harness with the oracle and the downdate.
+Everything is deterministic; only the timings
 vary between machines, so ``--no-timings`` prints the deterministic columns alone and the result is
 committed as ``nystrom_batched_bounds.example_output.txt``, the record every engine change is
 diffed against (CONTRIBUTING § Behavioural baseline; `docs/plans/2026-09-nystrom-downdate.md`).
@@ -43,6 +46,14 @@ class PerChildCost(NystromCssCostFunction):
     lower_bounds = SearchCostFunction.lower_bounds
 
 
+class GoalDepthBatchedCost(NystromCssCostFunction):
+    """Batched at goal depth only, as D-24 first shipped: children above it go to the oracle."""
+
+    def _downdated_bounds(self, parent, added_columns):
+        successors = [(int(column), (*parent, int(column))) for column in added_columns]
+        return SearchCostFunction.lower_bounds(self, parent, successors)
+
+
 def timed(fn, *args):
     start = time.perf_counter()
     result = fn(*args)
@@ -64,33 +75,37 @@ def spectf_kernel(features_full, n: int, scale: float = 1.0):
 
 
 def search_comparison(features_full, timings: bool) -> None:
-    print("A* alone, SPECTF, batched vs per-child bounds")
-    timing_header = f"{'per-child':>10} {'batched':>9} {'speedup':>8} " if timings else ""
+    print("A* alone, SPECTF, per-child vs goal-depth-batched vs downdated bounds")
+    timing_header = (
+        f"{'per-child':>10} {'batched':>9} {'downdated':>10} {'speedup':>8} " if timings else ""
+    )
     print(f"{'n':>4} {'k':>2} {timing_header}{'expanded':>9}  same  landmarks")
     for n, k in SEARCH_ROWS:
         problem = NystromLandmarkProblem(spectf_kernel(features_full, n), k)
 
         per_child, per_child_seconds = timed(search_with, PerChildCost, problem)
-        batched, batched_seconds = timed(search_with, NystromCssCostFunction, problem)
+        batched, batched_seconds = timed(search_with, GoalDepthBatchedCost, problem)
+        downdated, downdated_seconds = timed(search_with, NystromCssCostFunction, problem)
 
-        same_search = (
-            per_child.state == batched.state and per_child.nodes_expanded == batched.nodes_expanded
+        same_search = all(
+            other.state == downdated.state and other.nodes_expanded == downdated.nodes_expanded
+            for other in (per_child, batched)
         )
         timing_columns = (
-            f"{per_child_seconds:>9.2f}s {batched_seconds:>8.2f}s "
-            f"{per_child_seconds / batched_seconds:>7.1f}x "
+            f"{per_child_seconds:>9.2f}s {batched_seconds:>8.2f}s {downdated_seconds:>9.2f}s "
+            f"{per_child_seconds / downdated_seconds:>7.1f}x "
             if timings
             else ""
         )
         print(
-            f"{n:>4} {k:>2} {timing_columns}{batched.nodes_expanded:>9}  {same_search!s:5}"
-            f" {list(batched.state)}"
+            f"{n:>4} {k:>2} {timing_columns}{downdated.nodes_expanded:>9}  {same_search!s:5}"
+            f" {list(downdated.state)}"
         )
 
 
 def expansion_counts_by_bandwidth(features_full) -> None:
     print()
-    print("A* alone, SPECTF n=40, k=3, expansions by bandwidth scale (batched bounds)")
+    print("A* alone, SPECTF n=40, k=3, expansions by bandwidth scale (downdated bounds)")
     print(f"{'scale':>6} {'expanded':>9}  landmarks")
     for scale in EXPANSION_COUNT_SCALES:
         problem = NystromLandmarkProblem(spectf_kernel(features_full, 40, scale), 3)
@@ -111,7 +126,7 @@ def harness_comparison(timings: bool) -> None:
         )
     if not timings:
         return
-    print(f"  batched bounds : {batched_seconds:6.2f}s")
+    print(f"  downdated      : {batched_seconds:6.2f}s")
 
     # Swap the contract's default in for one harness run, then restore the override.
     override = NystromCssCostFunction.lower_bounds
