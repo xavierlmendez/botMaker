@@ -76,6 +76,36 @@ tested against.
 The regime where many states share the same bound, so an admissible search must expand nearly all
 of them and the certificate degenerates into enumeration.
 
+**Expanded set**:
+The states already expanded, kept so a state reached twice is not expanded twice.
+_Avoid_: closed set, explored set
+
+**Frontier peak**:
+The largest number of states the frontier held during a search; the search's memory cost, as
+expansions are its time cost.
+
+**Incumbent**:
+The smallest objective of any goal state seen so far; an upper bound on the optimum. It may be seeded
+from any complete solution before the search starts.
+_Avoid_: best-so-far, current best
+
+**Seed**:
+A value that sets something's initial state before it runs, in every domain here: a random
+generator's seed, a search's incumbent seed, a subsample's row seed. Always name what is seeded.
+
+**Goal sibling**:
+One of the goal states priced from the same parent in one expansion. Only the one with the smallest
+bound can be the first goal expanded, so it is the only one the frontier needs.
+
+**Pruning**:
+Declining to place a priced child on the frontier because its bound exceeds an upper bound on the
+optimum. The upper bound is the incumbent, or a quantity derived from an untruncated lower bound.
+_Avoid_: filtering, culling
+
+**Memory cap**:
+A run stopped because its frontier or resident memory exceeded a budget. It has a solution only if a
+goal state was seen, and never a certificate.
+
 ### Nyström approximation and column subset selection
 
 **Landmark**:

@@ -1,7 +1,7 @@
 # Nyström A* bound — rank-one downdate and spectrum truncation (BL-27, BL-29)
 
-Status: **complete** · Drafted 2026-09-04 · Grilled and rewritten 2026-09-04 (§8) · Executed 2026-09-04
-(§9) · Owner: Xavier · Implemented by the authoring session; A+C, D and F in one PR (owner's call, §9).
+Status: **complete**, with an open addendum (§10, slice G, 2026-09-05) · Drafted 2026-09-04 · Grilled and rewritten
+2026-09-04 (§8) · Executed 2026-09-04 (§9) · Owner: Xavier · Implemented by the authoring session; A+C, D and F in one PR (owner's call, §9).
 Builds on `docs/plans/2026-09-nystrom-landmark-selection.md` (the port, PR #22) and on the research
 specification `~/develop/research/nystrom/harness/BL-27-rank-one-downdate.md` (the math, hazards,
 acceptance tests T1–T6). Where this plan and that spec disagree on *what*, the spec wins; on *how it
@@ -117,6 +117,7 @@ deterministic (seeded), per `.claude/agents/testing-agent.md`.
 | D | `feat/nystrom-spectrum-truncation` | `spectrum_mass_tolerance` (FR-6) with P-8's `kernel_sqrt` rule and P-9's rank rule; D-26; BL-29 closed with the P-10 line; learning-log entry with the proof. | admissibility and optimum membership at each δ (FR-7); the rank rules; FR-4 at δ > 0; δ = 0 leaves the search baseline byte-identical; `describe()` shows the parameter | FR-6, 7, 8 (its part); ~60 src / ~110 test. |
 | E | `test/nystrom-reference-cells` | Only if P-11's 3 s budget holds once S1 is frozen: vendor `BL-27-reference-cells.json` under `tests/math/fixtures/`; one test asserting expansion counts and optimum membership per cell at δ = 0. | the vendored cells | FR-5 at grid scale, or a plan note saying the check stays research-side. |
 | F | `docs/nystrom-downdate-close` | Plan status `complete` with a what-changed section (precedent: port plan §7, §8); the example's timing table labelled as this machine's; BL-24 counts unchanged. | — | Suite green; research `harness/CHANGES.md` H1/H1b marked done (Xavier's edit). |
+| G | `feat/astar-frontier-memory` | **Added 2026-09-05, §10.** Goal-sibling filter, incumbent pruning and a frontier cap in `AStarSearch`; D-27 (pruning under truncation). | §10 | §10 "Done when". |
 
 Six or seven PRs. Estimated 1–2 days of implementation for B, A+C, D (matches the BL-27 entry), plus
 E when S1 exists.
@@ -225,6 +226,7 @@ into a single PR for lack of time, and E was not built. Deviations, none silent:
 | 1 | One PR per slice (P-1). | A+C, D and this close arrive in one PR. Each slice's tests and records are still separable in the diff. | Owner's decision, 2026-09-04: time. Recorded here rather than by amending P-1. |
 | 2 | FR-2 parameter named `W`. | `weights`. | ruff N803 exempts only `X`, `X_*` and `Q` (CLAUDE.md). |
 | 3 | Slice E vendors the reference cells when S1 is frozen (P-11). | Not built. S1 does not exist yet; engine independence is asserted in-suite on the fixtures, seeded kernels and the search baseline's SPECTF cells. | The condition never became true within the PR. Research-side EXP-09a runs the reference set against botMaker when S1 exists. |
+| 3a | (added 2026-09-05) | S1 was frozen 2026-09-04 22:50. The reference check ran research-side on 2026-09-05: 36 cells (n ≤ 80) by the review session and 21 by EXP-09a, every expansion count and optimum identical at δ = 0. It took 867 s for 36 cells, so P-11's 3-second budget cannot be met and slice E is **closed as not built**. | Measured; the check stays research-side (grill Q24). |
 | 4 | FR-10: example output byte-identical after every slice. | Two header lines changed deliberately ("batched vs per-child" became "per-child vs goal-depth-batched vs downdated"; the sweep is labelled "downdated bounds"). Every numeric row is identical. | The example gained its third path and the labels named the old one. Same rule the port's review applied: labels may change deliberately, numbers may not. |
 | 5 | FR-7 optimum membership under truncation at δ ∈ {1e-10, 1e-8, 1e-6, 1e-4}. | Admissibility is tested at all four; A* optimum membership at three (1e-10, 1e-6, 1e-4). The "smallest retained rank" test uses δ = 0.05 on a 12-point RBF kernel, because at 1e-3 that spectrum drops nothing. | Suite budget and a flat test spectrum; no claim is weakened. |
 | 6 | Engine independence on every bound case (FR-5). | The badly scaled rank-deficient kernel is excluded from the expansion-count assertion only: every spanning subset costs zero there, so frontier order is rounding. It stays in the equivalence and admissibility tests. | Same lesson as the search baseline's all-ones cell. |
@@ -273,3 +275,97 @@ truncation is for. §5's "if below 3×, profile" threshold was not crossed.
 Records landed: BL-27 and BL-29 closed, BL-30 opened, D-26, three learning-log entries (secular
 equation; parent-once child-cheap; truncation admissibility), ARCHITECTURE §1. Research-side
 pointers (`harness/CHANGES.md` H1/H1b, EXP-09a's dependency) are the owner's edit.
+
+---
+
+## 10. Addendum 2026-09-05 — slice G: frontier memory (BL-31, first slice)
+
+### Why
+
+EXP-01 stopped at 20 GB and EXP-09a paused at n = 1,000 for the same reason: A* stores every child
+it prices. At a flat kernel the bound prunes nothing above goal depth, so the search expands every
+depth-(k−1) state and pushes every depth-k child; for n = 80, k = 5 that is C(80, 5) = 24,040,016
+frontier entries at 124–196 bytes each, about 5 GB per worker before the explored set. BL-27 made
+expansions cheap enough to reach this wall inside a cap, so it is now the binding constraint on
+EXP-09, ahead of time per expansion. The review `docs/reviews/2026-09-05-nystrom-engine-performance.md`
+lists the options; this slice takes the ones that are exact, small, and independent of the bound.
+
+### Decisions (owner, 2026-09-05)
+
+| # | Decision |
+|---|---|
+| P-13 | **Goal-sibling filter, in `AStarSearch`, generic.** When a parent's children are priced, at most one goal child is pushed: the one with the smallest bound, first in generation order on ties. At a goal state the contract makes `lower_bound == goal_cost`, so a goal sibling with a larger bound costs at least as much as the pushed one and can never be the first goal popped. Expansion counts and returned subsets are unchanged; the frontier at goal depth shrinks from up to n entries per parent to one. The search asks `problem.is_goal(child)` for every priced child (O(k) each for Nyström; accepted, grill Q13). |
+| P-14 | **Incumbent pruning, in `AStarSearch`, generic.** The smallest goal cost seen so far (exact, on the full objective) is an upper bound on the optimum; a child whose bound is **strictly** above it is not pushed. Ties are kept so the optimum set is unchanged. Safe at every δ, because goal costs are never truncated (D-26). An optional `incumbent_seed` constructor argument lets a caller seed it (e.g. the greedy selector's residual trace, the review's M1); default `None`, and the library never seeds it itself — the grid runner does. If the frontier empties without a goal while a seed is set, the search raises `IncumbentBelowOptimum`: the seed was not an upper bound (grill Q3, Q14, Q21). |
+| P-15 | **The Deshpande–Rademacher rule is not built in this slice, and is constrained by D-27.** P = min over seen states of (k̄ + 1)·f is an upper bound on the optimum only when f is computed on the untruncated kernel. At δ > 0 the truncated bound f̃ ≤ f, so (k̄ + 1)·f̃ can lie below the true optimum and prune it. Any future implementation must use the untruncated root bound (k + 1)·E*_svd, or apply the rule only at δ = 0. Recorded as D-27 by this slice; the rule itself stays a BL-31 item. |
+| P-16 | **A frontier cap, optional.** `AStarSearch(..., max_frontier: int | None = None)` raises `FrontierLimitExceeded` when the queue would exceed it, so a runner records the cell as capped with its baselines intact, the way the time cap works through the cost function. The cap counts frontier entries (deterministic, platform-independent), not bytes; the runner keeps its resident-size check as the outer guard. On exceeding, the search raises rather than returning an uncertified solution through `SearchResult` (glossary: no termination, no certificate). `frontier_peak` is `None` before `run`, an integer after, and is set before the exception is raised; it lives on the search instance, not on `SearchResult` (grill Q4, Q5, Q20). Both exceptions are defined beside the class in `a_star_search.py` (Q19). |
+| P-17 | **The explored set stays.** The Nyström successor rule makes its graph a tree, so the set is redundant there, but `AStarSearch` is generic and `test_a_star_expands_a_repeated_state_only_once` requires it. Dropping it needs a problem-level declaration; that is BL-31's M5, not this slice. The local variable is renamed `explored` → `expanded` inside this slice to match the glossary's *Expanded set* (a local rename in a function already under change, not a rename-only slice; Q16). |
+
+### D-27 text (to land with this slice, appended to `docs/DECISIONS.md`)
+
+> **D-27 — Pruning bounds must be computed on the untruncated objective · 2026-09-05 · accepted**
+> **Context.** D-26 lets the admissible bound be computed on a truncated spectrum. A pruning rule
+> discards states whose bound exceeds an *upper* bound on the optimum. The two bounds move in opposite
+> directions under truncation: the lower bound gets smaller and stays admissible; an upper bound derived
+> from it, such as the (k̄ + 1)·f rule of AAAI-15 §5, also gets smaller and stops being an upper bound.
+> **Decision.** A pruning threshold is either an exact goal cost seen during the search (always on the
+> full kernel, D-26) or a quantity derived from the untruncated root bound, (k + 1)·E*_svd. The
+> (k̄ + 1)·f̃ rule on truncated per-state bounds is not admissible for pruning and is not used.
+> **Consequences.** Incumbent pruning (P-14) is valid at every δ. The per-state Deshpande–Rademacher
+> rule, if built, applies only at δ = 0 or through the root. Every pruning rule ships with the test
+> that expansion counts and returned subsets are unchanged on the search baseline and the reference cells.
+
+### Functional requirements
+
+| FR | Requirement | Test |
+|---|---|---|
+| FR-14 | Goal-sibling filter (P-13): among a parent's goal children only the minimum-bound one enters the frontier; ties keep the first generated. | expansion counts and subsets unchanged on every fixture, seeded kernels, the search baseline (13 cells) and the example output; a toy problem with several goal children per parent returns the same optimum as brute force; `frontier_peak ≤ 820` on SPECTF n = 40, k = 3, bandwidth scale 1 (a search-baseline cell, 0.06 s): the analytic bound of 40 depth-1 states plus C(40, 2) = 780 depth-2 parents, each contributing at most one goal sibling, against up to 9,880 goal children without the filter. No test-only switch in the library (Q10, Q15) |
+| FR-15 | Incumbent pruning (P-14): children with bound strictly above the best goal cost seen are not pushed; `incumbent_cost` seeds it. | counts and subsets unchanged as above at δ ∈ {0, 1e-6}; an incumbent seed below the optimum raises `IncumbentBelowOptimum` when the frontier empties; the greedy selector's residual trace as incumbent seed changes no expansion count or subset on the baseline |
+| FR-16 | Frontier cap (P-16): `FrontierLimitExceeded` when the cap would be exceeded; `frontier_peak` reported. | a tiny cap on the 10-point chain raises; a cap of `None` is byte-identical to today; the exception carries the peak |
+| FR-17 | D-27 appended; BL-31 updated to say which of its items this slice delivered (M1 in its exact form, the goal-sibling filter, M4 in-library) and which remain (T2, M2, M5, the DR rule under D-27). Learning-log entry: "What A* must remember, and what it may forget." | records in the same PR |
+| FR-18 | Gates as FR-11; `AStarSearch`'s docstring names the three mechanisms and the contract they rest on (`lower_bound == goal_cost` at goals). | — |
+
+### Slice
+
+| Slice | Branch | Change | Tests (new) | Done when |
+|---|---|---|---|---|
+| G | `feat/astar-frontier-memory` off `main` | P-13, P-14, P-16 in `AStarSearch._search`; `FrontierLimitExceeded` and `IncumbentBelowOptimum` in `a_star_search.py`; D-27; BL-31 updated; learning-log entry. No change to any cost function, problem, or the D-24/BL-27 bound paths. | FR-14–FR-16 as listed; ~60 src / ~120 test | FR-14–FR-18; `frontier_peak` measured before and after on SPECTF n = 60, k = 5, bandwidth scale 4 (≈5.4 M goal children before), and after-only on n = 80, k = 5, scale 4 — the EXP-01 worst-cell shape — below 2 million entries where it was 24 million; quoted as this machine's numbers (Q22) |
+
+### Risks
+
+| Risk | Mitigation |
+|---|---|
+| A cost function whose `lower_bound` at a goal is not its `goal_cost` would let the filter drop the optimum. | The contract already requires equality and `test_lower_bound_equals_goal_cost_at_a_goal_state` pins it for Nyström. No debug flag (Q18): a contract breach is caught where the contract is tested. |
+| An incumbent seed that is not an upper bound. | `IncumbentBelowOptimum` when the frontier empties without a goal; the default is `None`. |
+| The three mechanisms interact with the search baseline's tie cells (all-ones, palindrome chain). | Ties are kept in both filter and pruning (strict inequalities); the baseline's `accepted_states` sets already carry the tie semantics. |
+| Someone later adds the (k̄ + 1) rule at δ > 0. | D-27, and FR-17's BL-31 note pointing at it. |
+
+### Handoff addendum for the implementing session
+
+Start from `main` after the BL-31 docs branch merges. Read §10, D-26, the review document, and
+`a_star_search.py`. The only file with logic changes is `a_star_search.py`; everything else is tests and
+records. Reuse `test_a_star_expands_the_same_states_whether_bounds_are_batched_or_not` as the shape of
+the "unchanged" tests, and the search baseline test as the numbers. Do not touch the cost functions,
+the problem classes, or the bound paths; do not change `SearchResult`'s fields. Report back the PR,
+test counts, the `frontier_peak` before/after on the worst-cell shape, and any number that moved.
+
+### What the grilling settled (2026-09-05, rounds 1–2)
+
+Scope: slice G alone, measured before T2 or M2 are scheduled (Q1); then T2, then BL-30 (Q11). The
+filter is generic in `AStarSearch` (Q2); the library never seeds the incumbent, the runner does (Q3);
+the cap counts entries and raises (Q4); statistics live on the instance (Q5); D-27 is a new entry
+(Q6); six glossary terms added to `CONTEXT.md` — expanded set, frontier peak, incumbent, goal sibling,
+pruning, memory cap (Q7); the expanded set stays (Q8); the (k̄ + 1) rule stays a BL-31 item under D-27
+(Q9); the runner reports one `memory_cap` status with a `stopped_for` detail of `frontier` or
+`resident` (Q17); EXP-09a resumes with a 5-million-entry frontier cap, a 3 GB resident cap and 3
+workers, recording `frontier_peak` per run (Q12).
+
+### What the grilling settled (2026-09-05, round 3)
+
+"Seed" is the one abstract term for setting an initial state across domains — random seed, incumbent
+seed, row seed — so the parameter is `incumbent_seed` and the glossary gains *Seed* (Q21, owner's
+ruling over the split I proposed). The PR measures before/after on n = 60, k = 5 wide and after-only on
+n = 80, k = 5 wide (Q22). EXP-09a records gain `frontier_peak`, `incumbent_seed`, `stopped_for` (Q23).
+Slice E closed by measurement (Q24). EXP-09a resumes immediately after G, shaped so a first result set
+lands within 90 minutes (Q25; the schedule is round 4). Frontier peak becomes the paper's memory-cost
+column beside expansions once EXP-09a data exists (Q26). Review protocol: baseline + nine n = 40
+reference cells + the peak assertion, escalating to the full set only if pop order is touched (Q27).
