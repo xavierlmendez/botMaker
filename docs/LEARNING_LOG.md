@@ -125,7 +125,7 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
   data carries small negative eigenvalues from rounding, and their square roots are not real, so they are
   clipped before K^{1/2} is formed. And the bound is a difference of two large near-equal quantities: on a
   badly scaled kernel it cancels to just below zero, and an unclamped negative bound sorts ahead of every
-  real state and empties the fringe. Both are one line and neither is optional. CI added a corollary:
+  real state and empties the frontier. Both are one line and neither is optional. CI added a corollary:
   *which side of zero* the cancellation lands on is rounding, and Apple's Accelerate and Linux's OpenBLAS
   round it differently. A test that asserted the raw value was negative passed here and failed there. The
   clamp is now pinned by injecting the overshoot through the class's own spectrum seam, and a separate test

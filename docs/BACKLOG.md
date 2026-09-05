@@ -160,6 +160,15 @@ RPCholesky averaged over ten draws. None of it is built and no interface here is
 It is blocked on BL-27 regardless, since the bound is O(n³) per child, and until then the experiment
 runs on `research/repro/astar-css` with Y = K^{1/2}.
 
+### BL-29 — Nyström bound on a truncated spectrum · `backlog-only` · re-entry slice D of `docs/plans/2026-09-nystrom-downdate.md`
+
+For a full-rank kernel the per-parent eigendecomposition that BL-27 leaves behind is still n³, which
+is the bottleneck at n ≥ 1,000 (EXP-09). Compute the bound on the kernel with its smallest eigenvalues
+dropped, the retained rank chosen by a dropped-mass tolerance δ (`spectrum_mass_tolerance`, default 0).
+The bound stays admissible because a Schur complement is monotone on the PSD cone, so no correction
+term is added; goal costs and the goal-depth batch stay exact on the full kernel. Ships with D-26, the
+proof in the learning log, and the admissibility tests of the plan's FR-7. Blocked on BL-27.
+
 ## Closed
 
 ### BL-09 — Declarative `TransformerPipeline` · closed in slice 6.3 (declarative `TransformerPipeline` from JSON config; `DataTransformer`, the `temp_*` methods and the model-name ladder deleted)
