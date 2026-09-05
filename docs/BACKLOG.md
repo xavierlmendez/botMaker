@@ -165,6 +165,10 @@ the trigger plan P-5 named for revisiting Gragg's method. Options, measurements 
 are in `docs/reviews/2026-09-05-nystrom-engine-performance.md`; first items: prune children above a
 greedy incumbent at push time (M1), Gragg/Melman iteration for the secular solve (T2), an
 array-backed frontier (M2). Each keeps the search baseline byte-identical.
+First slice: `docs/plans/2026-09-nystrom-downdate.md` §10 (slice G — goal-sibling filter, incumbent pruning with
+M1 as its seed, a frontier cap; D-27 constrains any (k̄+1) pruning under truncation). T2 is specified research-side
+(`~/develop/research/nystrom/harness/T2-gragg-secular-solve.md`) and follows G; then BL-30; M2 only if G's
+measurements demand it.
 
 ## Closed
 
