@@ -369,3 +369,13 @@ Slice E closed by measurement (Q24). EXP-09a resumes immediately after G, shaped
 lands within 90 minutes (Q25; the schedule is round 4). Frontier peak becomes the paper's memory-cost
 column beside expansions once EXP-09a data exists (Q26). Review protocol: baseline + nine n = 40
 reference cells + the peak assertion, escalating to the full set only if pop order is touched (Q27).
+
+### What the grilling settled (2026-09-05, rounds 4–5, frontier empty)
+
+EXP-09a's first window is three hours (owner widened it from 90 minutes): 30 runs — scales 0.25 and 1
+at δ ∈ {1e-2, 1e-3, 1e-4, 1e-8} plus scale 4 at δ ∈ {1e-2, 1e-3}, coarsest δ first, 3 workers,
+15-minute cap, 3 GB resident cap, 5-million-entry frontier cap; δ ∈ {1e-10, 0} and the fine δ at scale 4
+run overnight (Q28, Q33). The documents landed first, as PRs #29 and #30 (Q29, Q30); slice G branches
+from `main` at or after #30. Frontier peak joins the dashboard's cost card at the same time as the paper
+(Q31). The T2 specification was written in parallel and waits for G (Q32). The owner confirmed the
+design tree on 2026-09-05; slice G is ready to hand to the implementing session with §10 as its brief.
