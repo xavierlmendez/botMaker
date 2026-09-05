@@ -156,6 +156,16 @@ absolute `PIVOT_TOLERANCE`; the downdated path uses a relative rule, residual no
 `1e-12 · sqrt(tr K)`. Same concept, two thresholds (plan P-10). Unify on the relative rule and show
 the search baseline unmoved; if it moves on a badly scaled kernel, that is the decision to record.
 
+### BL-31 — Nyström search engine performance · `backlog-only` · re-entry ½ day per item
+
+The downdated engine (BL-27) made an expansion cheap enough at n = 1,000 to hit the memory wall that
+stopped EXP-01: the A* frontier stores every priced child at 124 bytes each, and a flat kernel fills
+it in minutes. At full rank the secular solve also costs more than the parent decomposition, which is
+the trigger plan P-5 named for revisiting Gragg's method. Options, measurements and a suggested order
+are in `docs/reviews/2026-09-05-nystrom-engine-performance.md`; first items: prune children above a
+greedy incumbent at push time (M1), Gragg/Melman iteration for the secular solve (T2), an
+array-backed frontier (M2). Each keeps the search baseline byte-identical.
+
 ## Closed
 
 ### BL-27 — Nyström A* lower bound is O(n³) per child · closed 2026-09-04 (`docs/plans/2026-09-nystrom-downdate.md`)
