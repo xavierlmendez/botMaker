@@ -136,6 +136,54 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 - **Reference.** Arai, Maung & Schweitzer, *Optimal column subset selection by A-star search*, AAAI 2015;
   Williams & Seeger, *Using the Nyström method to speed up kernel machines*, NeurIPS 2000.
 
+## The parent-once, child-cheap structure, completed · 2026-09-04
+- **What.** The Nyström bound for every child above goal depth from one eigendecomposition of the
+  parent, closing BL-27. Slice 6.1 had this structure for goal-depth children only (a Schur complement
+  of the parent prices every complete child); this extends it to every depth, which is where the search
+  actually spends its time once k > 3.
+- **Where.** `math/graph/nystrom_landmark_problem.py` (`_downdated_bounds`) · tests
+  `tests/math/graph/test_nystrom_landmark_problem.py` (equivalence with the oracle at every depth and
+  tolerance; same expansions as the oracle; explained columns) · `examples/nystrom_batched_bounds.py`.
+- **Design.** Everything happens in the kernel's eigenbasis: with K = V D Vᵀ, the reduced coordinates
+  D^{1/2} Vᵀ are K^{1/2} with every column inner product intact, in r dimensions instead of n. The
+  residual Gram of a parent S has the spectrum of H = D - Z Zᵀ, Z = D^{1/2} Q, Q an orthonormal basis of
+  the chosen columns; one `eigh(H)` per parent. A child adds one direction, the unit residual q_j of its
+  column against Q, so its Gram is H minus one outer product and its spectrum is a rank-one downdate of
+  the parent's, which the secular-equation solver returns for all children at once. The child's
+  remaining energy is tr(H) - ||D^{1/2} q_j||² (the same gain identity D-24 used at goal depth) and its
+  best possible completion is the top eigenvalues of the downdate. The oracle `lower_bound` is kept
+  untouched, and the test that matters is that both paths agree at every state of every fixture.
+- **What was confusing.** Two places where the exact rank matters. First, the all-ones kernel has
+  retained rank one while a child at the root still needs two more landmarks; asking the solver for
+  more eigenvalues than the rank is an error, and the right answer is that everything past the rank
+  is zero. Second, the paper's Theorem 4 downdates with the *projection* of the new column onto the
+  parent span; the lemma needs the *residual*, and only the residual reproduces its own node counts
+  (the reproduction found this; IJCAI-21 writes it correctly). The search baseline (slice 0b) is what
+  turned "the numbers look right" into a byte-identical diff.
+- **Reference.** Arai, Maung & Schweitzer, AAAI 2015, §4 [A1]; Wan & Schweitzer, IJCAI 2021, eq. (10)
+  [A3]; Bunch, Nielsen & Sorensen 1978 [L4].
+
+## Truncation is admissible by Schur-complement monotonicity · 2026-09-04
+- **What.** Computing the bound on the kernel with its smallest eigenvalues dropped, and why that
+  needs no correction term (D-26, BL-29).
+- **Where.** `NystromLandmarkProblem.spectrum_mass_tolerance` · tests: admissibility against the true
+  objective at every state and four tolerances; optimum membership under truncation; the rank rules.
+- **Design.** Write the Nyström residual as a Schur complement, E_K(T) = tr(K / K_TT). For A ⪯ B with the
+  same block partition, xᵀ(A / A₁₁)x = min_y [x; y]ᵀ A [x; y] ≤ min_y [x; y]ᵀ B [x; y] = xᵀ(B / B₁₁)x,
+  so A / A₁₁ ⪯ B / B₁₁. With A = K̃ ⪯ B = K this gives E_K̃(T) ≤ E_K(T) for every complete T. The bound
+  f̃(S) is admissible for the K̃ problem by the usual spectral argument, hence
+  f̃(S) ≤ min_T E_K̃(T) ≤ min_T E_K(T): exactly what A* needs. Goal costs stay on K so the first goal
+  popped is optimal for the true objective. The bound gets looser, never wrong; how much looser is a
+  measurement (EXP-09a), not a theorem.
+- **What was confusing.** The first instinct was to "add the dropped mass back" to the remaining
+  energy so the bound would be computed on the right trace. That makes the bound *larger*, which is
+  the wrong direction for admissibility, and it is unnecessary: both terms of the bound shrink together
+  on the smaller matrix, and the inequality chain above is what carries the guarantee. The other trap
+  was the oracle: if `kernel_sqrt` stayed exact while the fast path truncated, D-24's "same value both
+  paths" would silently hold only at δ = 0. Both now see K̃; only the objective sees K.
+- **Reference.** Schur-complement monotonicity is standard (Horn & Johnson, *Matrix Analysis*, §7.7);
+  the application to the Nyström bound is the research spec's §10.
+
 ## The secular equation: a child's spectrum from its parent's · 2026-09-04
 - **What.** The eigenvalues of `diag(λ) − w wᵀ`, for many `w` at once, without decomposing anything.
   This is the arithmetic that lets a search decompose a parent once and price every child by a

@@ -139,7 +139,26 @@ gradient signature (return the weight gradient given the design matrix for every
 `GradientDescentModel` with `predict_method = "compute_classification"`. Re-entry ≈ 1 h; needs the margin
 tests in `tests/ml/test_perceptron_svm.py` as the guard.
 
-### BL-27 — Nyström A* lower bound is O(n³) per child · `kept` · re-entry 1–2 days
+### BL-28 — Nyström first-experiment grid · `backlog-only` · re-entry 1 day, after EXP-09a calibrates δ
+
+The harness measures the two gaps on three 40-row slices at k = 3, which is a smoke test, not
+evidence. The `nystrom-certified-landmarks` first experiment needs: a Laplacian kernel beside the RBF
+one, a ridge-leverage-score baseline, n = 500–3000, k up to 10, five bandwidths per kernel, and
+RPCholesky averaged over ten draws. None of it is built and no interface here is pre-shaped for it.
+The engine is no longer the blocker: BL-27 made each child a rank-one downdate and BL-29 truncates
+the spectrum (D-26). What remains is choosing δ, which is the research-side calibration EXP-09a;
+until it runs, n ≥ 1,000 results have no tolerance to quote.
+
+### BL-30 — One rule for an explained column · `backlog-only` · re-entry 1 hour
+
+The goal-depth batch treats a column as explained when its residual diagonal is at or below an
+absolute `PIVOT_TOLERANCE`; the downdated path uses a relative rule, residual norm at or below
+`1e-12 · sqrt(tr K)`. Same concept, two thresholds (plan P-10). Unify on the relative rule and show
+the search baseline unmoved; if it moves on a badly scaled kernel, that is the decision to record.
+
+## Closed
+
+### BL-27 — Nyström A* lower bound is O(n³) per child · closed 2026-09-04 (`docs/plans/2026-09-nystrom-downdate.md`)
 
 `NystromCssCostFunction.lower_bound` recomputes an SVD of the selected columns and an n×n `eigvalsh` of
 the deflated residual for every generated child. Correct (A* matches brute force on every bundled
@@ -150,17 +169,11 @@ and the `research/repro/astar-css` reimplementation already does it. Port it bef
 `src/mllib/math/graph/nystrom_landmark_problem.py`. Since slice 6.1 the natural home is
 `NystromCssCostFunction.lower_bounds`, which already decomposes the parent once for goal-depth children
 (D-24); the downdate extends the same method to every depth.
+**Closed.** `NystromCssCostFunction.lower_bounds` prices every child above goal depth from one
+eigendecomposition of the parent and a rank-one downdate per child through `math/secular_equation.py`;
+the per-child `lower_bound` is kept as the oracle. Search baseline and example output unmoved.
 
-### BL-28 — Nyström first-experiment grid · `backlog-only` · re-entry 1 day after BL-27
-
-The harness measures the two gaps on three 40-row slices at k = 3, which is a smoke test, not
-evidence. The `nystrom-certified-landmarks` first experiment needs: a Laplacian kernel beside the RBF
-one, a ridge-leverage-score baseline, n = 500–3000, k up to 10, five bandwidths per kernel, and
-RPCholesky averaged over ten draws. None of it is built and no interface here is pre-shaped for it.
-It is blocked on BL-27 regardless, since the bound is O(n³) per child, and until then the experiment
-runs on `research/repro/astar-css` with Y = K^{1/2}.
-
-### BL-29 — Nyström bound on a truncated spectrum · `backlog-only` · re-entry slice D of `docs/plans/2026-09-nystrom-downdate.md`
+### BL-29 — Nyström bound on a truncated spectrum · closed 2026-09-04 (D-26; `docs/plans/2026-09-nystrom-downdate.md`)
 
 For a full-rank kernel the per-parent eigendecomposition that BL-27 leaves behind is still n³, which
 is the bottleneck at n ≥ 1,000 (EXP-09). Compute the bound on the kernel with its smallest eigenvalues
@@ -168,8 +181,9 @@ dropped, the retained rank chosen by a dropped-mass tolerance δ (`spectrum_mass
 The bound stays admissible because a Schur complement is monotone on the PSD cone, so no correction
 term is added; goal costs and the goal-depth batch stay exact on the full kernel. Ships with D-26, the
 proof in the learning log, and the admissibility tests of the plan's FR-7. Blocked on BL-27.
-
-## Closed
+**Closed.** `NystromLandmarkProblem(..., spectrum_mass_tolerance=δ)`; the oracle and the fast path both
+see the truncated kernel, goal costs stay exact, admissibility and optimum membership tested at four
+tolerances. The threshold unification it leaves behind is BL-30.
 
 ### BL-09 — Declarative `TransformerPipeline` · closed in slice 6.3 (declarative `TransformerPipeline` from JSON config; `DataTransformer`, the `temp_*` methods and the model-name ladder deleted)
 `MlLib/data/data_orchestrator.py:41,53` — the pipeline class is written but commented out ("finish above pipeline arch when
