@@ -15,6 +15,12 @@ from hypothesis import strategies as st
 
 from mllib.describe import describe
 from mllib.math.algorithms.a_star_search import AStarSearch
+from mllib.math.algorithms.nystrom_landmark_selectors import GreedyResidualTraceLandmarkSelector
+from mllib.math.algorithms.pruned_a_star_search import (
+    FrontierLimitExceeded,
+    IncumbentBelowOptimum,
+    PrunedAStarSearch,
+)
 from mllib.math.graph.nystrom_landmark_problem import (
     NystromCssCostFunction,
     NystromLandmarkProblem,
@@ -622,3 +628,111 @@ def test_a_star_on_a_truncated_spectrum_returns_a_member_of_the_optimum_set(
 
 def test_the_mass_tolerance_appears_in_the_problem_descriptor():
     assert "spectrum_mass_tolerance" in describe(NystromLandmarkProblem)["params"]
+
+
+# --- the pruned search stores less and expands the same (plan §10, slice G) --------------------
+
+
+def search_cases():
+    """Every fixture, three seeded kernels: the cells the "unchanged" claim is checked on."""
+    return [
+        *bound_cases(),
+        pytest.param(load_kernel("rbf_chain_4x4.csv"), 2, id="chain-4"),
+        pytest.param(load_kernel("rbf_chain_6x6.csv"), 3, id="chain-6"),
+        pytest.param(random_rbf_kernel(11, seed=3), 3, id="random-11-seed-3"),
+        pytest.param(random_rbf_kernel(11, seed=17), 3, id="random-11-seed-17"),
+        pytest.param(random_rbf_kernel(11, seed=29), 3, id="random-11-seed-29"),
+    ]
+
+
+# A greedy seed's rounding scales with the kernel trace, not with the (possibly zero) optimum: the
+# absolute allowance a Nyström caller states beside the seed. Measured gaps are 1e-16 to 1e-15 of
+# the trace (Accelerate and OpenBLAS); this keeps a margin of three orders.
+INCUMBENT_SLACK_PER_TRACE = 1e-12
+
+
+def incumbent_slack_for(kernel: np.ndarray) -> float:
+    return INCUMBENT_SLACK_PER_TRACE * float(np.trace(kernel))
+
+
+def assert_same_search(result, exact) -> None:
+    assert result.state == exact.state
+    assert result.cost == pytest.approx(exact.cost, rel=1e-12, abs=1e-12)
+    assert result.nodes_expanded == exact.nodes_expanded
+
+
+@pytest.mark.parametrize("tolerance", [0.0, 1e-6])
+@pytest.mark.parametrize(("kernel", "landmark_count"), search_cases())
+def test_the_pruned_search_expands_the_same_states_as_exact_a_star(
+    kernel, landmark_count, tolerance
+):
+    """Filter and pruning change what the frontier stores, not what the search does."""
+    problem = NystromLandmarkProblem(kernel, landmark_count, spectrum_mass_tolerance=tolerance)
+    cost_function = NystromCssCostFunction(problem)
+
+    pruned = PrunedAStarSearch(problem, cost_function).run()
+
+    assert_same_search(pruned, AStarSearch(problem, cost_function).run())
+
+
+@pytest.mark.parametrize("tolerance", [0.0, 1e-6])
+@pytest.mark.parametrize(("kernel", "landmark_count"), search_cases())
+def test_the_greedy_residual_trace_as_incumbent_seed_changes_no_expansion_or_subset(
+    kernel, landmark_count, tolerance
+):
+    problem = NystromLandmarkProblem(kernel, landmark_count, spectrum_mass_tolerance=tolerance)
+    cost_function = NystromCssCostFunction(problem)
+    greedy = GreedyResidualTraceLandmarkSelector().select(problem, cost_function)
+
+    seeded = PrunedAStarSearch(
+        problem,
+        cost_function,
+        incumbent_seed=greedy.cost,
+        incumbent_slack=incumbent_slack_for(kernel),
+    ).run()
+
+    # The seed is an upper bound on the optimum up to rounding, and rounding on a residual trace
+    # scales with the kernel's trace, not with the (possibly zero) result: on the rank-deficient
+    # kernel both costs are zero in exact arithmetic and differ by ~1e-9 on a trace of ~1e7.
+    assert greedy.cost >= seeded.cost - incumbent_slack_for(kernel)
+    assert_same_search(seeded, AStarSearch(problem, cost_function).run())
+
+
+def test_a_rounding_level_seed_on_the_all_ones_kernel_finds_the_optimum_with_a_trace_scaled_slack():
+    # CI (OpenBLAS) seeded 8.9e-16 where every goal bound is 1.8e-15: an optimum of zero on both
+    # paths, differing by rounding, and a relative slack on a noise-level seed is nothing.
+    kernel = load_kernel("all_ones_8x8.csv")
+    problem = NystromLandmarkProblem(kernel, landmark_count=3)
+    cost_function = NystromCssCostFunction(problem)
+    noise_seed = 8.881784197001252e-16
+
+    with pytest.raises(IncumbentBelowOptimum):
+        PrunedAStarSearch(problem, cost_function, incumbent_seed=noise_seed).run()
+    seeded = PrunedAStarSearch(
+        problem,
+        cost_function,
+        incumbent_seed=noise_seed,
+        incumbent_slack=incumbent_slack_for(kernel),
+    ).run()
+
+    assert_same_search(seeded, AStarSearch(problem, cost_function).run())
+
+
+def test_an_incumbent_seed_below_the_optimum_raises_on_the_ten_point_chain():
+    problem = NystromLandmarkProblem(load_kernel("rbf_chain_10x10.csv"), landmark_count=5)
+    cost_function = NystromCssCostFunction(problem)
+    best_cost, _ = brute_force_best(problem, cost_function)
+
+    with pytest.raises(IncumbentBelowOptimum):
+        PrunedAStarSearch(problem, cost_function, incumbent_seed=0.5 * best_cost).run()
+
+
+def test_a_tiny_frontier_cap_raises_on_the_ten_point_chain_and_carries_the_peak():
+    problem = NystromLandmarkProblem(load_kernel("rbf_chain_10x10.csv"), landmark_count=5)
+    search = PrunedAStarSearch(problem, NystromCssCostFunction(problem), max_frontier=3)
+
+    with pytest.raises(FrontierLimitExceeded) as raised:
+        search.run()
+
+    assert raised.value.frontier_peak == 3
+    assert search.frontier_peak == 3

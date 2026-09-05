@@ -379,3 +379,30 @@ run overnight (Q28, Q33). The documents landed first, as PRs #29 and #30 (Q29, Q
 from `main` at or after #30. Frontier peak joins the dashboard's cost card at the same time as the paper
 (Q31). The T2 specification was written in parallel and waits for G (Q32). The owner confirmed the
 design tree on 2026-09-05; slice G is ready to hand to the implementing session with §10 as its brief.
+
+### What changed against §10 (2026-09-05, at close of slice G)
+
+Two deviations. **First, the mechanisms are a variant, not the algorithm.** §10 puts them in
+`AStarSearch._search`; they shipped as `PrunedAStarSearch` in `math/algorithms/pruned_a_star_search.py`,
+with the two exceptions beside that class rather than in `a_star_search.py` (P-16's placement, kept in
+spirit). Reason, the owner's ruling on review: a seeded incumbent gives the search a number it did not
+compute itself, and the slack below is a margin, not a proof, so the exact algorithm stays as it was and
+is the reference the variant is tested against. `AStarSearch`'s loop was split into `_price_children`,
+`_push_children` and `_no_goal_reachable` so the variant overrides only where it diverges; its behaviour
+is byte-identical (the search baseline and the example output). `AStarLandmarkSelector` still uses the
+exact class; the grid runner opts into the variant. **Second, the slack.** P-14 and FR-15 say a child is pruned when its bound is *strictly* above the incumbent.
+That is exact when the incumbent is one of the search's own goal bounds, and it is not exact for a
+seed priced on another arithmetic path: the greedy selector prices its subset through `goal_cost`,
+the search prices the same subset through the goal-depth batch, and on `rbf_chain_6x6` (where greedy
+is optimal) the two differed by 2.2e-15 relative with the seed on the low side, so strict pruning
+dropped the optimum and raised `IncumbentBelowOptimum` against a seed that is an upper bound in exact
+arithmetic. The threshold now carries a relative slack, `INCUMBENT_RELATIVE_SLACK = 1e-9`. Keeping a
+child is always safe and only pruning can be wrong; pop order is preserved regardless, so no expansion
+count or subset can move (the "unchanged" tests and the 13 baseline cells confirm it). The slack is
+relative, so it is nothing when the incumbent itself is rounding noise: CI (OpenBLAS) seeded the all-ones
+kernel with 8.9e-16 against goal bounds of 1.8e-15, an optimum of zero on both paths, and the search
+raised `IncumbentBelowOptimum`. The search has no notion of the objective's scale, so the caller states
+one: `incumbent_slack`, an absolute allowance passed beside the seed, which Nyström callers (the tests and
+both grid runners) set to 1e-12 of the kernel trace, the quantity residual-trace rounding scales with
+(measured 1e-16 to 1e-15 of the trace on both platforms). Everything else in §10 shipped as written; the measured before-peak on n = 60, k = 5, scale 4 was 3,794,117 against the
+"≈5.4 M" estimate.

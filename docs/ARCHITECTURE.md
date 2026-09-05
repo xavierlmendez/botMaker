@@ -81,8 +81,14 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 - **A search over an implicit problem:** implement `AbstractGraphProblem` (`initial_state`, `is_goal`,
   `successors`) and inject a `SearchCostFunction` (`lower_bound`, `goal_cost`) into `AStarSearch`. The
   bound must be admissible and must equal `goal_cost` at a goal state, or the search stops being a proof
-  (D-23). States must be hashable and canonical, so one position is one node. When a parent's successors
-  share work, override `lower_bounds(parent, successors)`; the default scores them one at a time (D-24).
+  (D-23). `AStarSearch` is exact and stores every child; `PrunedAStarSearch` is the variant that stores
+  less (goal-sibling filter, incumbent pruning, frontier cap) and rests on the same equality; a seeded
+  incumbent must be an exact objective, never a truncated bound (D-27). States must be hashable and
+  canonical, so one position is one node. When a parent's successors share work, override
+  `lower_bounds(parent, successors)`; the default scores them one at a time (D-24).
+- **A search variant:** subclass `AStarSearch` and override only the step where it diverges —
+  `_price_children`, `_push_children` (return the insertion index as if every child were pushed, so pop
+  order is unchanged) or `_no_goal_reachable`; never `_search`'s loop. Test it against the base class.
 - **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
   `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
   by class name in the project's JSON config.
