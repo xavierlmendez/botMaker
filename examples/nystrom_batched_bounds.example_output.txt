@@ -1,0 +1,27 @@
+A* alone, SPECTF, batched vs per-child bounds
+   n  k  expanded  same  landmarks
+  40  3       668  True  [7, 16, 32]
+  60  3      1650  True  [17, 32, 43]
+  80  3      2837  True  [44, 46, 73]
+  40  4      5645  True  [7, 16, 17, 32]
+  60  4     15740  True  [32, 43, 47, 59]
+
+A* alone, SPECTF n=40, k=3, expansions by bandwidth scale (batched bounds)
+ scale  expanded  landmarks
+  0.25       363  [16, 17, 32]
+   0.5       501  [17, 32, 34]
+   1.0       668  [7, 16, 32]
+   2.0       780  [7, 32, 34]
+   4.0       781  [7, 32, 34]
+
+Full harness (3 datasets x 3 bandwidths, n=40, k=3, 50 seeds)
+         dataset  scale  expanded  landmarks
+          SPECTF   0.25       363  [16, 17, 32]
+          SPECTF    1.0       668  [7, 16, 32]
+          SPECTF    4.0       781  [7, 32, 34]
+ movement_libras   0.25       188  [17, 30, 36]
+ movement_libras    1.0       196  [17, 29, 36]
+ movement_libras    4.0       259  [7, 17, 29]
+            wdbc   0.25       256  [0, 32, 33]
+            wdbc    1.0       378  [14, 15, 33]
+            wdbc    4.0       512  [5, 14, 33]
