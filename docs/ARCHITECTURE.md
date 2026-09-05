@@ -18,7 +18,7 @@ Math never imports ML; ML composes math; scripts (composition roots) wire data t
 
 | Layer | Contents | Role |
 |---|---|---|
-| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction`, `RegularizationFunction`, `SearchCostFunction`, `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors), `probability/` | academic ideas as classes |
+| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction`, `RegularizationFunction`, `SearchCostFunction`, `secular_equation` (eigenvalues of a rank-one downdate), `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors), `probability/` | academic ideas as classes |
 | `ml` | `MyLinearRegression`, `MyLogisticRegression`, `MyPerceptron`, `MySVM`, `DecisionTree`, `ProbabilisticKNN`, `evaluators/`, `projects/` (ad-click grids, Nyström UCI harness) | models composed from primitives |
 | `data` | `data_orchestrator` (+ `DataTransformer`), datasets, transformer JSON configs | load → transform → split |
 | `projectScripts` | `AdClickModelProjectBuildScript` etc. | composition roots / experiments (→ `examples/` in slice 3.5) |

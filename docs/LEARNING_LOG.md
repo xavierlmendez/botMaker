@@ -136,6 +136,27 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 - **Reference.** Arai, Maung & Schweitzer, *Optimal column subset selection by A-star search*, AAAI 2015;
   Williams & Seeger, *Using the Nyström method to speed up kernel machines*, NeurIPS 2000.
 
+## The secular equation: a child's spectrum from its parent's · 2026-09-04
+- **What.** The eigenvalues of `diag(λ) − w wᵀ`, for many `w` at once, without decomposing anything.
+  This is the arithmetic that lets a search decompose a parent once and price every child by a
+  rank-one downdate (BL-27); the bound that uses it lands in the next slice.
+- **Where.** `math/secular_equation.py` · tests `tests/math/test_secular_equation.py`.
+- **Design.** Subtracting an outer product moves each eigenvalue down into the gap below it
+  (interlacing), and the new values are the roots of `s(μ) = 1 − Σ w_j²/(λ_j − μ)`. On each gap `s`
+  is strictly decreasing, from +∞ at the bottom to −∞ at the top, so bisection with 64 halvings finds
+  every root to rounding, and because the bracket is known in advance the search over all children is
+  one array of midpoints per iteration. A gap of zero width is a repeated eigenvalue: the root is the
+  eigenvalue itself and no equation is solved. The last root has no eigenvalue below it; its bracket
+  is `[λ_r − ‖w‖², λ_r]`, and a test pins that it is searched rather than clamped.
+- **What was confusing.** The paper describes the downdate for the projection of the new column onto
+  the parent span; the lemma it rests on needs the residual against that span, and only the residual
+  reproduces the published node counts (the reproduction found this; IJCAI-21 writes it correctly).
+  That detail belongs to the bound, not to this solver, which only ever sees `w`, but it is why this
+  module's docstring says "in the parent's eigenbasis" and nothing about columns.
+- **Reference.** Bunch, Nielsen & Sorensen, *Rank-one modification of the symmetric eigenproblem*,
+  Numer. Math. 1978 [L4]; Arai, Maung & Schweitzer, AAAI 2015, §4 [A1]; Wan & Schweitzer, IJCAI 2021,
+  eq. (10) [A3].
+
 ## Greedy Nyström and pivoted Cholesky · 2026-09-04
 - **What.** The two deterministic landmark rules the literature actually uses, implemented so their gap to
   the certified optimum can be measured. Greedy Nyström adds the column that removes the most residual
