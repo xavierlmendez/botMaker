@@ -16,6 +16,7 @@ meant to be run across several scales, since one bandwidth on one subsample is n
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from math import comb
 from pathlib import Path
@@ -79,6 +80,7 @@ class UciHarnessResult:
     certified_optimum: SearchResult[LandmarkState]
     selector_results: dict[str, SearchResult[LandmarkState]]
     frontier_peaks: dict[str, int | None]
+    engine_configurations: dict[str, Mapping[str, object] | None]
     cost_ratios_to_optimal: dict[str, float]
     randomized_summaries: dict[str, RandomizedSelectorSummary]
     randomized_mean_ratios_to_optimal: dict[str, float]
@@ -181,6 +183,9 @@ def run_nystrom_on_uci_dataset(
         certified_optimum=certified_optimum,
         selector_results=selector_results,
         frontier_peaks={name: result.frontier_peak for name, result in selector_results.items()},
+        engine_configurations={
+            name: result.engine_configuration for name, result in selector_results.items()
+        },
         cost_ratios_to_optimal={
             name: cost_ratio(result.cost, optimal_cost) for name, result in selector_results.items()
         },
@@ -253,6 +258,14 @@ def format_run(run: UciHarnessResult) -> str:
             f"ratio={run.cost_ratios_to_optimal[name]:.3f} cost={result.cost:.4f} "
             f"state={result.state} nodes={result.nodes_expanded}"
         )
+    reference_engine = run.engine_configurations.get(CERTIFIED_SELECTOR)
+    for name, configuration in run.engine_configurations.items():
+        # Only an engine that differs from the certified reference's needs stating; a block where
+        # every row ran the same engine says so once, in the reference's own row, by saying nothing.
+        if configuration is None or configuration == reference_engine:
+            continue
+        settings = "  ".join(f"{key}={value!r}" for key, value in configuration.items())
+        lines.append(f"  {name:>22} [{'engine':>20}]: {settings}")
     measured_peaks = {name: peak for name, peak in run.frontier_peaks.items() if peak is not None}
     if measured_peaks:
         # Only engines that count their frontier have a peak, so the line appears only when one ran.

@@ -190,6 +190,14 @@ instead of through a bespoke script. Defaults unchanged: both baselines byte-ide
 
 ## Closed
 
+### BL-32 — A harness row does not say which engine settings produced it · closed 2026-09-06 (PR #35, D-28)
+
+D-28 made the engine a parameter, but a `search_factory` binds its knobs inside the caller's lambda, so
+`UciHarnessResult` recorded that `astar-pruned` ran and not with what `incumbent_seed`, `incumbent_slack`
+or `max_frontier` — while the outside-git grid runner records all three on every line. Closed by having
+the engine describe itself (`AStarSearch.configuration`), read off the instance by the selector into
+`SearchResult.engine_configuration` and `UciHarnessResult.engine_configurations`.
+
 ### BL-27 — Nyström A* lower bound is O(n³) per child · closed 2026-09-04 (`docs/plans/2026-09-nystrom-downdate.md`)
 
 `NystromCssCostFunction.lower_bound` recomputes an SVD of the selected columns and an n×n `eigvalsh` of

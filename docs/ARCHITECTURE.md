@@ -93,6 +93,8 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
   `AStarLandmarkSelector(name="astar-<variant>", search_factory=...)` appended to
   `default_selectors(sample_seed)` and passed as `run_nystrom_on_uci_dataset(..., selectors=...)`.
   The name `"astar"` must stay in the list; it is the reference every ratio is taken against (D-28).
+  A variant that adds a knob overrides `configuration` to name it, or its rows go on the record
+  without the settings that produced them (D-28, amended).
 - **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
   `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
   by class name in the project's JSON config.

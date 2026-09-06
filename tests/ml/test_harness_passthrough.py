@@ -8,13 +8,16 @@ dropped: every ratio in a result is taken against ``"astar"``, so a suite withou
 rather than silently measured against something else.
 
 ``frontier_peak`` rides out with the result, so the memory an engine paid is readable next to the
-time it paid, and stays ``None`` for engines that do not count it.
+time it paid, and stays ``None`` for engines that do not count it. So does the engine's
+``configuration``, read off the engine that ran rather than promised by whoever built it: two rows
+on the same cell are only comparable when the settings behind them are on the record (D-28).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from mllib.math.algorithms.a_star_search import AStarSearch
@@ -23,6 +26,10 @@ from mllib.math.algorithms.nystrom_landmark_selectors import (
     GreedyResidualTraceLandmarkSelector,
 )
 from mllib.math.algorithms.pruned_a_star_search import PrunedAStarSearch
+from mllib.math.graph.nystrom_landmark_problem import (
+    NystromCssCostFunction,
+    NystromLandmarkProblem,
+)
 from mllib.ml.projects.nystrom_uci_data import UciDatasetSpec
 from mllib.ml.projects.nystrom_uci_harness import (
     default_selectors,
@@ -172,3 +179,70 @@ def test_an_engine_that_counts_its_frontier_reports_the_peak_it_reached(uci_data
     # The line appears exactly once a peak was measured, naming only the engines that counted.
     rendered = format_run(run)
     assert f"frontier peak: astar-pruned={peak}" in rendered
+
+
+def test_the_default_run_records_the_reference_engine_and_nothing_for_the_rest(uci_data_dir: Path):
+    run = _run(uci_data_dir)
+
+    assert set(run.engine_configurations) == set(run.selector_results)
+    assert run.engine_configurations["astar"] == {"engine": "AStarSearch"}
+    # A selector that runs no search has no engine to describe, and says so rather than inventing.
+    assert run.engine_configurations["greedy_trace"] is None
+    assert run.engine_configurations["random_single_draw"] is None
+    # Every row ran the same engine, so the block states it nowhere: today's output is unchanged.
+    assert "[              engine]" not in format_run(run)
+
+
+def test_a_variant_records_the_settings_it_actually_ran_under(uci_data_dir: Path):
+    selectors = [
+        *default_selectors(CELL["sample_seed"]),
+        AStarLandmarkSelector(
+            name="astar-pruned",
+            search_factory=lambda problem, cost: PrunedAStarSearch(
+                problem, cost, incumbent_slack=1e-12, max_frontier=5_000
+            ),
+        ),
+    ]
+    run = _run(uci_data_dir, selectors=selectors)
+
+    assert run.engine_configurations["astar-pruned"] == {
+        "engine": "PrunedAStarSearch",
+        "incumbent_seed": None,
+        "incumbent_slack": 1e-12,
+        "max_frontier": 5_000,
+    }
+    # The variant's settings are stated in the block; the reference's are not, being the default.
+    rendered = format_run(run)
+    assert "astar-pruned [              engine]" in rendered
+    assert "max_frontier=5000" in rendered
+    assert "astar [              engine]" not in rendered
+
+
+def test_the_record_follows_the_engine_that_ran_not_the_name_it_was_given(uci_data_dir: Path):
+    # The point of reading the configuration off the instance: a name is a caller's word, and a
+    # row whose settings came from the caller could claim a run that never happened.
+    selectors = [
+        *default_selectors(CELL["sample_seed"]),
+        AStarLandmarkSelector(
+            name="astar-claims-to-be-capped",
+            search_factory=lambda problem, cost: PrunedAStarSearch(problem, cost),
+        ),
+    ]
+    run = _run(uci_data_dir, selectors=selectors)
+
+    assert run.engine_configurations["astar-claims-to-be-capped"]["max_frontier"] is None
+
+
+def test_a_variant_that_states_no_knobs_is_visibly_incomplete_rather_than_silently_wrong():
+    # The failure mode the design accepts: forgetting to override `configuration` loses the knobs
+    # from the record, and shows the bare class name, which is readable as "this one never said".
+    class UndeclaredVariant(AStarSearch):
+        def __init__(self, problem, cost_function, *, budget: int = 3):
+            super().__init__(problem, cost_function)
+            self.budget = budget
+
+    problem = NystromLandmarkProblem(np.eye(4), landmark_count=2)
+    search = UndeclaredVariant(problem, NystromCssCostFunction(problem), budget=9)
+
+    assert search.configuration == {"engine": "UndeclaredVariant"}
+    assert "budget" not in search.configuration
