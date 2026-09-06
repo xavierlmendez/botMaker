@@ -373,9 +373,10 @@ reference cells + the peak assertion, escalating to the full set only if pop ord
 ### What the grilling settled (2026-09-05, rounds 4–5, frontier empty)
 
 EXP-09a's first window is three hours (owner widened it from 90 minutes): 30 runs — scales 0.25 and 1
-at δ ∈ {1e-2, 1e-3, 1e-4, 1e-8} plus scale 4 at δ ∈ {1e-2, 1e-3}, coarsest δ first, 3 workers,
-15-minute cap, 3 GB resident cap, 5-million-entry frontier cap; δ ∈ {1e-10, 0} and the fine δ at scale 4
-run overnight (Q28, Q33). The documents landed first, as PRs #29 and #30 (Q29, Q30); slice G branches
+at δ ∈ {1e-2, 1e-3, 1e-4, 1e-6} plus scale 4 at δ ∈ {1e-2, 1e-3}, coarsest δ first, 3 workers,
+15-minute cap, 3 GB resident cap, 5-million-entry frontier cap; δ = 0 and the fine δ at scale 4 run
+overnight (Q28, Q33; corrected 2026-09-06 — the round named 1e-8 and 1e-10, which the runner had
+measured as no-ops at n = 1,000, so the large set is {1e-2, 1e-3, 1e-4, 1e-6, 0}). The documents landed first, as PRs #29 and #30 (Q29, Q30); slice G branches
 from `main` at or after #30. Frontier peak joins the dashboard's cost card at the same time as the paper
 (Q31). The T2 specification was written in parallel and waits for G (Q32). The owner confirmed the
 design tree on 2026-09-05; slice G is ready to hand to the implementing session with §10 as its brief.
