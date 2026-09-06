@@ -165,10 +165,19 @@ the trigger plan P-5 named for revisiting Gragg's method. Options, measurements 
 are in `docs/reviews/2026-09-05-nystrom-engine-performance.md`; first items: prune children above a
 greedy incumbent at push time (M1), Gragg/Melman iteration for the secular solve (T2), an
 array-backed frontier (M2). Each keeps the search baseline byte-identical.
-First slice: `docs/plans/2026-09-nystrom-downdate.md` §10 (slice G — goal-sibling filter, incumbent pruning with
-M1 as its seed, a frontier cap; D-27 constrains any (k̄+1) pruning under truncation). T2 is specified research-side
-(`~/develop/research/nystrom/harness/T2-gragg-secular-solve.md`) and follows G; then BL-30; M2 only if G's
-measurements demand it.
+Slice G (`docs/plans/2026-09-nystrom-downdate.md` §10, 2026-09-05) delivered, as `PrunedAStarSearch`, a
+variant of the unchanged exact `AStarSearch`: the
+goal-sibling filter; M1 in its exact form (incumbent pruning, `incumbent_seed` for the greedy residual trace,
+`IncumbentBelowOptimum` when a seed is below the optimum, a 1e-9 relative slack plus a caller-stated absolute
+`incumbent_slack` — 1e-12 of the trace — so a seed priced on another arithmetic path cannot prune the optimum by
+rounding, even when the optimum is zero); M4 in-library (`max_frontier`, `FrontierLimitExceeded`,
+`frontier_peak` on the instance). Measured on this machine at SPECTF scale 4: n = 60, k = 5 frontier peak
+3,794,117 → 452,830; n = 80, k = 5 at 1,488,433 (the plan's before-estimate was 24 million); expansions and
+landmarks unchanged everywhere. Remaining: T2 (specified research-side,
+`~/develop/research/nystrom/harness/T2-gragg-secular-solve.md`, next); M2 (array-backed frontier, only if
+EXP-09a's `frontier_peak` column demands it); M5 (dropping the expanded set behind a problem-level tree
+declaration); the (k̄+1)·f Deshpande–Rademacher rule, only as D-27 allows (δ = 0, or through the untruncated
+root bound). Then BL-30.
 
 ## Closed
 

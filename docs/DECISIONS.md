@@ -138,3 +138,15 @@ K, and a bound that is admissible for K̃ is admissible for K (learning-log entr
 is not preserved and is measured, not proven (EXP-09a).
 **Consequences.** Every result record must carry its δ; a number without one is not comparable. δ = 0 keeps
 the search baseline byte-identical. The threshold rule for an explained column is left split (BL-30).
+
+## D-27 — Pruning bounds must be computed on the untruncated objective · 2026-09-05 · accepted
+**Context.** D-26 lets the admissible bound be computed on a truncated spectrum. A pruning rule
+discards states whose bound exceeds an *upper* bound on the optimum. The two bounds move in opposite
+directions under truncation: the lower bound gets smaller and stays admissible; an upper bound derived
+from it, such as the (k̄ + 1)·f rule of AAAI-15 §5, also gets smaller and stops being an upper bound.
+**Decision.** A pruning threshold is either an exact goal cost seen during the search (always on the
+full kernel, D-26) or a quantity derived from the untruncated root bound, (k + 1)·E*_svd. The
+(k̄ + 1)·f̃ rule on truncated per-state bounds is not admissible for pruning and is not used.
+**Consequences.** Incumbent pruning (P-14) is valid at every δ. The per-state Deshpande–Rademacher
+rule, if built, applies only at δ = 0 or through the root. Every pruning rule ships with the test
+that expansion counts and returned subsets are unchanged on the search baseline and the reference cells.

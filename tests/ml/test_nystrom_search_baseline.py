@@ -35,6 +35,8 @@ import numpy as np
 import pytest
 
 from mllib.math.algorithms.a_star_search import AStarSearch
+from mllib.math.algorithms.nystrom_landmark_selectors import GreedyResidualTraceLandmarkSelector
+from mllib.math.algorithms.pruned_a_star_search import PrunedAStarSearch
 from mllib.math.graph.nystrom_landmark_problem import (
     NystromCssCostFunction,
     NystromLandmarkProblem,
@@ -97,8 +99,18 @@ def _optimum_set(kernel: np.ndarray, landmark_count: int) -> list[list[int]]:
     return [list(subset) for cost, subset in scored if cost <= best + TIE_TOLERANCE]
 
 
+def _fixture_kernel(name: str) -> np.ndarray:
+    return np.loadtxt(FIXTURES / name, delimiter=",")
+
+
+def _uci_kernel(features: np.ndarray, n: int, scale: float) -> np.ndarray:
+    sampled = standardize_columns(downsample_rows(features, max_rows=n, seed=SAMPLE_SEED))
+    kernel, _ = build_rbf_kernel(sampled, gamma_scale=scale)
+    return kernel
+
+
 def _fixture_cell(name: str, landmark_count: int) -> tuple[str, dict]:
-    kernel = np.loadtxt(FIXTURES / name, delimiter=",")
+    kernel = _fixture_kernel(name)
     record = _search(kernel, landmark_count)
     record["accepted_states"] = _optimum_set(kernel, landmark_count)
     assert record["state"] in record["accepted_states"], (name, "A* missed the optimum set")
@@ -109,19 +121,34 @@ def _fixture_cell(name: str, landmark_count: int) -> tuple[str, dict]:
 
 
 def _uci_cell(features: np.ndarray, n: int, k: int, scale: float) -> tuple[str, dict]:
-    sampled = standardize_columns(downsample_rows(features, max_rows=n, seed=SAMPLE_SEED))
-    kernel, _ = build_rbf_kernel(sampled, gamma_scale=scale)
-    record = _search(kernel, k)
+    record = _search(_uci_kernel(features, n, scale), k)
     record["accepted_states"] = [record["state"]]
     record["expansions_pinned"] = True
     return f"{SPECTF_SPEC.name}:n={n},k={k},scale={scale}", record
 
 
 @pytest.fixture(scope="module")
-def results() -> dict[str, dict]:
+def features() -> np.ndarray:
+    return load_feature_matrix(SPECTF_SPEC, DEFAULT_UCI_DATA_DIR)
+
+
+@pytest.fixture(scope="module")
+def results(features) -> dict[str, dict]:
     cells = dict(_fixture_cell(name, k) for name, k in FIXTURE_CELLS)
-    features = load_feature_matrix(SPECTF_SPEC, DEFAULT_UCI_DATA_DIR)
     cells.update(_uci_cell(features, n, k, scale) for n, k, scale in UCI_CELLS)
+    return cells
+
+
+@pytest.fixture(scope="module")
+def kernels(features) -> dict[str, tuple[np.ndarray, int]]:
+    """The same cells as ``results``, as kernels, for the searches measured against it."""
+    cells = {f"{name}:k={k}": (_fixture_kernel(name), k) for name, k in FIXTURE_CELLS}
+    cells.update(
+        {
+            f"{SPECTF_SPEC.name}:n={n},k={k},scale={scale}": (_uci_kernel(features, n, scale), k)
+            for n, k, scale in UCI_CELLS
+        }
+    )
     return cells
 
 
@@ -159,3 +186,69 @@ def test_snapshot_matches(results):
         if got["optimal"] != exp["optimal"]:
             mismatches.append(f"{key}: optimal {got['optimal']} != {exp['optimal']}")
     assert not mismatches, "search baseline moved:\n" + "\n".join(mismatches)
+
+
+# --- the pruned search on the baseline (plan §10, slice G) --------------------------------------
+
+
+# The absolute rounding allowance stated beside a greedy seed: rounding on a residual trace scales
+# with the kernel trace, not with the optimum (see the graph tests for the measured gaps).
+INCUMBENT_SLACK_PER_TRACE = 1e-12
+
+
+def _pruned_search(kernel: np.ndarray, k: int, incumbent_seed: float | None = None):
+    problem = NystromLandmarkProblem(kernel, k)
+    cost_function = NystromCssCostFunction(problem)
+    search = PrunedAStarSearch(
+        problem,
+        cost_function,
+        incumbent_seed=incumbent_seed,
+        incumbent_slack=INCUMBENT_SLACK_PER_TRACE * float(np.trace(kernel)),
+    )
+    return search.run(), search.frontier_peak
+
+
+def _moved(key: str, result, exact: dict) -> list[str]:
+    """How a search differs from the baseline's record of a cell, where the record pins it."""
+    moved = []
+    if [int(i) for i in result.state] not in exact["accepted_states"]:
+        moved.append(f"{key}: landmarks {list(result.state)} not in the optimum set")
+    if exact["expansions_pinned"] and result.nodes_expanded != exact["nodes_expanded"]:
+        moved.append(f"{key}: expanded {result.nodes_expanded} != {exact['nodes_expanded']}")
+    if result.cost != pytest.approx(exact["residual_trace"], rel=COST_TOLERANCE, abs=1e-12):
+        moved.append(f"{key}: residual trace {result.cost} != {exact['residual_trace']}")
+    return moved
+
+
+def test_the_pruned_search_matches_exact_a_star_on_every_cell(kernels, results):
+    moved = []
+    for key, (kernel, k) in kernels.items():
+        result, _ = _pruned_search(kernel, k)
+        moved.extend(_moved(key, result, results[key]))
+    assert not moved, "pruned search moved the baseline:\n" + "\n".join(moved)
+
+
+def test_the_greedy_incumbent_seed_changes_no_cell(kernels, results):
+    """The greedy residual trace is an upper bound on the optimum, so seeding from it prunes only
+    entries the search would never have popped: same expansions, same landmarks, on every cell
+    whose order is the engine's rather than rounding's."""
+    moved = []
+    for key, (kernel, k) in kernels.items():
+        problem = NystromLandmarkProblem(kernel, k)
+        greedy = GreedyResidualTraceLandmarkSelector().select(
+            problem, NystromCssCostFunction(problem)
+        )
+        result, seeded_peak = _pruned_search(kernel, k, incumbent_seed=greedy.cost)
+        _, unseeded_peak = _pruned_search(kernel, k)
+        moved.extend(_moved(key, result, results[key]))
+        if seeded_peak > unseeded_peak:
+            moved.append(f"{key}: seeded peak {seeded_peak} > unseeded {unseeded_peak}")
+    assert not moved, "greedy incumbent seed moved the baseline:\n" + "\n".join(moved)
+
+
+def test_frontier_peak_on_spectf_40_3_at_scale_1_is_within_the_analytic_bound(kernels):
+    # 40 depth-1 states plus C(40, 2) = 780 depth-2 parents, each holding at most one goal
+    # sibling on the frontier, against up to 9,880 goal children without the filter.
+    kernel, k = kernels["SPECTF:n=40,k=3,scale=1.0"]
+    _, frontier_peak = _pruned_search(kernel, k)
+    assert frontier_peak <= 820

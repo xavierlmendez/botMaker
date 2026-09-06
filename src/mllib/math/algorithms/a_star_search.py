@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import heapq
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, NoReturn
 
 from mllib.math.algorithms.abstract_graph_algorithm import (
     AbstractGraphAlgorithm,
@@ -37,6 +37,12 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
 
     Ties are broken first-in-first-out by insertion order, which keeps the search deterministic
     without claiming that any tie-break is better than another.
+
+    This class stores every child it prices; it is the exact algorithm and the reference every
+    variant is measured against. The loop is split into three steps a variant can override on its
+    own: ``_price_children`` (generate and bound a parent's children), ``_push_children`` (decide
+    what enters the frontier) and ``_no_goal_reachable`` (what an empty frontier means).
+    ``PrunedAStarSearch`` overrides the last two.
     """
 
     def __init__(
@@ -65,14 +71,14 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
             (self.cost_function.lower_bound(initial_state), 0, initial_state)
         ]
         insertion_index = 0
-        explored: set[State] = set()
+        expanded: set[State] = set()
         nodes_expanded = 0
 
         while queue:
             _, _, state = heapq.heappop(queue)
-            if state in explored:
+            if state in expanded:
                 continue
-            explored.add(state)
+            expanded.add(state)
             nodes_expanded += 1
 
             if self.problem.is_goal(state):
@@ -83,16 +89,43 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
                     nodes_expanded=nodes_expanded,
                 )
 
-            # Score all of a parent's successors in one call so a cost function can share the work
-            # they have in common (D-24); the order is preserved so tie-breaking is unchanged.
-            successors = [
-                (action, successor)
-                for action, successor in self.problem.successors(state)
-                if successor not in explored
-            ]
-            bounds = self.cost_function.lower_bounds(state, successors)
-            for (_, successor), bound in zip(successors, bounds, strict=True):
-                insertion_index += 1
-                heapq.heappush(queue, (bound, insertion_index, successor))
+            children = self._price_children(state, expanded)
+            insertion_index = self._push_children(queue, children, insertion_index)
 
+        self._no_goal_reachable()
+
+    def _price_children(self, parent: State, expanded: set[State]) -> list[tuple[State, float]]:
+        """A parent's unexpanded children with their bounds, in the order the problem generates them.
+
+        All successors are scored in one call so a cost function can share the work they have in
+        common (D-24); the order is preserved so tie-breaking is unchanged.
+        """
+        successors = [
+            (action, successor)
+            for action, successor in self.problem.successors(parent)
+            if successor not in expanded
+        ]
+        bounds = self.cost_function.lower_bounds(parent, successors)
+        return [
+            (successor, bound) for (_, successor), bound in zip(successors, bounds, strict=True)
+        ]
+
+    def _push_children(
+        self,
+        queue: list[tuple[float, int, State]],
+        children: list[tuple[State, float]],
+        insertion_index: int,
+    ) -> int:
+        """Place a parent's priced children on the frontier; return the last insertion index used.
+
+        Exact A* keeps every child. A variant that keeps fewer must still return the index as if it
+        had pushed them all, so that what it does push pops in the same order.
+        """
+        for state, bound in children:
+            insertion_index += 1
+            heapq.heappush(queue, (bound, insertion_index, state))
+        return insertion_index
+
+    def _no_goal_reachable(self) -> NoReturn:
+        """The frontier emptied without a goal being popped."""
         raise ValueError("A* search failed: no goal state is reachable from the initial state.")

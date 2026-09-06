@@ -289,3 +289,52 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
   at scale is the 2^k tie collapse the reproduction saw on wdbc at k = 15.
 - **Reference.** Farahat, Ghodsi & Kamel, AISTATS 2011 (the gain identity); Arai, Maung & Schweitzer,
   AAAI 2015, §4, for the parent-once, child-cheap structure this is the first step toward.
+
+## What A* must remember, and what it may forget · 2026-09-05
+- **What.** Three ways to store less of the frontier without changing what the search does: keep only the
+  cheapest goal child of each parent, since a dearer goal sibling can never be the first goal popped; drop
+  any child whose bound exceeds the best goal cost seen so far, since that goal is popped first; and cap the
+  frontier so a run that would exhaust memory stops with a named exception instead of an uncertified
+  answer. The first two rest on one line of the cost contract, `lower_bound == goal_cost` at a goal, and
+  on how A* terminates: the first goal popped is the answer, so an entry that cannot be popped before that
+  goal was never needed. Expansions are unchanged; only what sits in memory between them changes.
+- **Where.** `math/algorithms/pruned_a_star_search.py` (`PrunedAStarSearch`, the three mechanisms,
+  `FrontierLimitExceeded`, `IncumbentBelowOptimum`, `frontier_peak`) · `math/algorithms/a_star_search.py`
+  (exact A*, unchanged in behaviour; its loop split into `_price_children`, `_push_children`,
+  `_no_goal_reachable` so a variant overrides only where it diverges) · tests in
+  `tests/math/algorithms/test_pruned_a_star_search.py`, `tests/math/graph/test_nystrom_landmark_problem.py`,
+  `tests/ml/test_nystrom_search_baseline.py` · plan `docs/plans/2026-09-nystrom-downdate.md` §10 · D-27.
+- **Design.** A variant, not the algorithm. Exact `AStarSearch` compares nothing it did not compute itself
+  and stays the reference; `PrunedAStarSearch` is the one that may be handed a number from elsewhere, and
+  the "unchanged" tests measure it against the base class on state, cost and expansion count rather than
+  against brute force alone. Pop order is preserved exactly, not approximately: every child still consumes
+  an insertion index whether or not it is pushed, so the entries that survive pop in the order they always
+  did. The incumbent is the goal's *bound*, which the contract makes its exact
+  objective, so no extra `goal_cost` call is paid per goal child. Ties are kept on both mechanisms
+  (strict inequalities), which is what keeps the optimum set the same; the frontier cap counts entries,
+  not bytes, so its trigger is the same on every platform.
+- **What was confusing.** The incumbent seed. The plan says a child "strictly above" the incumbent is
+  pruned, and that is exactly right when the incumbent is one of the search's own goal bounds. It is not
+  quite right for a seed priced somewhere else: the greedy selector prices its subset through
+  `goal_cost` (one projection), the search prices the same subset through the goal-depth batch (a Schur
+  complement), and on the six-point chain, where greedy is already optimal, the two differed in the
+  fifteenth digit with the seed on the low side. Strict pruning dropped the optimum and the search
+  raised `IncumbentBelowOptimum` against a seed that was, in exact arithmetic, an upper bound. The fix is
+  the asymmetry of the problem: keeping a child is always safe and only pruning can be wrong, so the
+  threshold carries a relative slack of 1e-9 (`INCUMBENT_RELATIVE_SLACK`) and the entries it keeps are the
+  ones within rounding of the incumbent. Then CI showed the second half of the same lesson: on the
+  all-ones kernel the optimum is zero, the greedy seed is 8.9e-16 and every goal bound is 1.8e-15, and a
+  relative slack on a noise-level number is nothing. Rounding on a residual trace scales with the trace,
+  not with the result, and the search cannot know the trace; so the caller states an absolute allowance
+  beside the seed (`incumbent_slack`, 1e-12 of the trace for Nyström). The general lesson is D-24's "same
+  value both paths, up to rounding" read from the other side: two paths to the same number are equal for
+  reporting and not equal for a strict comparison, and "up to rounding" has a scale that only the
+  computation knows.
+- **Numbers (this machine, SPECTF, bandwidth scale 4).** n = 60, k = 5: frontier peak 3,794,117 before and
+  452,830 after (442,389 with the greedy residual trace as seed), 328,579 expansions and the same landmarks
+  in every run. n = 80, k = 5, the EXP-01 worst-cell shape: 1,488,433 entries after, 1,546,225 expansions;
+  the plan's estimate for the same cell before was 24 million. The search baseline and the committed
+  example output are byte-identical.
+- **Reference.** Arai, Maung & Schweitzer, AAAI 2015, §5 (the (k̄ + 1)·f rule this slice does *not*
+  build, and D-27's reason); Russell & Norvig, *AIMA*, §3.5 for the termination argument the filter and
+  pruning rest on.
