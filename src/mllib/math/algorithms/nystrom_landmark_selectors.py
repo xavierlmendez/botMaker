@@ -20,7 +20,8 @@ number worth reporting and they arrive with the machinery to average over seeds.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -55,16 +56,36 @@ class AbstractNystromLandmarkSelector(ABC):
 
 @dataclass(frozen=True, slots=True)
 class AStarLandmarkSelector(AbstractNystromLandmarkSelector):
-    """The certified optimum: the selection every other selector is measured against."""
+    """The certified optimum: the selection every other selector is measured against.
+
+    The engine is a parameter, so a variant search runs through the same harness under its own
+    name, next to this one, rather than replacing it: ``search_factory`` builds the search from
+    the problem and cost function, and defaults to exact ``AStarSearch``. The default ``name``
+    stays ``"astar"``, which is the key every ratio in a harness result is taken against, so a
+    variant must be given a name of its own::
+
+        AStarLandmarkSelector(
+            name="astar-pruned",
+            search_factory=lambda problem, cost: PrunedAStarSearch(problem, cost),
+        )
+
+    Whatever the engine leaves on itself as ``frontier_peak`` is carried out on the result, so the
+    memory an engine paid is visible to the caller without reaching into the search instance.
+    """
 
     name: str = "astar"
+    search_factory: Callable[[NystromLandmarkProblem, NystromCssCostFunction], AStarSearch] = (
+        AStarSearch
+    )
 
     def select(
         self,
         problem: NystromLandmarkProblem,
         cost_function: NystromCssCostFunction,
     ) -> SearchResult[LandmarkState]:
-        return AStarSearch(problem, cost_function).run()
+        search = self.search_factory(problem, cost_function)
+        result = search.run()
+        return replace(result, frontier_peak=getattr(search, "frontier_peak", None))
 
 
 @dataclass(frozen=True, slots=True)

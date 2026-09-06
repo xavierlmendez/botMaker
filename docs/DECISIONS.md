@@ -150,3 +150,26 @@ full kernel, D-26) or a quantity derived from the untruncated root bound, (k + 1
 **Consequences.** Incumbent pruning (P-14) is valid at every δ. The per-state Deshpande–Rademacher
 rule, if built, applies only at δ = 0 or through the root. Every pruning rule ships with the test
 that expansion counts and returned subsets are unchanged on the search baseline and the reference cells.
+
+## D-28 — The engine is a parameter; the reference is a name · 2026-09-06 · accepted
+**Context.** Pass-2 wants variant engines (anytime, weighted, focal, bounded) measured on the harness's
+own cells against the certified optimum. Before this the engine was hard-coded in `AStarLandmarkSelector`
+and the UCI runner's selector list, so a variant could only be measured by a bespoke script, on cells
+nobody else runs, against numbers computed elsewhere.
+**Decision.** Three parts. (i) `AStarLandmarkSelector` takes `search_factory: (problem, cost_function) ->
+AStarSearch`, defaulting to exact `AStarSearch`, and `run_nystrom_on_uci_dataset` takes `selectors=None`,
+which builds the default suite when omitted — so a variant is *added* under its own name, never
+substituted for the reference. (ii) The certified reference is identified by the name `"astar"`
+(`CERTIFIED_SELECTOR`), and a selector list without it is refused with a `ValueError` rather than
+ratioed against whatever else is present: every ratio, and `subset_to_svd_ratio`, is defined relative to
+the certified optimum, so a run without one produces numbers that look like results and are not.
+(iii) The memory an engine paid rides out on the result: `SearchResult` gains
+`frontier_peak: int | None = None`, `None` meaning "no engine counted", and `UciHarnessResult` gains
+`frontier_peaks` keyed like `selector_results`. One optional field on the shared type was chosen over a
+`SelectorRun` wrapper: every existing selector keeps working through the default, and no second result
+type has to be kept in step with the first.
+**Consequences.** `None` is "not measured", never zero; a reader who sees a peak knows an engine counted
+it. A variant engine's row is still labelled by `selector_kind`, which keys on the name, so a certified
+variant prints as `instrumented` — deliberate under D-22 until the variant is certified in its own right,
+and the thing to revisit when one is. Defaults are a value (`default_selectors`), not a behaviour, so the
+suite's order and seeds are pinned by test and remain part of every committed number.
