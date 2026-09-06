@@ -183,6 +183,10 @@ untruncated search certifies n = 1,000 in 29–45 min and δ = 1e-4 cuts that 3�
 next gain there; on flat-spectrum kernels the frontier fills 60 M entries (~7.4 GB) at ~200k expansions before the
 clock matters, so memory binds and M2 (array-backed frontier) and the bounded variant precede T2 for those cells.
 Exact certification of flat spectra at n = 1,000 is not an engineering target on this machine.
+Harness pass-through (PR #34, 2026-09-06, D-28): the A* selector takes a `search_factory`, the UCI runner
+takes a `selectors` list, and `frontier_peak` rides out on `SearchResult` into `UciHarnessResult.frontier_peaks`,
+so M2 and any bounded variant can be measured on the harness's own cells beside the certified reference
+instead of through a bespoke script. Defaults unchanged: both baselines byte-identical, no snapshot regenerated.
 
 ## Closed
 

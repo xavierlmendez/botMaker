@@ -89,6 +89,10 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 - **A search variant:** subclass `AStarSearch` and override only the step where it diverges —
   `_price_children`, `_push_children` (return the insertion index as if every child were pushed, so pop
   order is unchanged) or `_no_goal_reachable`; never `_search`'s loop. Test it against the base class.
+  To measure it on the harness's cells, register it rather than replacing anything:
+  `AStarLandmarkSelector(name="astar-<variant>", search_factory=...)` appended to
+  `default_selectors(sample_seed)` and passed as `run_nystrom_on_uci_dataset(..., selectors=...)`.
+  The name `"astar"` must stay in the list; it is the reference every ratio is taken against (D-28).
 - **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
   `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
   by class name in the project's JSON config.

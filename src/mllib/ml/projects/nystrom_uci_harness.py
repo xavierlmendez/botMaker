@@ -22,6 +22,7 @@ from pathlib import Path
 
 from mllib.math.algorithms.a_star_search import SearchResult
 from mllib.math.algorithms.nystrom_landmark_selectors import (
+    AbstractNystromLandmarkSelector,
     AStarLandmarkSelector,
     GreedyLowerBoundLandmarkSelector,
     GreedyResidualTraceLandmarkSelector,
@@ -59,6 +60,9 @@ PUBLISHED_BASELINES = ("greedy_trace", "pivoted_cholesky", "rpcholesky", "random
 # artefact a reader copies numbers out of.
 SINGLE_DRAW_SELECTORS = ("rpcholesky", "random_single_draw")
 
+# The selector every ratio in a result is taken against. A run without it has no reference point.
+CERTIFIED_SELECTOR = "astar"
+
 DEFAULT_BANDWIDTH_SCALES = (0.25, 1.0, 4.0)
 
 
@@ -74,12 +78,26 @@ class UciHarnessResult:
     gamma_scale: float
     certified_optimum: SearchResult[LandmarkState]
     selector_results: dict[str, SearchResult[LandmarkState]]
+    frontier_peaks: dict[str, int | None]
     cost_ratios_to_optimal: dict[str, float]
     randomized_summaries: dict[str, RandomizedSelectorSummary]
     randomized_mean_ratios_to_optimal: dict[str, float]
     svd_rank_k_residual: float
     subset_to_svd_ratio: float
     subset_count: int
+
+
+def default_selectors(sample_seed: int) -> list[AbstractNystromLandmarkSelector]:
+    """The suite every committed number was measured with: order and seeds are part of the result."""
+    return [
+        AStarLandmarkSelector(),
+        GreedyResidualTraceLandmarkSelector(),
+        PivotedCholeskyLandmarkSelector(),
+        RandomlyPivotedCholeskyLandmarkSelector(seed=sample_seed),
+        RandomSamplingLandmarkSelector(seed=sample_seed),
+        GreedyLowerBoundLandmarkSelector(),
+        BestOfRandomSamplingLandmarkSelector(sample_count=32, seed=sample_seed),
+    ]
 
 
 def cost_ratio(cost: float, optimal_cost: float) -> float:
@@ -99,8 +117,14 @@ def run_nystrom_on_uci_dataset(
     gamma: float | None = None,
     gamma_scale: float = 1.0,
     randomized_trials: int = 50,
+    selectors: list[AbstractNystromLandmarkSelector] | None = None,
 ) -> UciHarnessResult:
-    """Load one dataset, build a kernel, and run every selector against the certified optimum."""
+    """Load one dataset, build a kernel, and run every selector against the certified optimum.
+
+    ``selectors`` replaces the default suite, so a variant engine is measured on the same cell as
+    the certified reference. ``None`` builds the default list, which is the run every committed
+    number was taken from.
+    """
     features = load_feature_matrix(spec, data_dir)
     features = downsample_rows(features, max_rows=max_rows, seed=sample_seed)
     features = standardize_columns(features)
@@ -112,20 +136,17 @@ def run_nystrom_on_uci_dataset(
     problem = NystromLandmarkProblem(kernel, landmark_count=landmark_count)
     cost_function = NystromCssCostFunction(problem)
 
-    selector_results = run_selector_suite(
-        problem,
-        cost_function,
-        selectors=[
-            AStarLandmarkSelector(),
-            GreedyResidualTraceLandmarkSelector(),
-            PivotedCholeskyLandmarkSelector(),
-            RandomlyPivotedCholeskyLandmarkSelector(seed=sample_seed),
-            RandomSamplingLandmarkSelector(seed=sample_seed),
-            GreedyLowerBoundLandmarkSelector(),
-            BestOfRandomSamplingLandmarkSelector(sample_count=32, seed=sample_seed),
-        ],
-    )
-    certified_optimum = selector_results["astar"]
+    suite = default_selectors(sample_seed) if selectors is None else selectors
+    # Checked before the suite runs: a list with no reference point cannot produce a result, and
+    # the search is the expensive part of one.
+    if not any(selector.name == CERTIFIED_SELECTOR for selector in suite):
+        raise ValueError(
+            f"selectors must include one named {CERTIFIED_SELECTOR!r}: every ratio in the result "
+            "is taken against the certified optimum, so a run without it has nothing to measure."
+        )
+
+    selector_results = run_selector_suite(problem, cost_function, selectors=suite)
+    certified_optimum = selector_results[CERTIFIED_SELECTOR]
     optimal_cost = certified_optimum.cost
 
     # The single runs above are one draw each; these are what a report should quote.
@@ -159,6 +180,7 @@ def run_nystrom_on_uci_dataset(
         gamma_scale=gamma_scale,
         certified_optimum=certified_optimum,
         selector_results=selector_results,
+        frontier_peaks={name: result.frontier_peak for name, result in selector_results.items()},
         cost_ratios_to_optimal={
             name: cost_ratio(result.cost, optimal_cost) for name, result in selector_results.items()
         },
@@ -200,7 +222,7 @@ def run_small_uci_suite(
 
 def selector_kind(name: str) -> str:
     """Whether a selector's number is a result, a reference point, or instrumentation."""
-    if name == "astar":
+    if name == CERTIFIED_SELECTOR:
         return "optimum"
     if name in PUBLISHED_BASELINES:
         return "baseline"
@@ -230,6 +252,13 @@ def format_run(run: UciHarnessResult) -> str:
             f"  {name:>22} [{selector_label(name):>20}]: "
             f"ratio={run.cost_ratios_to_optimal[name]:.3f} cost={result.cost:.4f} "
             f"state={result.state} nodes={result.nodes_expanded}"
+        )
+    measured_peaks = {name: peak for name, peak in run.frontier_peaks.items() if peak is not None}
+    if measured_peaks:
+        # Only engines that count their frontier have a peak, so the line appears only when one ran.
+        lines.append(
+            "  frontier peak: "
+            + "  ".join(f"{name}={peak}" for name, peak in measured_peaks.items())
         )
     optimal_cost = run.certified_optimum.cost
     for name, summary in run.randomized_summaries.items():

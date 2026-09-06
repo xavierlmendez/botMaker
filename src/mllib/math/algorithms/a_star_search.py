@@ -20,12 +20,18 @@ class SearchResult[State]:
 
     ``optimal`` is True only when the algorithm proves it. A* proves it with an admissible bound;
     a heuristic selector returning this same type sets it False.
+
+    ``nodes_expanded`` is what the search paid in time, ``frontier_peak`` what it paid in memory:
+    the largest number of entries the frontier held, for an engine that counts them. It is
+    ``None`` when nobody counted — exact ``AStarSearch`` and every heuristic selector — so the
+    field tells "not measured" apart from a measurement instead of carrying a fabricated zero.
     """
 
     state: State
     cost: float
     optimal: bool
     nodes_expanded: int
+    frontier_peak: int | None = None
 
 
 class AStarSearch[State, Action](AbstractGraphAlgorithm):
