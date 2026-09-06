@@ -92,3 +92,19 @@ slice with the "cost changed, search did not" proof.
 - EXP-09a runner and partial results: `~/Desktop/BotMaker/nystrom-grid/exp09a.py`, `exp09a_results.jsonl`
   (104 runs; every δ = 0 reference run reproduced S1's expansion count and optimum).
 - Research-side context: `~/develop/research/nystrom/experiments/EXP-09a-truncation-calibration.md`.
+
+## Addendum 2026-09-06 — measured after slice G (EXP-09a first window and overnight)
+
+Three workers, 15-minute cap, 3 GB resident guard, 5 M-entry frontier cap, greedy incumbent seed; then
+sat at δ = 0 with a 2-hour cap, and one 8-hour probe each on isolet5 and madelon at δ = 1e-3 with a 60 M
+cap. Numbers are this machine's; the records are in the research program's `exp09a_results.jsonl`.
+
+| what | result |
+|---|---|
+| sat, n = 1,000, k = 4, δ = 0 | certified at scales 0.25 and 1 in 29 and 45 min (30,680 and 42,032 expansions; frontier peak 202,838 and 478,597); timeout at scale 4 after 2 h and 210,214 expansions |
+| sat, truncated | same optimum at every δ that certified; δ = 1e-4 within 1.4× the untruncated expansions and 3–4× faster; δ = 1e-3 up to 10× the expansions, fastest on the clock |
+| isolet5, madelon, δ = 1e-3, 8 h probes | 200,351 and 178,711 expansions, then the 60 M-entry frontier cap (~7.4 GB); ~300 net entries per expansion; no certificate |
+| slice G at n = 1,000 | no run exceeded the resident guard with three workers; certified runs peaked at 0.2–0.5 M entries |
+
+Consequence for the order above: M1 → T2 → M2 stands for decaying spectra; for flat spectra it is
+M2 and the bounded variant first, since a faster expansion only reaches the memory cap sooner.

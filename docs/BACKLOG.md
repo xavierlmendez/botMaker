@@ -178,6 +178,11 @@ landmarks unchanged everywhere. Remaining: T2 (specified research-side,
 EXP-09a's `frontier_peak` column demands it); M5 (dropping the expanded set behind a problem-level tree
 declaration); the (k̄+1)·f Deshpande–Rademacher rule, only as D-27 allows (δ = 0, or through the untruncated
 root bound). Then BL-30.
+Re-ranked 2026-09-06 after EXP-09a (research `nystrom/FINDINGS.md` F-5, F-6): on decaying-spectrum kernels the
+untruncated search certifies n = 1,000 in 29–45 min and δ = 1e-4 cuts that 3–4× with the same optimum, so T2 is the
+next gain there; on flat-spectrum kernels the frontier fills 60 M entries (~7.4 GB) at ~200k expansions before the
+clock matters, so memory binds and M2 (array-backed frontier) and the bounded variant precede T2 for those cells.
+Exact certification of flat spectra at n = 1,000 is not an engineering target on this machine.
 
 ## Closed
 
