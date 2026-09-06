@@ -119,6 +119,20 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
         self._incumbent: float | None = None
         self._prune_above = math.inf
 
+    @property
+    def configuration(self) -> dict[str, object]:
+        """The three knobs that change what this search stores, beside the engine name.
+
+        All three change the measurement and none change the answer, so a cost recorded without
+        them is not comparable to one recorded with different ones (D-28).
+        """
+        return {
+            **super().configuration,
+            "incumbent_seed": self.incumbent_seed,
+            "incumbent_slack": self.incumbent_slack,
+            "max_frontier": self.max_frontier,
+        }
+
     def _search(self, context: SearchContext | None) -> SearchResult[State]:
         self._incumbent = self.incumbent_seed
         self._prune_above = (

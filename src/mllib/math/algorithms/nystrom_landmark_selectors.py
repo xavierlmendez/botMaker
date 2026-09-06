@@ -70,7 +70,10 @@ class AStarLandmarkSelector(AbstractNystromLandmarkSelector):
         )
 
     Whatever the engine leaves on itself as ``frontier_peak`` is carried out on the result, so the
-    memory an engine paid is visible to the caller without reaching into the search instance.
+    memory an engine paid is visible to the caller without reaching into the search instance, and
+    so is its ``configuration``: the settings are read off the engine the factory built, never
+    taken from what the caller said it would build, so a row cannot claim a configuration that did
+    not run.
     """
 
     name: str = "astar"
@@ -85,7 +88,11 @@ class AStarLandmarkSelector(AbstractNystromLandmarkSelector):
     ) -> SearchResult[LandmarkState]:
         search = self.search_factory(problem, cost_function)
         result = search.run()
-        return replace(result, frontier_peak=getattr(search, "frontier_peak", None))
+        return replace(
+            result,
+            frontier_peak=getattr(search, "frontier_peak", None),
+            engine_configuration=getattr(search, "configuration", None),
+        )
 
 
 @dataclass(frozen=True, slots=True)

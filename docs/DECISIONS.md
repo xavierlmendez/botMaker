@@ -156,8 +156,8 @@ that expansion counts and returned subsets are unchanged on the search baseline 
 own cells against the certified optimum. Before this the engine was hard-coded in `AStarLandmarkSelector`
 and the UCI runner's selector list, so a variant could only be measured by a bespoke script, on cells
 nobody else runs, against numbers computed elsewhere.
-**Decision.** Three parts. (i) `AStarLandmarkSelector` takes `search_factory: (problem, cost_function) ->
-AStarSearch`, defaulting to exact `AStarSearch`, and `run_nystrom_on_uci_dataset` takes `selectors=None`,
+**Decision.** Three parts, all of them, not a choice among them. (i) `AStarLandmarkSelector` takes
+`search_factory: (problem, cost_function) -> AStarSearch`, defaulting to exact `AStarSearch`, and `run_nystrom_on_uci_dataset` takes `selectors=None`,
 which builds the default suite when omitted — so a variant is *added* under its own name, never
 substituted for the reference. (ii) The certified reference is identified by the name `"astar"`
 (`CERTIFIED_SELECTOR`), and a selector list without it is refused with a `ValueError` rather than
@@ -168,8 +168,27 @@ the certified optimum, so a run without one produces numbers that look like resu
 `frontier_peaks` keyed like `selector_results`. One optional field on the shared type was chosen over a
 `SelectorRun` wrapper: every existing selector keeps working through the default, and no second result
 type has to be kept in step with the first.
+**Amended 2026-09-06 (PR #35), part (i).** A factory is opaque: `PrunedAStarSearch(p, c,
+incumbent_slack=..., max_frontier=...)` binds its knobs inside the caller's lambda, so the harness
+recorded *that* a variant ran and never *how*. D-26 already rules that a number without its δ is not
+comparable; a cost is likewise not comparable across engine settings, and pruning knobs change the
+measurement while leaving the answer alone — which is precisely the pair that produces two rows that
+look alike and are not. So an engine describes itself: `AStarSearch.configuration` returns its
+JSON-serialisable settings (base: the class name), `PrunedAStarSearch` adds `incumbent_seed`,
+`incumbent_slack`, `max_frontier`, and the selector reads it off the instance it just ran, landing in
+`SearchResult.engine_configuration` and `UciHarnessResult.engine_configurations`. Read off the object,
+never accepted from the caller: a declared config could disagree with the lambda, and a record that
+misdescribes its own run is worse than one that says nothing. It is the complement of
+`mllib.describe.describe`, which names the knobs a class has rather than the values one instance got.
+A variant that forgets to override shows only its class name — incomplete on its face, not silently
+wrong. The printed block states a configuration only for engines differing from the reference's, so a
+default run's output is byte-identical.
 **Consequences.** `None` is "not measured", never zero; a reader who sees a peak knows an engine counted
-it. A variant engine's row is still labelled by `selector_kind`, which keys on the name, so a certified
+it. `SearchResult` carries what the search *paid* (`nodes_expanded`, `frontier_peak`) and how it was
+*set up* (`engine_configuration`), and that is the whole rule: a further measure of cost joins the
+first, a further knob is named inside the second, and nothing else is added to the shared type. That
+bound is what makes option (a) affordable — the `SelectorRun` wrapper was rejected for being larger
+today, and this is the line that stops it being larger tomorrow. A variant engine's row is still labelled by `selector_kind`, which keys on the name, so a certified
 variant prints as `instrumented` — deliberate under D-22 until the variant is certified in its own right,
 and the thing to revisit when one is. Defaults are a value (`default_selectors`), not a behaviour, so the
 suite's order and seeds are pinned by test and remain part of every committed number.

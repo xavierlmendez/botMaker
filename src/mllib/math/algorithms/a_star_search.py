@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import heapq
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, NoReturn
 
@@ -25,6 +26,16 @@ class SearchResult[State]:
     the largest number of entries the frontier held, for an engine that counts them. It is
     ``None`` when nobody counted — exact ``AStarSearch`` and every heuristic selector — so the
     field tells "not measured" apart from a measurement instead of carrying a fabricated zero.
+
+    ``engine_configuration`` is the settings the search actually ran under, read off the engine
+    rather than promised by the caller, and ``None`` for a selector that runs no search. A cost
+    means nothing without it: a pruned run and an uncapped one are different measurements even on
+    the same cell (D-26's rule, applied to the engine instead of to δ).
+
+    The type carries these three and no more: what the search *paid* (``nodes_expanded``,
+    ``frontier_peak``) and how it was *set up* (``engine_configuration``). A further measure of
+    cost joins the first, a further knob is named inside the second — nothing else is added here
+    (D-28).
     """
 
     state: State
@@ -32,6 +43,7 @@ class SearchResult[State]:
     optimal: bool
     nodes_expanded: int
     frontier_peak: int | None = None
+    engine_configuration: Mapping[str, object] | None = None
 
 
 class AStarSearch[State, Action](AbstractGraphAlgorithm):
@@ -64,6 +76,18 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
     def problem(self) -> AbstractGraphProblem[State, Action]:
         """The implicit problem being searched; the base class stores it as ``graph``."""
         return self.graph
+
+    @property
+    def configuration(self) -> dict[str, object]:
+        """The settings this search ran under, as JSON-serialisable values.
+
+        Read off the instance, so it reports what the engine *is* rather than what a caller said
+        it would be; ``mllib.describe.describe`` is the complement, naming the knobs a class has
+        rather than the values one instance was given. A variant overrides this to add its own
+        knobs, and one that forgets shows only its class name — visibly incomplete rather than
+        silently wrong. Exact A* has nothing to state but which engine ran.
+        """
+        return {"engine": type(self).__name__}
 
     def _search(self, context: SearchContext | None) -> SearchResult[State]:
         """Expand states in order of their lower bound until a goal is popped.
