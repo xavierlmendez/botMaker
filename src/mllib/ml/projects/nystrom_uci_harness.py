@@ -16,9 +16,9 @@ meant to be run across several scales, since one bandwidth on one subsample is n
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
-from math import comb
 from pathlib import Path
 
 from mllib.math.algorithms.a_star_search import SearchResult
@@ -81,6 +81,7 @@ class UciHarnessResult:
     selector_results: dict[str, SearchResult[LandmarkState]]
     frontier_peaks: dict[str, int | None]
     engine_configurations: dict[str, Mapping[str, object] | None]
+    certified_gaps: dict[str, float | None]
     cost_ratios_to_optimal: dict[str, float]
     randomized_summaries: dict[str, RandomizedSelectorSummary]
     randomized_mean_ratios_to_optimal: dict[str, float]
@@ -149,6 +150,13 @@ def run_nystrom_on_uci_dataset(
 
     selector_results = run_selector_suite(problem, cost_function, selectors=suite)
     certified_optimum = selector_results[CERTIFIED_SELECTOR]
+    # The name is how the reference is found; the certificate is what makes it one. An engine that
+    # stopped early under that name would ratio every row against an incumbent, not the optimum.
+    if not certified_optimum.optimal:
+        raise ValueError(
+            f"the selector named {CERTIFIED_SELECTOR!r} returned optimal=False (certified_gap="
+            f"{certified_optimum.certified_gap!r}): the reference must certify its optimum."
+        )
     optimal_cost = certified_optimum.cost
 
     # The single runs above are one draw each; these are what a report should quote.
@@ -186,6 +194,7 @@ def run_nystrom_on_uci_dataset(
         engine_configurations={
             name: result.engine_configuration for name, result in selector_results.items()
         },
+        certified_gaps={name: result.certified_gap for name, result in selector_results.items()},
         cost_ratios_to_optimal={
             name: cost_ratio(result.cost, optimal_cost) for name, result in selector_results.items()
         },
@@ -196,7 +205,7 @@ def run_nystrom_on_uci_dataset(
         },
         svd_rank_k_residual=svd_residual,
         subset_to_svd_ratio=cost_ratio(optimal_cost, svd_residual),
-        subset_count=comb(features.shape[0], landmark_count),
+        subset_count=math.comb(features.shape[0], landmark_count),
     )
 
 
@@ -225,18 +234,28 @@ def run_small_uci_suite(
     ]
 
 
-def selector_kind(name: str) -> str:
-    """Whether a selector's number is a result, a reference point, or instrumentation."""
+def selector_kind(name: str, result: SearchResult[LandmarkState]) -> str:
+    """Whether a selector's number is the reference, a result, a proof, a bracket, or instrumentation.
+
+    The reference and the published baselines are identified by name (D-22, D-28): a name is the
+    one thing a report cannot relabel. Everything else is read off what the selector proved:
+    ``certified`` for an engine that popped its own optimum, ``bounded`` for one a cap stopped with
+    a finite gap, ``instrumented`` for a number with no certificate behind it.
+    """
     if name == CERTIFIED_SELECTOR:
         return "optimum"
     if name in PUBLISHED_BASELINES:
         return "baseline"
+    if result.optimal:
+        return "certified"
+    if result.certified_gap is not None and math.isfinite(result.certified_gap):
+        return "bounded"
     return "instrumented"
 
 
-def selector_label(name: str) -> str:
+def selector_label(name: str, result: SearchResult[LandmarkState]) -> str:
     """The tag printed beside a selector, marking a single draw as the sample it is."""
-    kind = selector_kind(name)
+    kind = selector_kind(name, result)
     if name in SINGLE_DRAW_SELECTORS:
         return f"{kind}, 1 seed"
     return kind
@@ -253,10 +272,13 @@ def format_run(run: UciHarnessResult) -> str:
         f"subset/SVD={run.subset_to_svd_ratio:.3f}"
     ]
     for name, result in run.selector_results.items():
+        kind = selector_kind(name, result)
+        # A bounded row is an incumbent, and the gap is what makes its cost readable as one.
+        gap = f" gap={result.certified_gap:.4f}" if kind == "bounded" else ""
         lines.append(
-            f"  {name:>22} [{selector_label(name):>20}]: "
+            f"  {name:>22} [{selector_label(name, result):>20}]: "
             f"ratio={run.cost_ratios_to_optimal[name]:.3f} cost={result.cost:.4f} "
-            f"state={result.state} nodes={result.nodes_expanded}"
+            f"state={result.state} nodes={result.nodes_expanded}{gap}"
         )
     reference_engine = run.engine_configurations.get(CERTIFIED_SELECTOR)
     for name, configuration in run.engine_configurations.items():

@@ -187,6 +187,56 @@ Harness pass-through (PR #34, 2026-09-06, D-28): the A* selector takes a `search
 takes a `selectors` list, and `frontier_peak` rides out on `SearchResult` into `UciHarnessResult.frontier_peaks`,
 so M2 and any bounded variant can be measured on the harness's own cells beside the certified reference
 instead of through a bespoke script. Defaults unchanged: both baselines byte-identical, no snapshot regenerated.
+Anytime A\* with the a-posteriori gap (pass-2 entry ticket, 2026-09-07; research seed
+`sessions/2026-09-28-entry-ticket-slice.md`): `AnytimeAStarSearch(PrunedAStarSearch)` adds `max_expansions` beside
+the inherited `max_frontier` and turns both stops into a result — the incumbent, `optimal=False`, and the
+certified gap `incumbent − frontier_min` — instead of `FrontierLimitExceeded`. Uncapped it is exact A\* on every
+snapshot cell and both toy problems (same state, cost, expansions), so the F-6 cells that today end with nothing
+report a bracket `[frontier_min, incumbent]`. The bounded variant BL-31 named above is this one; M2 and T2 remain.
+
+### BL-34 — External-memory best-first search for the Nyström engine · `backlog-only` · large · reward R1
+
+The F-6 frontier (60 M entries, 7.4 GB) is the binding resource on flat-spectrum kernels at
+n = 1,000, and compute per expansion (~150 ms) exceeds the I/O to spill 300 entries (~36 KB) by
+five orders of magnitude, which inverts the premise of the external-memory-search literature
+(Edelkamp et al. External A\*; Korf 2004 DDD). Because states are canonical tuples the DAG is a
+tree and *no delayed duplicate detection is needed*, removing that literature's hardest part. Open
+design question: bucket granularity for a real-valued f (too wide expands above OPT; too narrow
+means many tiny files). First diagnostic, no code: dump the in-memory frontier's f-histogram at
+several points of an isolet5 run. Unlocks every X2.1 cell (A1, E1, F1, F2, F7 comparisons at the
+field's scale). Re-gate when a frontier abstraction exists (BL-31 M2 is the same seam). Origin:
+`research/candidates/_field-2.md` cell F5.
+
+### BL-35 — Removal-direction search with an incremental removal bound · `backlog-only` · large · reward R3
+
+Start from all n columns and remove (the Narendra–Fukunaga 1977 tree); prune layer k from both
+sides. Prerequisite: the removal bound as a rank-one *downdate of the complement*, or the tree has
+depth n − k ≈ 990 with near-full eigendecompositions at every node; plausible first at n ≤ 240
+with k near n. The bidirectional B&B shape for subset selection with monotone matrix criteria is
+Cao & Kariwala's (Comput. Chem. Eng. 2008–2010, min-singular-value criteria), so the claim is a
+*direction selector by k/n on this bound*, never the shape. Unlocks W7 (safe column elimination)
+as a by-product and the removal bound's use as a second bound (parked P7). Origin: cell G1.
+
+### BL-36 — Column-cluster abstraction as an admissible hierarchical bound · `backlog-only` · large · reward R1
+
+Cluster columns so every member is within ε of its representative; search over clusters with a
+bound inflated by a Wedin/Davis–Kahan slack 2ε√k‖Y‖₂/σ_min(Y_S); refine within chosen clusters
+(hierarchical A\*, Holte et al. 1996). The crux is admissibility, undetectable at the fp64 floor
+by comparing against known optima, and flat-spectrum columns have no cluster structure. First
+diagnostic, no engine change: cluster by kernel-column cosine on the S1 cells and check the
+cluster bound at the root against the known optima. A projection-cost-preserving sketch gives a
+stronger bound with no conditioning factor but touches pass-1 S25 (parked P8). Unlocks X2.5
+(per-expansion cost) at n = 1,000 if the abstraction prunes. Origin: cell H1.
+
+### BL-37 — SMA\* on the Nyström frontier (expected negative) · `backlog-only` · large · reward R1
+
+Delete the worst leaf at the cap and back up its f. Costs: a double-ended heap and parent
+pointers raise the per-entry size from ~120 B toward 200 B; regeneration re-prices a whole sibling
+batch (110 ms) per forgotten child; on plateaus max-f and min-f leaves differ by less than the
+rounding tolerance, so deletion thrashes. First diagnostic: simulate the deletion policy on a
+logged frontier of one F-6 cell and count regeneration events. Worth a row because "SMA\*'s
+regeneration accounting fails under batched, expensive evaluation" is a publishable negative and
+closes the family. Unlocks nothing until BL-34 fails. Origin: cell F4.
 
 ## Closed
 

@@ -35,6 +35,7 @@ import numpy as np
 import pytest
 
 from mllib.math.algorithms.a_star_search import AStarSearch
+from mllib.math.algorithms.anytime_a_star_search import AnytimeAStarSearch
 from mllib.math.algorithms.nystrom_landmark_selectors import GreedyResidualTraceLandmarkSelector
 from mllib.math.algorithms.pruned_a_star_search import PrunedAStarSearch
 from mllib.math.graph.nystrom_landmark_problem import (
@@ -252,3 +253,101 @@ def test_frontier_peak_on_spectf_40_3_at_scale_1_is_within_the_analytic_bound(ke
     kernel, k = kernels["SPECTF:n=40,k=3,scale=1.0"]
     _, frontier_peak = _pruned_search(kernel, k)
     assert frontier_peak <= 820
+
+
+# --- the anytime search on the baseline (pass-2 entry ticket) -----------------------------------
+
+
+def _anytime_search(kernel: np.ndarray, k: int, **knobs):
+    problem = NystromLandmarkProblem(kernel, k)
+    cost_function = NystromCssCostFunction(problem)
+    if knobs.pop("greedy_seed", False):
+        greedy = GreedyResidualTraceLandmarkSelector().select(problem, cost_function)
+        knobs.update(incumbent_seed=greedy.cost, incumbent_seed_state=greedy.state)
+    search = AnytimeAStarSearch(
+        problem,
+        cost_function,
+        incumbent_slack=INCUMBENT_SLACK_PER_TRACE * float(np.trace(kernel)),
+        **knobs,
+    )
+    return search.run(), search
+
+
+def test_the_uncapped_anytime_search_is_exact_a_star_on_every_cell(kernels, results):
+    # Entry-ticket seed, test 1: nothing stops it, so it must be the reference search exactly.
+    moved = []
+    for key, (kernel, k) in kernels.items():
+        result, search = _anytime_search(kernel, k)
+        moved.extend(_moved(key, result, results[key]))
+        if not result.optimal or search.certified_gap != 0.0:
+            moved.append(f"{key}: optimal={result.optimal} certified_gap={search.certified_gap}")
+    assert not moved, "anytime search moved the baseline:\n" + "\n".join(moved)
+
+
+def test_the_uncapped_anytime_search_with_the_greedy_seed_is_exact_on_every_cell(kernels, results):
+    # Entry-ticket seed, test 2: the seed prunes only what would never pop, as in the pruned engine.
+    moved = []
+    for key, (kernel, k) in kernels.items():
+        result, search = _anytime_search(kernel, k, greedy_seed=True)
+        moved.extend(_moved(key, result, results[key]))
+        if not result.optimal or search.certified_gap != 0.0:
+            moved.append(f"{key}: optimal={result.optimal} certified_gap={search.certified_gap}")
+    assert not moved, "seeded anytime search moved the baseline:\n" + "\n".join(moved)
+
+
+def test_a_frontier_cap_of_one_returns_the_greedy_seed_with_an_honest_gap(kernels, results):
+    # Entry-ticket seed, test 3, on a real cell: the root is expanded, the cap bites during the
+    # first batch, and the frontier minimum is at least the root bound, so the gap is at most the
+    # seed's distance from the root bound and never below the seed's true distance from the optimum.
+    kernel, k = kernels["SPECTF:n=40,k=3,scale=1.0"]
+    optimum = results["SPECTF:n=40,k=3,scale=1.0"]["residual_trace"]
+    problem = NystromLandmarkProblem(kernel, k)
+    root_bound = NystromCssCostFunction(problem).lower_bound(problem.initial_state())
+
+    result, search = _anytime_search(kernel, k, greedy_seed=True, max_frontier=1)
+
+    assert not result.optimal
+    assert result.nodes_expanded == 1
+    assert search.frontier_peak == 1
+    assert result.cost == search.incumbent_seed
+    assert result.state == search.incumbent_seed_state
+    assert root_bound <= search.frontier_min <= optimum + 1e-9
+    assert result.cost - optimum - 1e-9 <= search.certified_gap <= result.cost - root_bound + 1e-9
+
+
+def test_an_expansion_cap_on_the_largest_cell_brackets_the_certified_optimum(kernels, results):
+    # Entry-ticket seed, test 4: the largest cell by expansions, cut at three points of its run.
+    key = "SPECTF:n=60,k=4,scale=1.0"
+    kernel, k = kernels[key]
+    optimum = results[key]["residual_trace"]
+    exact_expansions = results[key]["nodes_expanded"]
+    for cap in (1, exact_expansions // 10, exact_expansions // 2):
+        result, search = _anytime_search(kernel, k, greedy_seed=True, max_expansions=cap)
+
+        assert not result.optimal, cap
+        assert result.nodes_expanded == cap
+        assert result.cost >= optimum - 1e-9, cap
+        assert search.frontier_min <= optimum + 1e-9, cap
+        assert search.certified_gap >= result.cost - optimum - 1e-9, cap
+        assert search.certified_gap == pytest.approx(max(result.cost - search.frontier_min, 0.0))
+
+
+def test_the_certified_gap_never_widens_as_the_expansion_cap_doubles(kernels, results):
+    # Entry-ticket seed, test 5: the consistency finding (BL-33) as a test. The incumbent only
+    # tightens and the frontier minimum never falls under a monotone bound, so the gap at
+    # 1, 2, 4, ... expansions is non-increasing; a rise of any size fails.
+    key = "SPECTF:n=40,k=3,scale=1.0"
+    kernel, k = kernels[key]
+    exact_expansions = results[key]["nodes_expanded"]
+    gaps = []
+    cap = 1
+    while cap < exact_expansions:
+        _, search = _anytime_search(kernel, k, greedy_seed=True, max_expansions=cap)
+        gaps.append(search.certified_gap)
+        cap *= 2
+    result, search = _anytime_search(kernel, k, greedy_seed=True, max_expansions=cap)
+    gaps.append(search.certified_gap)
+
+    assert result.optimal
+    assert gaps[-1] == 0.0
+    assert all(later <= earlier for earlier, later in itertools.pairwise(gaps)), gaps
