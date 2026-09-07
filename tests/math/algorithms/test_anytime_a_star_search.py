@@ -213,6 +213,8 @@ def test_configuration_states_the_expansion_cap_beside_the_inherited_knobs():
 
     assert search.configuration == {
         "engine": "AnytimeAStarSearch",
+        "tie_break": "fifo",
+        "tie_tolerance": 0.0,
         "count_bound_drops": False,
         "bound_drop_slack": 0.0,
         "incumbent_seed": 9.0,

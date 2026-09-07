@@ -6,7 +6,7 @@ import heapq
 import math
 from typing import Any, NoReturn
 
-from mllib.math.algorithms.a_star_search import AStarSearch, SearchResult
+from mllib.math.algorithms.a_star_search import AStarSearch, HeapEntry, SearchResult, TieBreak
 from mllib.math.algorithms.abstract_graph_algorithm import SearchContext
 from mllib.math.graph.abstract_graph_problem import AbstractGraphProblem
 from mllib.math.search_cost_function import SearchCostFunction
@@ -93,6 +93,16 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
     ``frontier_peak`` is ``None`` before ``run`` and afterwards the largest number of entries the
     frontier held, whether the search returned or raised: the memory cost beside ``nodes_expanded``
     as the time cost.
+
+    The incumbent's *state* is kept beside its cost (``incumbent_seed_state`` names the seed's,
+    when the caller knows it), for two readers: the anytime variant, which returns the incumbent at
+    a stop, and the tie tolerance (D-29). Under a tolerance a goal in the same cell as the incumbent
+    can pop before it, so a popped goal may be worse than a solution the search already holds; this
+    engine then returns the incumbent instead, with the gap recomputed against the same frontier
+    minimum, and certifies it only if the incumbent came from a priced goal and the gap is zero. At
+    tolerance zero the first goal popped is the frontier minimum and this never arises, so the
+    default path is unchanged; under a tolerance incumbent pruning also drops same-cell children
+    the base engine would expand, so the expansion count may differ from the base's there.
     """
 
     def __init__(
@@ -102,8 +112,11 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
         evaluator: Any | None = None,
         *,
         incumbent_seed: float | None = None,
+        incumbent_seed_state: State | None = None,
         incumbent_slack: float = 0.0,
         max_frontier: int | None = None,
+        tie_break: TieBreak = "fifo",
+        tie_tolerance: float = 0.0,
         count_bound_drops: bool = False,
         bound_drop_slack: float = 0.0,
     ):
@@ -111,6 +124,8 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
             problem,
             cost_function,
             evaluator,
+            tie_break=tie_break,
+            tie_tolerance=tie_tolerance,
             count_bound_drops=count_bound_drops,
             bound_drop_slack=bound_drop_slack,
         )
@@ -120,11 +135,19 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
             raise ValueError(
                 "incumbent_slack is an absolute rounding allowance and cannot be negative."
             )
+        if incumbent_seed_state is not None:
+            if incumbent_seed is None:
+                raise ValueError("incumbent_seed_state names the solution incumbent_seed costs.")
+            if not problem.is_goal(incumbent_seed_state):
+                raise ValueError("incumbent_seed_state must be a complete solution (a goal state).")
         self.incumbent_seed = incumbent_seed
+        self.incumbent_seed_state = incumbent_seed_state
         self.incumbent_slack = incumbent_slack
         self.max_frontier = max_frontier
         self.frontier_peak: int | None = None
         self._incumbent: float | None = None
+        self._incumbent_state: State | None = None
+        self._incumbent_from_search = False
         self._prune_above = math.inf
 
     @property
@@ -148,12 +171,32 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
             if self._incumbent is None
             else _prune_threshold(self._incumbent, self.incumbent_slack)
         )
+        self._incumbent_state = self.incumbent_seed_state
+        self._incumbent_from_search = False
         self.frontier_peak = 1  # the initial state
-        return super()._search(context)
+        result = super()._search(context)
+        # Only a tie tolerance can pop a goal above a held incumbent (same cell, earlier or deeper);
+        # the incumbent is the better answer and the frontier minimum at the pop bounds it too.
+        if (
+            self.tie_tolerance > 0.0
+            and self._incumbent is not None
+            and self._incumbent < result.cost
+            and self._incumbent_state != result.state
+        ):
+            frontier_min = result.cost - result.certified_gap
+            gap = max(self._incumbent - frontier_min, 0.0)
+            return SearchResult(
+                state=self._incumbent_state,
+                cost=self._incumbent,
+                optimal=gap == 0.0 and self._incumbent_from_search,
+                nodes_expanded=result.nodes_expanded,
+                certified_gap=gap,
+            )
+        return result
 
     def _push_children(
         self,
-        queue: list[tuple[float, int, State]],
+        queue: list[HeapEntry[State]],
         children: list[tuple[State, float]],
         insertion_index: int,
     ) -> int:
@@ -170,6 +213,8 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
             goal_cost = children[kept_goal][1]
             if self._incumbent is None or goal_cost < self._incumbent:
                 self._incumbent = goal_cost
+                self._incumbent_state = children[kept_goal][0]
+                self._incumbent_from_search = True
                 self._prune_above = _prune_threshold(goal_cost, self.incumbent_slack)
 
         prune_above = self._prune_above
@@ -185,7 +230,7 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
             if max_frontier is not None and len(queue) >= max_frontier:
                 self.frontier_peak = max(self.frontier_peak, len(queue))
                 raise FrontierLimitExceeded(max_frontier, self.frontier_peak)
-            heapq.heappush(queue, (bound, insertion_index, state))
+            heapq.heappush(queue, self._heap_entry(bound, insertion_index, state))
         # Pops happen once per expansion before any push, so the frontier is largest here.
         self.frontier_peak = max(self.frontier_peak, len(queue))
         return insertion_index

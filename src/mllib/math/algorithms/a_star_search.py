@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import heapq
+import math
 from array import array
 from bisect import bisect_left
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, NoReturn
+from typing import Any, Literal, NoReturn
 
 from mllib.math.algorithms.abstract_graph_algorithm import (
     AbstractGraphAlgorithm,
@@ -25,6 +26,12 @@ from mllib.math.search_cost_function import SearchCostFunction
 # ``incumbent_slack`` does — rounding on a residual trace scales with the trace, not with a bound
 # that may itself be rounding noise, and only the caller knows the trace.
 BOUND_DROP_ROUNDING_TOLERANCE = 1e-9
+
+TieBreak = Literal["fifo", "deepest"]
+
+# A frontier entry: (bound key, tie-break key, insertion index, bound, state). The first three order
+# the heap; the raw bound rides along because the key may be the bound quantised to a tolerance grid.
+type HeapEntry[State] = tuple[float | int, int, int, float, State]
 
 
 @dataclass(slots=True)
@@ -133,7 +140,17 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
     no smaller than its cost, and no completion can cost less than its own bound.
 
     Ties are broken first-in-first-out by insertion order, which keeps the search deterministic
-    without claiming that any tie-break is better than another.
+    without claiming that any tie-break is better than another. ``tie_break="deepest"`` prefers
+    the deeper state among equal bounds (then insertion order), for the plateaus where many
+    states share the optimum's bound and first-in-first-out enumerates them level by level;
+    it needs sized states, since depth is ``len(state)``. ``tie_tolerance`` is the absolute
+    amount (in the objective's units, the same shape as ``incumbent_slack``) within which two
+    bounds count as tied: the heap key becomes the bound quantised to that grid, so near-ties
+    compare equal and the tie-break decides. With a tolerance the popped goal is certified only
+    when its bound is at or below every remaining raw bound; otherwise the result is
+    ``optimal=False`` with the honest additive gap on ``certified_gap``, which is below the
+    tolerance by construction. At tolerance zero the key is the raw bound and the certificate is
+    exact; the defaults leave the search byte-identical to the reference.
 
     This class stores every child it prices; it is the exact algorithm and the reference every
     variant is measured against. The loop is split into three steps a variant can override on its
@@ -159,15 +176,23 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         cost_function: SearchCostFunction[State, Action],
         evaluator: Any | None = None,
         *,
+        tie_break: TieBreak = "fifo",
+        tie_tolerance: float = 0.0,
         count_bound_drops: bool = False,
         bound_drop_slack: float = 0.0,
     ):
         super().__init__(problem, evaluator)
+        if tie_break not in ("fifo", "deepest"):
+            raise ValueError(f"tie_break must be 'fifo' or 'deepest', not {tie_break!r}.")
+        if not tie_tolerance >= 0.0:
+            raise ValueError("tie_tolerance is an absolute allowance on the bound; not negative.")
         if not bound_drop_slack >= 0.0:
             raise ValueError(
                 "bound_drop_slack is an absolute rounding allowance and cannot be negative."
             )
         self.cost_function = cost_function
+        self.tie_break = tie_break
+        self.tie_tolerance = tie_tolerance
         self.count_bound_drops = count_bound_drops
         self.bound_drop_slack = bound_drop_slack
         self.bound_drops: BoundDropCounter | None = None
@@ -185,13 +210,44 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         it would be; ``mllib.describe.describe`` is the complement, naming the knobs a class has
         rather than the values one instance was given. A variant overrides this to add its own
         knobs, and one that forgets shows only its class name — visibly incomplete rather than
-        silently wrong. Exact A* states which engine ran and whether it counted bound drops.
+        silently wrong. Exact A* states which engine ran, how it broke ties and whether it counted
+        bound drops.
         """
         return {
             "engine": type(self).__name__,
+            "tie_break": self.tie_break,
+            "tie_tolerance": self.tie_tolerance,
             "count_bound_drops": self.count_bound_drops,
             "bound_drop_slack": self.bound_drop_slack,
         }
+
+    def _heap_entry(self, bound: float, insertion_index: int, state: State) -> HeapEntry[State]:
+        """The frontier entry for a priced state: the key the heap orders by, then the bound and state.
+
+        The key is ``(bound_key, tiebreak_key, insertion_index)``. With the defaults the bound key
+        is the raw bound and the tie-break key is zero, so the order is the reference's
+        ``(bound, insertion_index)`` exactly. A tolerance quantises the bound key to its grid
+        (floor to a multiple), so bounds within one cell compare equal; ``"deepest"`` puts
+        ``-len(state)`` in the tie-break key.
+        """
+        bound_key: float | int = bound
+        if self.tie_tolerance > 0.0:
+            bound_key = math.floor(bound / self.tie_tolerance)
+        tiebreak_key = -len(state) if self.tie_break == "deepest" else 0
+        return (bound_key, tiebreak_key, insertion_index, bound, state)
+
+    def _frontier_minimum(self, queue: list[HeapEntry[State]]) -> float:
+        """The smallest raw bound on the frontier; ``inf`` when it is empty.
+
+        At tolerance zero the heap's top holds it. Under a tolerance the top is only the smallest
+        *cell*, and the raw minimum may sit deeper in the heap, so the entries are scanned — once
+        per certificate, never per expansion.
+        """
+        if not queue:
+            return math.inf
+        if self.tie_tolerance == 0.0:
+            return queue[0][3]
+        return min(entry[3] for entry in queue)
 
     def _search(self, context: SearchContext | None) -> SearchResult[State]:
         """Expand states in order of their lower bound until a goal is popped.
@@ -199,10 +255,10 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         ``context`` is unused: an implicit problem carries its own start state and goal test.
         """
         initial_state = self.problem.initial_state()
-        # Queue entries are (bound, insertion order, state): the heap pops the smallest bound, and
-        # the insertion order breaks ties first-in-first-out.
-        queue: list[tuple[float, int, State]] = [
-            (self.cost_function.lower_bound(initial_state), 0, initial_state)
+        # The heap pops the smallest bound key, then the tie-break key, then the insertion order:
+        # first-in-first-out on the raw bound unless the caller asked otherwise (``_heap_entry``).
+        queue: list[HeapEntry[State]] = [
+            self._heap_entry(self.cost_function.lower_bound(initial_state), 0, initial_state)
         ]
         insertion_index = 0
         expanded: set[State] = set()
@@ -218,19 +274,25 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         run_depths = array("q")
 
         while queue:
-            bound, index, state = heapq.heappop(queue)
+            _, _, index, bound, state = heapq.heappop(queue)
             if state in expanded:
                 continue
             expanded.add(state)
             nodes_expanded += 1
 
             if self.problem.is_goal(state):
+                # At tolerance zero the popped goal's bound is the frontier minimum by heap order,
+                # so the proof is exact. Under a tolerance a smaller raw bound may remain in the
+                # goal's cell, and the difference is what the search can honestly certify.
+                gap = 0.0
+                if self.tie_tolerance > 0.0:
+                    gap = max(bound - self._frontier_minimum(queue), 0.0)
                 return SearchResult(
                     state=state,
                     cost=self.cost_function.goal_cost(state),
-                    optimal=True,
+                    optimal=gap == 0.0,
                     nodes_expanded=nodes_expanded,
-                    certified_gap=0.0,
+                    certified_gap=gap,
                 )
 
             children = self._price_children(state, expanded)
@@ -263,7 +325,7 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
 
     def _push_children(
         self,
-        queue: list[tuple[float, int, State]],
+        queue: list[HeapEntry[State]],
         children: list[tuple[State, float]],
         insertion_index: int,
     ) -> int:
@@ -274,7 +336,7 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         """
         for state, bound in children:
             insertion_index += 1
-            heapq.heappush(queue, (bound, insertion_index, state))
+            heapq.heappush(queue, self._heap_entry(bound, insertion_index, state))
         return insertion_index
 
     def _no_goal_reachable(self) -> NoReturn:

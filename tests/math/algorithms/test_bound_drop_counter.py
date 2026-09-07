@@ -80,6 +80,8 @@ def test_the_counter_is_off_by_default_and_the_configuration_says_so():
 
     assert search.configuration == {
         "engine": "AStarSearch",
+        "tie_break": "fifo",
+        "tie_tolerance": 0.0,
         "count_bound_drops": False,
         "bound_drop_slack": 0.0,
     }

@@ -416,3 +416,39 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 - **Reference.** Hansen & Zhou, *JAIR* 2007 (anytime heuristic search; the incumbent–bound gap as the
   quality guarantee); Land & Doig 1960 and Lawler & Wood 1966 (the branch-and-bound bracket); Pearl,
   *Heuristics* 1984, §3.1 (why the frontier minimum never falls under a monotone bound).
+
+## Tie-breaking on a plateau: 2^k was the heap order, not the search · 2026-09-07
+- **What.** With a terminal-only objective the priority is the bound alone, and on nearly rank-k data
+  many states share the optimum's bound: a plateau. A heap that breaks ties first-in-first-out expands the
+  plateau level by level and pops a goal only when the levels above it are exhausted — the "exact A\*
+  enumerates 2^k" of the reproduction. Preferring the deeper state among equals walks one path to a goal
+  and certifies it after k + 1 expansions, because on a plateau at the optimum every child of a plateau
+  state is at or above the optimum and the goal's bound is its cost (Dechter & Pearl's remark that below
+  the optimum no tie-break helps, and at it any depth-first one does).
+- **Where.** `math/algorithms/a_star_search.py` (`tie_break`, `tie_tolerance`, `_heap_entry`,
+  `_frontier_minimum`; the goal-pop certificate under a tolerance); the pruned and anytime engines push
+  through `_heap_entry` and inherit both knobs; tests in `tests/math/algorithms/test_tie_break.py` and the
+  tie-breaking section of `tests/ml/test_nystrom_search_baseline.py`. D-29.
+- **Design.** The heap entry became `(bound key, tie-break key, insertion index, bound, state)`; with the
+  defaults the key is `(bound, 0, index)`, which sorts exactly as the old `(bound, index)`, so the default
+  path is byte-identical without a branch. Near-ties are made equal by quantising the bound key to the
+  tolerance grid, an integer cell, rather than by pairwise comparison, which is not a total order. The
+  raw bound rides along because under a tolerance the heap's top is only the smallest cell, and the
+  certificate needs the smallest raw bound: one scan of the heap at the goal pop, never per expansion.
+- **What was confusing.** What `optimal` means once ties have a width. The popped goal is within the
+  tolerance of the frontier minimum by construction, so "certified within τ" is always true and says
+  nothing. The honest statement is the one the engine can check: exact when the goal's bound is at or
+  below every remaining raw bound, else `optimal=False` with the gap it did not look under, which PR 1's
+  `certified_gap` already carries. So the flag kept its one meaning and the tolerance became an additive
+  certificate, as C9's wording predicted. The reviewer then found the second half: with ties a cell wide,
+  a goal can pop *before* a cheaper goal in the same cell that the pruned engine already holds as its
+  incumbent, so the engine would return a worse answer than one on its own heap. The incumbent's state
+  is now kept beside its cost, and an engine that holds one returns it when the popped goal is worse.
+- **Numbers.** Toy plateau (equal weights, n = 2k): first-in-first-out expands 2^k − 1 or more, deeper-
+  first exactly k + 1, for k = 3, 4, 5. On the snapshot's plateau fixtures (identity and all-ones at
+  k = 3, the palindromic RBF chains) deeper-first at tolerance zero certifies the same optimum in no more
+  expansions than first-in-first-out; on the SPECTF cells, which have no exact ties, the counts are
+  identical (recorded in the PR). Nothing changes on any cell under the defaults.
+- **Reference.** Dechter & Pearl, *JACM* 1985 (tie-breaking and the optimality of A\*); Asai & Fukunaga,
+  *JAIR* 2017 (tie-breaking strategies for cost-optimal search, the depth-based rules); Xu, Yan & Chang,
+  *ICPR* 1988 (best-first branch and bound for feature selection, the plateau in this problem's family).
