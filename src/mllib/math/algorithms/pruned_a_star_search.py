@@ -104,8 +104,16 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
         incumbent_seed: float | None = None,
         incumbent_slack: float = 0.0,
         max_frontier: int | None = None,
+        count_bound_drops: bool = False,
+        bound_drop_slack: float = 0.0,
     ):
-        super().__init__(problem, cost_function, evaluator)
+        super().__init__(
+            problem,
+            cost_function,
+            evaluator,
+            count_bound_drops=count_bound_drops,
+            bound_drop_slack=bound_drop_slack,
+        )
         if max_frontier is not None and max_frontier < 1:
             raise ValueError("max_frontier must be at least 1: the frontier starts with one state.")
         if not incumbent_slack >= 0.0:

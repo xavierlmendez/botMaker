@@ -94,7 +94,11 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
   `default_selectors(sample_seed)` and passed as `run_nystrom_on_uci_dataset(..., selectors=...)`.
   The name `"astar"` must stay in the list; it is the reference every ratio is taken against (D-28).
   A variant that adds a knob overrides `configuration` to name it, or its rows go on the record
-  without the settings that produced them (D-28, amended).
+  without the settings that produced them (D-28, amended). The base engine has one opt-in
+  measurement of its own, `count_bound_drops` (`BoundDropCounter`, with `bound_drop_slack` as the
+  caller-stated rounding allowance): whether a child's bound ever fell below its parent's as priced.
+  Off by default, it changes no expansion or result and leaves its counts on the instance as
+  `bound_drops`, not on `SearchResult`, which carries only what the search paid and how it was set up.
 - **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
   `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
   by class name in the project's JSON config.

@@ -338,3 +338,41 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 - **Reference.** Arai, Maung & Schweitzer, AAAI 2015, §5 (the (k̄ + 1)·f rule this slice does *not*
   build, and D-27's reason); Russell & Norvig, *AIMA*, §3.5 for the termination argument the filter and
   pruning rest on.
+
+## Consistency of the spectral bound: measured on S1, then explained · 2026-09-06
+- **What.** A* needs an *admissible* bound to be a proof; a *consistent* one (Hart, Nilsson and Raphael's
+  monotone restriction: a child's bound never below its parent's) is a second property that a
+  terminal-only objective does not need for correctness, since with g ≡ 0 the priority f = h is
+  path-independent and duplicates are detected by state (D-23). It matters for two other things: whether
+  the frontier minimum — the anytime gap of X1.1 — can move backwards mid-run, and whether a tight root
+  bound predicts pruning. Whether the Nyström spectral bound has it was unverified, so it was measured:
+  an opt-in counter on the engine compares every child bound with the popped parent bound, as priced by
+  the batched path the search actually runs (D-24), and a grid run over the S1 cells recorded the counts.
+- **Where.** `math/algorithms/a_star_search.py` (`BoundDropCounter`, `count_bound_drops`,
+  `bound_drop_slack`, `bound_drops` on the instance, `BOUND_DROP_ROUNDING_TOLERANCE`), passed through by
+  `PrunedAStarSearch`; tests in `tests/math/algorithms/test_bound_drop_counter.py`; the runner and result
+  file live research-side (`~/Desktop/BotMaker/nystrom-grid/run_monotonicity.py`,
+  `nystrom/data/monotonicity-S1-v1.jsonl`).
+- **Design.** The counter lives on the engine, not the cost function, because only the engine holds the
+  parent's bound as it was pushed; recomputing it through the oracle would compare two arithmetic paths
+  and count their disagreement as drops. Depth is recovered without storing anything per state: the
+  children of one expansion take one contiguous run of insertion indices (the `_push_children` contract),
+  so two arrays with one entry per expansion and a bisection on the popped index give the depth. Rounding
+  is named, not ignored: a strict drop is counted, and a drop is called the bound's only when it exceeds
+  1e-9 of the parent plus an absolute slack the caller states from the objective's scale — the same shape as
+  the incumbent threshold, for the same reason: a parent bound that is itself rounding noise makes any
+  drop below it look total, and only the trace knows what "small" is.
+- **Numbers.** Read from `nystrom/data/monotonicity-S1-v1.jsonl` (research side; grid runner `run_monotonicity.py`, botMaker at this PR, `PrunedAStarSearch` seeded from the greedy residual trace, the counter on with a slack of 1e-12 of the trace). At δ = 0, all 2,380 S1 cells: 4,471,163,589 child bounds priced, **0 strictly below their parent** — not one, not even at rounding level — so 0 of 2,380 cells with a drop, worst relative drop 0, no depth to report; every cell returned S1's certified cost. At δ = 1e-4, the 665 S1 cells where that tolerance actually drops modes (retained rank between 0.41 n and n, median 0.95 n): 389,805,416 child bounds priced, again 0 strict drops, and the same optimum cost as at δ = 0 on every cell. Drops concentrate on neither flat spectra nor ties, because there are none: every top-k trace-share bin from [0, 0.2) to [0.8, 1] reads 0, and the 20 brute-force cells with a tied optimum read 0. The counter's rounding allowance was never needed; the batched path (D-24) keeps the inequality exactly. A side observation: 33 of the 2,380 cells returned a different landmark set from S1 at a bit-identical cost and expansion count, all on movement_libras, each swapping a landmark for a duplicate row of the dataset (32 bit-identical kernel columns, one differing by an ulp) — a tie broken the other way by the downdated arithmetic, not a change in the search.
+- **Why the measurement comes out this way.** In the reduced coordinates the parent's residual Gram is
+  H ⪰ 0 and a child that adds column j has the residual Gram H − zzᵀ with ‖z‖² the column's residual
+  energy. The parent's bound is tr H − (sum of the top r eigenvalues of H); the child's is
+  (tr H − ‖z‖²) − (sum of the top r − 1 eigenvalues of H − zzᵀ). By Ky Fan's maximum principle the top-r
+  sum of H is the maximum of tr(PH) over rank-r orthogonal projections P; taking P onto the span of z and
+  the top r − 1 eigenvectors of H − zzᵀ gives tr(PH) = tr(P(H − zzᵀ)) + ‖z‖² ≥ (top r − 1 sum of H − zzᵀ) + ‖z‖²,
+  the inequality because H − zzᵀ ⪰ 0. Rearranged, child bound ≥ parent bound. At goal depth the child's
+  value is its exact cost on K, and D-26's admissibility gives the same inequality against a parent bounded
+  on the truncated K̃, so the argument covers every δ. The measurement was still the deliverable: the
+  argument is exact arithmetic, and the counter is what says the floating-point path keeps it.
+- **Reference.** Hart, Nilsson and Raphael 1968 (the consistency condition); Pearl, *Heuristics* 1984, §3.1
+  (monotone heuristics and why A* never reopens under them); Fan, *PNAS* 1949 (the maximum principle);
+  Horn and Johnson, *Matrix Analysis*, Cor. 4.3.39 (Ky Fan in the form used).
