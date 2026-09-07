@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import heapq
-from collections.abc import Mapping
-from dataclasses import dataclass
+from array import array
+from bisect import bisect_left
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
 from typing import Any, NoReturn
 
 from mllib.math.algorithms.abstract_graph_algorithm import (
@@ -13,6 +15,74 @@ from mllib.math.algorithms.abstract_graph_algorithm import (
 )
 from mllib.math.graph.abstract_graph_problem import AbstractGraphProblem
 from mllib.math.search_cost_function import SearchCostFunction
+
+# A parent's bound and its children's come from different arithmetic paths (each batch is priced from
+# its own parent's decomposition, D-24), so two bounds that are equal in exact arithmetic agree only to
+# rounding. A child below its parent by less than this fraction of the parent, plus the absolute
+# ``rounding_slack`` the caller states, is that rounding and not a property of the bound; the counter
+# reports both counts so a reader can tell the two apart. The relative part is the same order as
+# ``INCUMBENT_RELATIVE_SLACK`` in the pruned variant; the absolute part exists for the same reason
+# ``incumbent_slack`` does — rounding on a residual trace scales with the trace, not with a bound
+# that may itself be rounding noise, and only the caller knows the trace.
+BOUND_DROP_ROUNDING_TOLERANCE = 1e-9
+
+
+@dataclass(slots=True)
+class BoundDropCounter:
+    """How often a child's bound fell below its parent's in one search: the consistency measurement.
+
+    A* proves optimality with an admissible bound. *Consistency* — a child's bound never below its
+    parent's, so the bound is monotone along the tree — is a second property that a terminal-only
+    objective does not need for correctness: with g ≡ 0 the priority is path-independent and
+    duplicates are detected by state (D-23). It decides instead how the frontier minimum behaves
+    over a run, which is the anytime gap, and whether a tight root bound predicts pruning. That is
+    a question about a particular bound on particular data, so it is measured, not argued: this
+    counter records the answer and changes nothing about the search.
+
+    ``children_priced`` is every child bounded during the run. ``drops`` counts the children whose
+    bound was strictly below their parent's; ``drops_beyond_rounding`` those below by more than
+    ``BOUND_DROP_ROUNDING_TOLERANCE`` of the parent's bound plus ``rounding_slack``, the absolute
+    allowance the caller states for the objective's scale. ``drops_by_depth`` keys the strict drops
+    by the child's depth (the initial state is depth 0). The ``worst_*`` fields describe the largest
+    drop beyond rounding, relative to the parent, ``(parent - child) / |parent|``, which is ``inf``
+    for a drop below a parent bounded at exactly zero. A run whose every drop is within rounding
+    leaves the worst at zero and its depth at ``None``: the strict count says there were drops, the
+    worst says none of them was the bound's doing.
+    """
+
+    rounding_slack: float = 0.0
+    children_priced: int = 0
+    drops: int = 0
+    drops_beyond_rounding: int = 0
+    drops_by_depth: dict[int, int] = field(default_factory=dict)
+    worst_relative_drop: float = 0.0
+    worst_drop_depth: int | None = None
+    worst_drop_parent_bound: float | None = None
+    worst_drop_child_bound: float | None = None
+
+    def record(self, parent_bound: float, child_bounds: Iterable[float], child_depth: int) -> None:
+        """Compare one parent's bound with each of its children's; children are at ``child_depth``."""
+        child_bounds = list(child_bounds)
+        self.children_priced += len(child_bounds)
+        if not child_bounds or min(child_bounds) >= parent_bound:
+            return
+        scale = abs(parent_bound)
+        rounding = BOUND_DROP_ROUNDING_TOLERANCE * scale + self.rounding_slack
+        for child_bound in child_bounds:
+            if child_bound >= parent_bound:
+                continue
+            self.drops += 1
+            self.drops_by_depth[child_depth] = self.drops_by_depth.get(child_depth, 0) + 1
+            drop = parent_bound - child_bound
+            if drop <= rounding:
+                continue
+            self.drops_beyond_rounding += 1
+            relative = drop / scale if scale > 0.0 else float("inf")
+            if relative > self.worst_relative_drop:
+                self.worst_relative_drop = relative
+                self.worst_drop_depth = child_depth
+                self.worst_drop_parent_bound = parent_bound
+                self.worst_drop_child_bound = child_bound
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +131,17 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
     own: ``_price_children`` (generate and bound a parent's children), ``_push_children`` (decide
     what enters the frontier) and ``_no_goal_reachable`` (what an empty frontier means).
     ``PrunedAStarSearch`` overrides the last two.
+
+    ``count_bound_drops`` turns on the one measurement the engine can make that no cost function
+    can: whether a child's bound ever falls below its parent's as the search actually priced them
+    (``BoundDropCounter``). It is off by default, changes no expansion and no result, and its
+    answer is left on the instance as ``bound_drops`` after ``run`` — a property of the bound on
+    the data, not something the search paid or was set up with, so it does not ride on
+    ``SearchResult`` (D-28). ``bound_drop_slack`` is the absolute amount by which a child may fall
+    below its parent and still be rounding rather than a drop, stated by the caller because only
+    the caller knows the objective's scale (a Nyström caller passes a small multiple of the kernel
+    trace, as it does for ``incumbent_slack``). Both are stated by ``configuration``, so a harness
+    row that ran with the counter on says so.
     """
 
     def __init__(
@@ -68,9 +149,19 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         problem: AbstractGraphProblem[State, Action],
         cost_function: SearchCostFunction[State, Action],
         evaluator: Any | None = None,
+        *,
+        count_bound_drops: bool = False,
+        bound_drop_slack: float = 0.0,
     ):
         super().__init__(problem, evaluator)
+        if not bound_drop_slack >= 0.0:
+            raise ValueError(
+                "bound_drop_slack is an absolute rounding allowance and cannot be negative."
+            )
         self.cost_function = cost_function
+        self.count_bound_drops = count_bound_drops
+        self.bound_drop_slack = bound_drop_slack
+        self.bound_drops: BoundDropCounter | None = None
 
     @property
     def problem(self) -> AbstractGraphProblem[State, Action]:
@@ -85,9 +176,13 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         it would be; ``mllib.describe.describe`` is the complement, naming the knobs a class has
         rather than the values one instance was given. A variant overrides this to add its own
         knobs, and one that forgets shows only its class name — visibly incomplete rather than
-        silently wrong. Exact A* has nothing to state but which engine ran.
+        silently wrong. Exact A* states which engine ran and whether it counted bound drops.
         """
-        return {"engine": type(self).__name__}
+        return {
+            "engine": type(self).__name__,
+            "count_bound_drops": self.count_bound_drops,
+            "bound_drop_slack": self.bound_drop_slack,
+        }
 
     def _search(self, context: SearchContext | None) -> SearchResult[State]:
         """Expand states in order of their lower bound until a goal is popped.
@@ -104,8 +199,17 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         expanded: set[State] = set()
         nodes_expanded = 0
 
+        # Bookkeeping for the bound-drop counter only. The children of one expansion take one
+        # contiguous run of insertion indices, pushed or not (the ``_push_children`` contract), so
+        # the depth of a popped entry is the depth of the run its index falls in: two arrays with
+        # one entry per expansion, and nothing stored per state.
+        counter = BoundDropCounter(self.bound_drop_slack) if self.count_bound_drops else None
+        self.bound_drops = counter
+        run_ends = array("q")
+        run_depths = array("q")
+
         while queue:
-            _, _, state = heapq.heappop(queue)
+            bound, index, state = heapq.heappop(queue)
             if state in expanded:
                 continue
             expanded.add(state)
@@ -120,7 +224,14 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
                 )
 
             children = self._price_children(state, expanded)
+            if counter is not None:
+                depth = 0 if index == 0 else run_depths[bisect_left(run_ends, index)]
+                counter.record(bound, (child_bound for _, child_bound in children), depth + 1)
+                last_index = insertion_index
             insertion_index = self._push_children(queue, children, insertion_index)
+            if counter is not None and insertion_index > last_index:
+                run_ends.append(insertion_index)
+                run_depths.append(depth + 1)
 
         self._no_goal_reachable()
 

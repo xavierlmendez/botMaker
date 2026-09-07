@@ -183,6 +183,11 @@ misdescribes its own run is worse than one that says nothing. It is the compleme
 A variant that forgets to override shows only its class name — incomplete on its face, not silently
 wrong. The printed block states a configuration only for engines differing from the reference's, so a
 default run's output is byte-identical.
+**Amended 2026-09-07 (BL-33).** The base configuration is no longer the class name alone: `AStarSearch` has
+one measurement of its own, the bound-drop counter, and its two knobs (`count_bound_drops`,
+`bound_drop_slack`) are stated there under the same rule, so a row that ran with the counter on says so.
+The counter's result stays on the instance (`bound_drops`), not on `SearchResult`: it is a property of
+the bound on the data, neither paid nor set up.
 **Consequences.** `None` is "not measured", never zero; a reader who sees a peak knows an engine counted
 it. `SearchResult` carries what the search *paid* (`nodes_expanded`, `frontier_peak`) and how it was
 *set up* (`engine_configuration`), and that is the whole rule: a further measure of cost joins the

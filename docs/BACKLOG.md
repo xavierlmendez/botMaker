@@ -190,6 +190,18 @@ instead of through a bespoke script. Defaults unchanged: both baselines byte-ide
 
 ## Closed
 
+### BL-33 — Is the spectral bound monotone along the tree? · closed 2026-09-07 (this PR; research session seed `sessions/2026-09-18-monotonicity-check.md`, run early)
+
+A* with a terminal-only objective needs only admissibility (D-23), so nothing in the engine had ever
+checked whether a child's bound can fall below its parent's — which decides how the anytime gap
+(incumbent minus frontier minimum) behaves mid-run and whether root tightness predicts pruning, the
+question the research side's parked idea P2 waits on. Closed by an opt-in counter on `AStarSearch`
+(`count_bound_drops`, `bound_drop_slack`; `BoundDropCounter` left on the instance as `bound_drops`,
+stated by `configuration`), off by default and with no effect on any expansion or result, and by a
+grid run over the S1 cells whose result file and finding live research-side
+(`nystrom/data/monotonicity-S1-v1.jsonl`, `method/13-search-landscape.md`). The bound, the objective and
+the search order were not touched: a non-monotone bound is a finding, not a bug.
+
 ### BL-32 — A harness row does not say which engine settings produced it · closed 2026-09-06 (PR #35, D-28)
 
 D-28 made the engine a parameter, but a `search_factory` binds its knobs inside the caller's lambda, so

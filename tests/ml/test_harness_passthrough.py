@@ -185,7 +185,11 @@ def test_the_default_run_records_the_reference_engine_and_nothing_for_the_rest(u
     run = _run(uci_data_dir)
 
     assert set(run.engine_configurations) == set(run.selector_results)
-    assert run.engine_configurations["astar"] == {"engine": "AStarSearch"}
+    assert run.engine_configurations["astar"] == {
+        "engine": "AStarSearch",
+        "count_bound_drops": False,
+        "bound_drop_slack": 0.0,
+    }
     # A selector that runs no search has no engine to describe, and says so rather than inventing.
     assert run.engine_configurations["greedy_trace"] is None
     assert run.engine_configurations["random_single_draw"] is None
@@ -207,6 +211,8 @@ def test_a_variant_records_the_settings_it_actually_ran_under(uci_data_dir: Path
 
     assert run.engine_configurations["astar-pruned"] == {
         "engine": "PrunedAStarSearch",
+        "count_bound_drops": False,
+        "bound_drop_slack": 0.0,
         "incumbent_seed": None,
         "incumbent_slack": 1e-12,
         "max_frontier": 5_000,
@@ -244,5 +250,9 @@ def test_a_variant_that_states_no_knobs_is_visibly_incomplete_rather_than_silent
     problem = NystromLandmarkProblem(np.eye(4), landmark_count=2)
     search = UndeclaredVariant(problem, NystromCssCostFunction(problem), budget=9)
 
-    assert search.configuration == {"engine": "UndeclaredVariant"}
+    assert search.configuration == {
+        "engine": "UndeclaredVariant",
+        "count_bound_drops": False,
+        "bound_drop_slack": 0.0,
+    }
     assert "budget" not in search.configuration
