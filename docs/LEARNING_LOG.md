@@ -376,3 +376,43 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 - **Reference.** Hart, Nilsson and Raphael 1968 (the consistency condition); Pearl, *Heuristics* 1984, §3.1
   (monotone heuristics and why A* never reopens under them); Fan, *PNAS* 1949 (the maximum principle);
   Horn and Johnson, *Matrix Analysis*, Cor. 4.3.39 (Ky Fan in the form used).
+
+## Anytime A\* with the a-posteriori gap: a stopped search still proves something · 2026-09-07
+- **What.** Best-first search with an admissible bound keeps two numbers at every moment: the best
+  complete solution it has seen (the incumbent, an upper bound on the optimum) and the smallest bound on
+  its frontier (a lower bound: no completion of any unexpanded state can cost less). A\* proves
+  optimality when the two meet, at the pop of a goal. Stopped earlier, by a memory cap or an expansion
+  budget, the pair still brackets the optimum, and `incumbent − frontier_min` is an additive certificate
+  on the incumbent — the branch-and-bound gap, made an output. The pass-2 entry ticket.
+- **Where.** `math/algorithms/anytime_a_star_search.py` (`AnytimeAStarSearch(PrunedAStarSearch)`,
+  `max_expansions`, `incumbent_seed_state`, `certified_gap`, `frontier_min`); `SearchResult.certified_gap`
+  (D-28 amended); the harness's `bounded` label and reference guard in `ml/projects/nystrom_uci_harness.py`;
+  tests in `tests/math/algorithms/test_anytime_a_star_search.py` and the anytime section of
+  `tests/ml/test_nystrom_search_baseline.py`.
+- **Design.** A variant over the pruned engine, which already holds the incumbent, the cap and the
+  goal-sibling filter; it adds the incumbent's *state* (the pruned engine keeps only the cost) and the
+  expansion budget, and turns both stops into a result. The base loop is not copied: the caps raise from
+  `_push_children`, where the engine already learns the batch and the heap, and `_search` catches the
+  stop and builds the bounded result — one private exception instead of a second copy of the loop and
+  its bound-drop bookkeeping. The frontier minimum is read at the stop: the heap's top at an expansion
+  cap, and at a frontier cap the minimum over the heap *and every child of the interrupted batch*, since
+  those children are on the frontier whether or not they were pushed. Neither reading assumes the
+  bound is monotone; monotonicity (BL-33) is what makes the gap non-increasing over a run, which the
+  doubling-cap test pins on a real cell.
+- **What was confusing.** Whether a stop whose gap clamps to zero should say `optimal=True`. In exact
+  arithmetic the evidence is the same as a popped goal's: every remaining bound is at or above the
+  incumbent. But the incumbent may be a seed from another arithmetic path whose state the engine cannot
+  see, and the pruned engine never returns a seed as the answer either; it waits to pop a goal. So the
+  flag means one thing only, "a goal was popped as the frontier minimum", and a zero gap at a stop is left
+  for the reader to draw the conclusion from. The other confusion was the frontier cap: `max_frontier=1`
+  bites on the *second* push of the root's batch, so one child is on the heap and the rest are not, and
+  reading only the heap would overstate the frontier minimum by the batch's spread.
+- **Numbers.** Uncapped, the variant expands exactly what exact A\* expands on all 13 snapshot cells,
+  seeded and unseeded, and returns the same landmarks and residual trace. SPECTF n = 60, k = 4 (15,740
+  expansions to certify): cut at 1, 1,574 and 7,870 expansions with the greedy seed, the incumbent never
+  falls below the certified optimum, the frontier minimum never exceeds it, and the gap never understates
+  the incumbent's true distance. SPECTF n = 40, k = 3 at caps 1, 2, 4, …, 1024: the gap is non-increasing
+  and reaches 0.0 when the goal pops.
+- **Reference.** Hansen & Zhou, *JAIR* 2007 (anytime heuristic search; the incumbent–bound gap as the
+  quality guarantee); Land & Doig 1960 and Lawler & Wood 1966 (the branch-and-bound bracket); Pearl,
+  *Heuristics* 1984, §3.1 (why the frontier minimum never falls under a monotone bound).

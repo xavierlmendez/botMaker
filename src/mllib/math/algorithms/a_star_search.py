@@ -102,10 +102,18 @@ class SearchResult[State]:
     means nothing without it: a pruned run and an uncapped one are different measurements even on
     the same cell (D-26's rule, applied to the engine instead of to δ).
 
-    The type carries these three and no more: what the search *paid* (``nodes_expanded``,
-    ``frontier_peak``) and how it was *set up* (``engine_configuration``). A further measure of
-    cost joins the first, a further knob is named inside the second — nothing else is added here
-    (D-28).
+    ``certified_gap`` is what the search *proved* about ``cost``: an additive bound on its distance
+    from the optimum. A popped goal proves a gap of zero, so every ``optimal`` result carries
+    ``0.0``; an anytime engine stopped by a cap carries the finite gap it certified; a selector
+    that proves nothing leaves ``None``, which is "no certificate", never zero. ``optimal`` implies
+    ``certified_gap == 0.0``; the converse is not promised, since a stopped run whose gap clamps to
+    zero did not pop its incumbent as a goal.
+
+    The type carries these three kinds and no more: what the search *paid* (``nodes_expanded``,
+    ``frontier_peak``), how it was *set up* (``engine_configuration``) and what it *proved*
+    (``optimal``, ``certified_gap``). A further measure of cost joins the first, a further knob is
+    named inside the second, a further certificate joins the third — nothing else is added here
+    (D-28, amended 2026-09-07).
     """
 
     state: State
@@ -114,6 +122,7 @@ class SearchResult[State]:
     nodes_expanded: int
     frontier_peak: int | None = None
     engine_configuration: Mapping[str, object] | None = None
+    certified_gap: float | None = None
 
 
 class AStarSearch[State, Action](AbstractGraphAlgorithm):
@@ -221,6 +230,7 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
                     cost=self.cost_function.goal_cost(state),
                     optimal=True,
                     nodes_expanded=nodes_expanded,
+                    certified_gap=0.0,
                 )
 
             children = self._price_children(state, expanded)

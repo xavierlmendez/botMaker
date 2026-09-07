@@ -98,19 +98,37 @@ def test_each_selector_reports_the_work_it_actually_spent(spectf_run):
 
 
 def test_published_baselines_and_instrumented_heuristics_are_labelled_apart(spectf_run):
-    assert set(PUBLISHED_BASELINES) <= set(spectf_run.selector_results)
-    assert selector_kind("astar") == "optimum"
-    assert selector_kind("greedy_trace") == "baseline"
-    assert selector_kind("greedy_lower_bound") == "instrumented"
-    assert selector_kind("best_of_32_random") == "instrumented"
+    # Changed deliberately with the anytime engine (entry-ticket slice): the reference and the
+    # baselines are still named, everything else is labelled by what it proved, so the functions
+    # now read the result too.
+    results = spectf_run.selector_results
+    assert set(PUBLISHED_BASELINES) <= set(results)
+    assert selector_kind("astar", results["astar"]) == "optimum"
+    assert selector_kind("greedy_trace", results["greedy_trace"]) == "baseline"
+    assert selector_kind("greedy_lower_bound", results["greedy_lower_bound"]) == "instrumented"
+    assert selector_kind("best_of_32_random", results["best_of_32_random"]) == "instrumented"
 
 
-def test_a_single_draw_is_labelled_as_one_seed_not_as_a_settled_baseline():
+def test_a_single_draw_is_labelled_as_one_seed_not_as_a_settled_baseline(spectf_run):
     # D-22: the printed block is the artefact numbers get copied out of, so it carries the caveat.
-    assert selector_label("greedy_trace") == "baseline"
-    assert selector_label("rpcholesky") == "baseline, 1 seed"
-    assert selector_label("random_single_draw") == "baseline, 1 seed"
-    assert selector_label("astar") == "optimum"
+    results = spectf_run.selector_results
+    assert selector_label("greedy_trace", results["greedy_trace"]) == "baseline"
+    assert selector_label("rpcholesky", results["rpcholesky"]) == "baseline, 1 seed"
+    assert selector_label("random_single_draw", results["random_single_draw"]) == "baseline, 1 seed"
+    assert selector_label("astar", results["astar"]) == "optimum"
+
+
+def test_the_reference_proves_a_zero_gap_and_the_selectors_prove_nothing(spectf_run):
+    # D-28 amended: what a search proved rides on the result. Exact A* certifies a gap of zero;
+    # a heuristic has no certificate, which is None and never a fabricated zero.
+    assert spectf_run.certified_optimum.certified_gap == 0.0
+    assert spectf_run.certified_gaps["astar"] == 0.0
+    assert set(spectf_run.certified_gaps) == set(spectf_run.selector_results)
+    for name, gap in spectf_run.certified_gaps.items():
+        if name != "astar":
+            assert gap is None, name
+    # No gap is printed in the default block: nothing in it is bounded.
+    assert "gap=" not in format_run(spectf_run)
 
 
 def test_the_printed_block_carries_both_gaps_and_the_selector_labels(spectf_run):

@@ -188,12 +188,30 @@ one measurement of its own, the bound-drop counter, and its two knobs (`count_bo
 `bound_drop_slack`) are stated there under the same rule, so a row that ran with the counter on says so.
 The counter's result stays on the instance (`bound_drops`), not on `SearchResult`: it is a property of
 the bound on the data, neither paid nor set up.
+**Amended 2026-09-07 (anytime A\*, `feat/anytime-astar-gap`).** The first variant that stops before it
+pops a goal produced a number the two kinds cannot hold: the a-posteriori gap `incumbent − frontier_min`
+is neither what the search paid nor how it was set up. It is what the search *proved*, and that kind
+already exists on the type — `optimal` is a statement about `cost`, not a cost or a setting. So the rule
+gains its third kind: `SearchResult.certified_gap: float | None = None`, an additive certificate on
+`cost`. Exact `AStarSearch` sets `0.0` on the goal it pops (a popped goal proves a zero gap), a stopped
+`AnytimeAStarSearch` sets the finite gap it certified, and every selector that proves nothing leaves
+`None` — "no certificate", never a fabricated zero, on the same reading as `frontier_peak`. `optimal`
+implies `certified_gap == 0.0`; the converse is not promised, because a stop whose gap clamps to zero
+did not pop its incumbent as a goal and the flag means only that. The alternative — the gap on the
+instance, as `bound_drops` is, read off the engine through a new selector return path — was rejected: a
+gap is about the answer, not about the bound, and every future certificate-bearing variant would repeat
+the plumbing. The selector's `replace(...)` pass-through carries the field into
+`UciHarnessResult.certified_gaps` beside `frontier_peaks`. Two guards land with it, deferred from PR #34:
+the harness refuses a run whose selector named `"astar"` returned `optimal=False` (the name finds the
+reference; the certificate makes it one), and `selector_kind` reads the result, not only the name —
+`optimum` and `baseline` stay name-keyed (D-22), a variant that popped its optimum prints `certified`, one
+a cap stopped with a finite gap prints `bounded` and its row states the gap, and `instrumented` is what
+remains. The test that pinned the name-only labelling was changed deliberately in the same PR.
 **Consequences.** `None` is "not measured", never zero; a reader who sees a peak knows an engine counted
-it. `SearchResult` carries what the search *paid* (`nodes_expanded`, `frontier_peak`) and how it was
-*set up* (`engine_configuration`), and that is the whole rule: a further measure of cost joins the
-first, a further knob is named inside the second, and nothing else is added to the shared type. That
+it. `SearchResult` carries what the search *paid* (`nodes_expanded`, `frontier_peak`), how it was
+*set up* (`engine_configuration`) and what it *proved* (`optimal`, `certified_gap`), and that is the whole
+rule: a further measure of cost joins the first, a further knob is named inside the second, a further
+certificate joins the third, and nothing else is added to the shared type. That
 bound is what makes option (a) affordable — the `SelectorRun` wrapper was rejected for being larger
-today, and this is the line that stops it being larger tomorrow. A variant engine's row is still labelled by `selector_kind`, which keys on the name, so a certified
-variant prints as `instrumented` — deliberate under D-22 until the variant is certified in its own right,
-and the thing to revisit when one is. Defaults are a value (`default_selectors`), not a behaviour, so the
+today, and this is the line that stops it being larger tomorrow. Defaults are a value (`default_selectors`), not a behaviour, so the
 suite's order and seeds are pinned by test and remain part of every committed number.

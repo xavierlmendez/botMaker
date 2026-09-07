@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 
 from mllib.math.algorithms.a_star_search import AStarSearch
+from mllib.math.algorithms.anytime_a_star_search import AnytimeAStarSearch
 from mllib.math.algorithms.nystrom_landmark_selectors import (
     AStarLandmarkSelector,
     GreedyResidualTraceLandmarkSelector,
@@ -100,11 +101,12 @@ def test_the_a_star_selector_uses_the_engine_it_was_given_and_stays_immutable():
         selector.name = "astar"  # frozen: the reference's name cannot be taken by a variant
 
 
-def test_a_certified_variant_is_still_labelled_instrumentation_until_certified_itself(
+def test_a_variant_that_certifies_its_own_optimum_is_labelled_certified_not_instrumented(
     uci_data_dir: Path,
 ):
-    # D-22, D-28: `selector_kind` keys on the name, so a variant that proves its own optimum still
-    # prints as instrumentation. Pinned so the day that changes is a decision, not a drift.
+    # The day D-28 anticipated: until the anytime engine, `selector_kind` keyed on the name and a
+    # variant that proved its optimum printed as instrumentation. The label now derives from
+    # `result.optimal`; the reference is still the one *named* "astar", and it alone is "optimum".
     selectors = [
         *default_selectors(CELL["sample_seed"]),
         AStarLandmarkSelector(
@@ -114,9 +116,86 @@ def test_a_certified_variant_is_still_labelled_instrumentation_until_certified_i
     ]
     run = _run(uci_data_dir, selectors=selectors)
 
-    assert run.selector_results["astar-pruned"].optimal
-    assert selector_kind("astar-pruned") == "instrumented"
-    assert selector_kind("astar") == "optimum"
+    pruned = run.selector_results["astar-pruned"]
+    assert pruned.optimal
+    assert selector_kind("astar-pruned", pruned) == "certified"
+    assert selector_kind("astar", run.selector_results["astar"]) == "optimum"
+    assert "astar-pruned [           certified]" in format_run(run)
+
+
+def _anytime_factory(**knobs):
+    def factory(problem, cost):
+        greedy = GreedyResidualTraceLandmarkSelector().select(problem, cost)
+        return AnytimeAStarSearch(
+            problem,
+            cost,
+            incumbent_seed=greedy.cost,
+            incumbent_seed_state=greedy.state,
+            incumbent_slack=1e-12 * float(np.trace(problem.kernel_matrix)),
+            **knobs,
+        )
+
+    return factory
+
+
+def test_an_anytime_row_that_stopped_early_prints_as_bounded_with_its_gap(uci_data_dir: Path):
+    # Entry-ticket seed, test 6 and guard (ii): `bounded` derives from optimal=False with a finite
+    # certified_gap; the row states its knobs (max_expansions among them) and its gap. The default
+    # block is untouched, which `test_the_default_run_records_the_reference_engine_and_nothing_for_
+    # the_rest` and the uci-harness tests pin.
+    selectors = [
+        *default_selectors(CELL["sample_seed"]),
+        AStarLandmarkSelector(
+            name="astar-anytime", search_factory=_anytime_factory(max_expansions=1)
+        ),
+    ]
+    run = _run(uci_data_dir, selectors=selectors)
+
+    anytime = run.selector_results["astar-anytime"]
+    assert not anytime.optimal
+    assert anytime.nodes_expanded == 1
+    assert anytime.certified_gap is not None and 0.0 <= anytime.certified_gap < float("inf")
+    assert anytime.cost >= run.certified_optimum.cost - 1e-9
+    assert anytime.cost - run.certified_optimum.cost <= anytime.certified_gap + 1e-9
+    assert run.certified_gaps["astar-anytime"] == anytime.certified_gap
+    assert run.engine_configurations["astar-anytime"]["max_expansions"] == 1
+    assert run.engine_configurations["astar-anytime"]["engine"] == "AnytimeAStarSearch"
+    assert selector_kind("astar-anytime", anytime) == "bounded"
+
+    rendered = format_run(run)
+    assert "astar-anytime [             bounded]" in rendered
+    assert f"gap={anytime.certified_gap:.4f}" in rendered
+    assert "astar-anytime [              engine]" in rendered
+    assert "max_expansions=1" in rendered
+    assert "astar [              engine]" not in rendered
+
+
+def test_an_uncapped_anytime_row_is_certified_and_states_a_zero_gap(uci_data_dir: Path):
+    selectors = [
+        *default_selectors(CELL["sample_seed"]),
+        AStarLandmarkSelector(name="astar-anytime", search_factory=_anytime_factory()),
+    ]
+    run = _run(uci_data_dir, selectors=selectors)
+
+    anytime = run.selector_results["astar-anytime"]
+    assert anytime.optimal
+    assert anytime.certified_gap == 0.0
+    assert anytime.state == run.certified_optimum.state
+    assert anytime.cost == run.certified_optimum.cost
+    assert selector_kind("astar-anytime", anytime) == "certified"
+    assert "gap=" not in format_run(run)
+
+
+def test_a_reference_that_did_not_certify_its_optimum_is_refused(uci_data_dir: Path):
+    # Guard (i): the name finds the reference, the certificate makes it one. An anytime engine
+    # stopped at one expansion under the name "astar" would ratio every row against an incumbent.
+    selectors = [
+        AStarLandmarkSelector(name="astar", search_factory=_anytime_factory(max_expansions=1)),
+        GreedyResidualTraceLandmarkSelector(),
+    ]
+
+    with pytest.raises(ValueError, match="must certify its optimum"):
+        _run(uci_data_dir, selectors=selectors)
 
 
 def test_the_default_run_records_no_frontier_peak_because_exact_a_star_counts_none(

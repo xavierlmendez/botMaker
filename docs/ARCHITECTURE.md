@@ -83,7 +83,9 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
   bound must be admissible and must equal `goal_cost` at a goal state, or the search stops being a proof
   (D-23). `AStarSearch` is exact and stores every child; `PrunedAStarSearch` is the variant that stores
   less (goal-sibling filter, incumbent pruning, frontier cap) and rests on the same equality; a seeded
-  incumbent must be an exact objective, never a truncated bound (D-27). States must be hashable and
+  incumbent must be an exact objective, never a truncated bound (D-27). `AnytimeAStarSearch` is the
+  pruned variant that returns at a cap instead of raising: the incumbent, `optimal=False`, and the
+  gap it certified, on `SearchResult.certified_gap` (what the search *proved*, D-28 amended). States must be hashable and
   canonical, so one position is one node. When a parent's successors share work, override
   `lower_bounds(parent, successors)`; the default scores them one at a time (D-24).
 - **A search variant:** subclass `AStarSearch` and override only the step where it diverges —
