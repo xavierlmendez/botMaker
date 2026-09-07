@@ -266,6 +266,8 @@ def test_the_default_run_records_the_reference_engine_and_nothing_for_the_rest(u
     assert set(run.engine_configurations) == set(run.selector_results)
     assert run.engine_configurations["astar"] == {
         "engine": "AStarSearch",
+        "tie_break": "fifo",
+        "tie_tolerance": 0.0,
         "count_bound_drops": False,
         "bound_drop_slack": 0.0,
     }
@@ -290,6 +292,8 @@ def test_a_variant_records_the_settings_it_actually_ran_under(uci_data_dir: Path
 
     assert run.engine_configurations["astar-pruned"] == {
         "engine": "PrunedAStarSearch",
+        "tie_break": "fifo",
+        "tie_tolerance": 0.0,
         "count_bound_drops": False,
         "bound_drop_slack": 0.0,
         "incumbent_seed": None,
@@ -331,6 +335,8 @@ def test_a_variant_that_states_no_knobs_is_visibly_incomplete_rather_than_silent
 
     assert search.configuration == {
         "engine": "UndeclaredVariant",
+        "tie_break": "fifo",
+        "tie_tolerance": 0.0,
         "count_bound_drops": False,
         "bound_drop_slack": 0.0,
     }

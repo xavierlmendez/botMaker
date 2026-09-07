@@ -240,6 +240,21 @@ closes the family. Unlocks nothing until BL-34 fails. Origin: cell F4.
 
 ## Closed
 
+### BL-38 — First-in-first-out tie-breaking enumerates the plateau on nearly rank-k data · closed 2026-09-07 (this PR; research candidate C9, seed `sessions/2026-09-10-engine-slices.md`)
+
+On nearly rank-k kernels (the S1 plateau cells, the reproduction's 2^k regime) many frontier entries
+share a bound to within rounding, and the heap key `(bound, insertion_index)` works the plateau level
+by level, so the search enumerates it before a goal pops — a property the reproduction recorded as
+A\*'s. It is the tie-break's: preferring the deeper state reaches and certifies a goal after about k
+expansions. Closed by two opt-in knobs on `AStarSearch`, inherited unchanged by the pruned and anytime
+engines and stated by `configuration`: `tie_break="deepest"` (key `-len(state)` after the bound) and
+`tie_tolerance` (absolute, trace-scaled like `incumbent_slack`; the bound key is quantised to that grid
+so near-ties compare equal). Under a tolerance the popped goal is certified only when its bound is at or
+below every remaining raw bound; otherwise `optimal=False` with the honest additive gap on
+`certified_gap`, below the tolerance by construction (D-29). Defaults byte-identical on every snapshot
+cell; on the plateau fixtures deeper-first expands k + 1 states where first-in-first-out expands the
+plateau. The S1 experiment (ties versus bandwidth) is research-side.
+
 ### BL-33 — Is the spectral bound monotone along the tree? · closed 2026-09-07 (this PR; research session seed `sessions/2026-09-18-monotonicity-check.md`, run early)
 
 A* with a terminal-only objective needs only admissibility (D-23), so nothing in the engine had ever

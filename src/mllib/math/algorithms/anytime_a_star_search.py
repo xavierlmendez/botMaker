@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from mllib.math.algorithms.a_star_search import SearchResult
+from mllib.math.algorithms.a_star_search import HeapEntry, SearchResult, TieBreak
 from mllib.math.algorithms.abstract_graph_algorithm import SearchContext
 from mllib.math.algorithms.pruned_a_star_search import FrontierLimitExceeded, PrunedAStarSearch
 from mllib.math.graph.abstract_graph_problem import AbstractGraphProblem
@@ -34,8 +34,9 @@ class AnytimeAStarSearch[State, Action](PrunedAStarSearch[State, Action]):
     ``[frontier_min, incumbent]`` and the gap is an additive certificate on the incumbent. The gap
     rides out on ``SearchResult.certified_gap`` (what the search proved, D-28 amended 2026-09-07)
     and both numbers are left on the instance. When the search pops a goal before any cap bites it
-    returns exactly what the base class returns, ``certified_gap == 0.0`` included, and
-    ``frontier_min`` is the cost.
+    returns exactly what ``PrunedAStarSearch`` returns — at tolerance zero a certified optimum with
+    ``certified_gap == 0.0``, under a tie tolerance the honest certificate of D-29 — and
+    ``frontier_min`` is the cost less that gap.
 
     The frontier minimum is read at the moment of the stop. At an expansion cap it is the heap's
     top: every unexpanded state that could still lead below the incumbent is on the heap (pruned
@@ -46,8 +47,8 @@ class AnytimeAStarSearch[State, Action](PrunedAStarSearch[State, Action]):
     the consistency measurement (BL-33) established and the test pins.
 
     ``incumbent_seed`` is a cost from another arithmetic path whose state the engine cannot know;
-    ``incumbent_seed_state`` lets the caller supply it, so a run stopped before any goal is priced
-    still reports the seed's state. Without it the result carries ``state=None`` and ``cost=seed``
+    the inherited ``incumbent_seed_state`` lets the caller supply it, so a run stopped before any
+    goal is priced still reports the seed's state. Without it the result carries ``state=None`` and ``cost=seed``
     until a goal tightens the incumbent. A run stopped with no incumbent at all — no seed and no
     goal priced yet — reports ``cost=math.inf`` and ``certified_gap=math.inf``: nothing was proved,
     and the result says so instead of raising, since the caller who wants a finite answer supplies
@@ -70,6 +71,8 @@ class AnytimeAStarSearch[State, Action](PrunedAStarSearch[State, Action]):
         incumbent_seed_state: State | None = None,
         incumbent_slack: float = 0.0,
         max_frontier: int | None = None,
+        tie_break: TieBreak = "fifo",
+        tie_tolerance: float = 0.0,
         count_bound_drops: bool = False,
         bound_drop_slack: float = 0.0,
     ):
@@ -78,23 +81,19 @@ class AnytimeAStarSearch[State, Action](PrunedAStarSearch[State, Action]):
             cost_function,
             evaluator,
             incumbent_seed=incumbent_seed,
+            incumbent_seed_state=incumbent_seed_state,
             incumbent_slack=incumbent_slack,
             max_frontier=max_frontier,
+            tie_break=tie_break,
+            tie_tolerance=tie_tolerance,
             count_bound_drops=count_bound_drops,
             bound_drop_slack=bound_drop_slack,
         )
         if max_expansions is not None and max_expansions < 1:
             raise ValueError("max_expansions must be at least 1: the initial state is expanded.")
-        if incumbent_seed_state is not None:
-            if incumbent_seed is None:
-                raise ValueError("incumbent_seed_state names the solution incumbent_seed costs.")
-            if not problem.is_goal(incumbent_seed_state):
-                raise ValueError("incumbent_seed_state must be a complete solution (a goal state).")
         self.max_expansions = max_expansions
-        self.incumbent_seed_state = incumbent_seed_state
         self.certified_gap: float | None = None
         self.frontier_min: float | None = None
-        self._incumbent_state: State | None = None
         self._expansions = 0
 
     @property
@@ -103,33 +102,24 @@ class AnytimeAStarSearch[State, Action](PrunedAStarSearch[State, Action]):
         return {**super().configuration, "max_expansions": self.max_expansions}
 
     def _search(self, context: SearchContext | None) -> SearchResult[State]:
-        self._incumbent_state = self.incumbent_seed_state
         self._expansions = 0
         self.certified_gap = self.frontier_min = None
         try:
             result = super()._search(context)
         except _SearchStopped as stopped:
             return self._bounded_result(stopped.frontier_min)
-        self.certified_gap, self.frontier_min = 0.0, result.cost
+        # A popped goal (or, under a tie tolerance, the better incumbent the pruned engine returned
+        # instead): the frontier minimum at the pop is the cost less the certified gap.
+        self.certified_gap = result.certified_gap
+        self.frontier_min = result.cost - result.certified_gap
         return result
 
     def _push_children(
         self,
-        queue: list[tuple[float, int, State]],
+        queue: list[HeapEntry[State]],
         children: list[tuple[State, float]],
         insertion_index: int,
     ) -> int:
-        # The base class keeps the goal child with the smallest bound, first on ties, and lets its
-        # cost tighten the incumbent; the same rule here remembers which state that was.
-        goals = [
-            (bound, position, state)
-            for position, (state, bound) in enumerate(children)
-            if self.problem.is_goal(state)
-        ]
-        if goals:
-            bound, _, state = min(goals)
-            if self._incumbent is None or bound < self._incumbent:
-                self._incumbent_state = state
         # The parent was expanded before its children reached here: count it whatever happens next.
         self._expansions += 1
         try:
@@ -137,10 +127,12 @@ class AnytimeAStarSearch[State, Action](PrunedAStarSearch[State, Action]):
         except FrontierLimitExceeded:
             # The cap interrupted this batch: the frontier is the heap plus every child not pushed,
             # so the minimum is taken over both (a pushed child is on the heap already).
-            raise _SearchStopped(min(queue[0][0], min(bound for _, bound in children))) from None
+            raise _SearchStopped(
+                min(self._frontier_minimum(queue), min(bound for _, bound in children))
+            ) from None
         # An empty heap after the last push means the base loop is about to conclude on its own.
         if self.max_expansions is not None and self._expansions >= self.max_expansions and queue:
-            raise _SearchStopped(queue[0][0])
+            raise _SearchStopped(self._frontier_minimum(queue))
         return insertion_index
 
     def _bounded_result(self, frontier_min: float) -> SearchResult[State]:

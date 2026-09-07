@@ -215,3 +215,26 @@ certificate joins the third, and nothing else is added to the shared type. That
 bound is what makes option (a) affordable — the `SelectorRun` wrapper was rejected for being larger
 today, and this is the line that stops it being larger tomorrow. Defaults are a value (`default_selectors`), not a behaviour, so the
 suite's order and seeds are pinned by test and remain part of every committed number.
+
+## D-29 — Ties on the frontier are defined by a caller-stated absolute tolerance; under it the certificate is additive · 2026-09-07 · accepted
+**Context.** The spectral bound is computed by cancellation, so two bounds equal in exact arithmetic
+agree only to rounding, and a tie-break that fires on exact equality never fires on real data (research
+candidate C9, cell C2). Making near-ties equal needs a tolerance, and a tolerance changes what the first
+goal popped proves: a smaller raw bound may remain in the goal's cell.
+**Decision.** `AStarSearch.tie_tolerance` is absolute, in the objective's units, stated by the caller
+(a Nyström caller passes a small multiple of the kernel trace, the same shape and reason as
+`incumbent_slack` and `bound_drop_slack`); the engine never infers a scale. The heap key is the bound
+quantised to that grid (floor to a multiple), so the default tolerance of zero is the raw bound and the
+reference order exactly. When a goal pops under a tolerance the engine scans the frontier for the
+smallest raw bound once and certifies exactly (`optimal=True`, gap 0) only if the goal's bound is at or
+below it; otherwise it returns `optimal=False` with `certified_gap = goal bound − frontier minimum`, which
+is below the tolerance by construction. `optimal` keeps one meaning under every knob: the popped goal was
+the frontier minimum. The pruned and anytime engines hold an incumbent, and under a tolerance a goal in
+its cell can pop before it; they then return the incumbent (its state is now kept beside its cost) with
+the gap recomputed against the same frontier minimum, certified only if it came from a priced goal.
+`tie_break="deepest"` orders equal keys by `-len(state)`, then insertion; it needs sized states and is the
+only alternative to first-in-first-out.
+**Consequences.** Both knobs are on `configuration`, so a row that ran with a tolerance says so (D-28). A
+tolerance turns the exact certificate into an honest additive one and is therefore a different
+measurement, never a default. Every engine variant inherits the key through `_heap_entry` and reads the
+frontier minimum through `_frontier_minimum`; a variant that builds heap entries by hand loses both knobs.

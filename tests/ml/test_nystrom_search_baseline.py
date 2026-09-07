@@ -351,3 +351,83 @@ def test_the_certified_gap_never_widens_as_the_expansion_cap_doubles(kernels, re
     assert result.optimal
     assert gaps[-1] == 0.0
     assert all(later <= earlier for earlier, later in itertools.pairwise(gaps)), gaps
+
+
+# --- tie-breaking on the baseline (engine-slices seed, PR 2) ------------------------------------
+
+
+def _exact_search(kernel: np.ndarray, k: int, **knobs):
+    problem = NystromLandmarkProblem(kernel, k)
+    return AStarSearch(problem, NystromCssCostFunction(problem), **knobs).run()
+
+
+def _is_plateau_cell(record: dict) -> bool:
+    """A cell whose brute-force optimum set has several members: a tie at the optimum."""
+    return len(record["accepted_states"]) > 1
+
+
+def test_explicit_default_tie_break_knobs_are_the_reference_search_on_every_cell(kernels, results):
+    # PR 2 test 1: naming the defaults changes nothing; the snapshot test above is the same claim
+    # for the unnamed defaults.
+    moved = []
+    for key, (kernel, k) in kernels.items():
+        result = _exact_search(kernel, k, tie_break="fifo", tie_tolerance=0.0)
+        moved.extend(_moved(key, result, results[key]))
+        if not result.optimal or result.certified_gap != 0.0:
+            moved.append(f"{key}: optimal={result.optimal} certified_gap={result.certified_gap}")
+    assert not moved, "explicit default knobs moved the baseline:\n" + "\n".join(moved)
+
+
+def test_deepest_first_certifies_the_same_optimum_on_every_cell_within_the_expansion_guard(
+    kernels, results
+):
+    # PR 2 test 2: the order changes, the answer does not. On the plateau cells (a tied optimum)
+    # deeper-first may not expand more than first-in-first-out; on any cell it may not expand more
+    # than twice as much (a guard, not a claim). Counts are printed for the PR description.
+    moved = []
+    counts = {}
+    for key, (kernel, k) in kernels.items():
+        exact = results[key]
+        fifo = _exact_search(kernel, k)
+        deepest = _exact_search(kernel, k, tie_break="deepest")
+        counts[key] = (fifo.nodes_expanded, deepest.nodes_expanded, _is_plateau_cell(exact))
+        if not deepest.optimal or deepest.certified_gap != 0.0:
+            moved.append(f"{key}: deepest optimal={deepest.optimal}")
+        if [int(i) for i in deepest.state] not in exact["accepted_states"]:
+            moved.append(f"{key}: deepest landmarks {list(deepest.state)} not in the optimum set")
+        if deepest.cost != pytest.approx(exact["residual_trace"], rel=COST_TOLERANCE, abs=1e-12):
+            moved.append(
+                f"{key}: deepest residual trace {deepest.cost} != {exact['residual_trace']}"
+            )
+        if _is_plateau_cell(exact) and deepest.nodes_expanded > fifo.nodes_expanded:
+            moved.append(
+                f"{key}: plateau, deepest {deepest.nodes_expanded} > fifo {fifo.nodes_expanded}"
+            )
+        if deepest.nodes_expanded > 2 * fifo.nodes_expanded:
+            moved.append(
+                f"{key}: deepest {deepest.nodes_expanded} > 2 x fifo {fifo.nodes_expanded}"
+            )
+    print("\nexpansions fifo / deepest (plateau cells marked *):")
+    for key, (fifo_count, deepest_count, plateau) in counts.items():
+        print(f"  {'*' if plateau else ' '} {key:42s} {fifo_count:7d} {deepest_count:7d}")
+    assert not moved, "deepest-first moved the baseline:\n" + "\n".join(moved)
+
+
+def test_a_trace_scaled_tolerance_lets_deepest_first_collapse_a_rounding_plateau(kernels, results):
+    # The all-ones kernel has rank one, so every subset ties at zero to rounding and no exact tie
+    # exists: deeper-first alone changes nothing (C1's prediction). With a tolerance of 1e-12 of
+    # the trace the plateau is one cell, deeper-first walks k + 1 states, and the result is the
+    # honest one — bounded by the rounding-level gap it did not look under, not certified (D-29).
+    key = "all_ones_8x8.csv:k=3"
+    kernel, k = kernels[key]
+    tolerance = 1e-12 * float(np.trace(kernel))
+
+    exact_deepest = _exact_search(kernel, k, tie_break="deepest")
+    tolerant = _exact_search(kernel, k, tie_break="deepest", tie_tolerance=tolerance)
+
+    assert exact_deepest.nodes_expanded == results[key]["nodes_expanded"]
+    assert tolerant.nodes_expanded == k + 1
+    assert [int(i) for i in tolerant.state] in results[key]["accepted_states"]
+    assert 0.0 <= tolerant.certified_gap <= tolerance
+    assert tolerant.cost <= results[key]["residual_trace"] + tolerance
+    assert tolerant.optimal == (tolerant.certified_gap == 0.0)
