@@ -62,3 +62,12 @@ def test_bfs_max_depth_limits_expansion():
     traversal = BreadthFirstSearch(graph).run(context)
 
     assert traversal == [node_a, node_b, node_c]
+
+
+def test_a_search_over_a_materialized_graph_still_requires_a_context():
+    # D-23 made `context` optional for implicit problems only; a Graph has no start node of its own.
+    graph = Graph()
+    graph.add_node(data="A")
+
+    with pytest.raises(ValueError, match="requires a SearchContext"):
+        BreadthFirstSearch(graph).run()

@@ -8,6 +8,7 @@ model classes — sklearn is used only for `train_test_split` and `ParameterGrid
 
 ## Read before working (in order, only what the task needs)
 
+0. `CONTEXT.md` — the glossary; use its canonical terms in names, docs and PRs
 1. `docs/DECISIONS.md` — settled decisions; don't re-litigate, append new ones
 2. `docs/BACKLOG.md` — open initiatives; new work starts from an entry here (or adds one)
 3. `docs/ARCHITECTURE.md` — decomposition, contracts, extension points (dated reviews in `docs/reviews/`)

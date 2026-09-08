@@ -139,7 +139,181 @@ gradient signature (return the weight gradient given the design matrix for every
 `GradientDescentModel` with `predict_method = "compute_classification"`. Re-entry ≈ 1 h; needs the margin
 tests in `tests/ml/test_perceptron_svm.py` as the guard.
 
+### BL-28 — Nyström first-experiment grid · `backlog-only` · re-entry 1 day, after EXP-09a calibrates δ
+
+The harness measures the two gaps on three 40-row slices at k = 3, which is a smoke test, not
+evidence. The `nystrom-certified-landmarks` first experiment needs: a Laplacian kernel beside the RBF
+one, a ridge-leverage-score baseline, n = 500–3000, k up to 10, five bandwidths per kernel, and
+RPCholesky averaged over ten draws. None of it is built and no interface here is pre-shaped for it.
+The engine is no longer the blocker: BL-27 made each child a rank-one downdate and BL-29 truncates
+the spectrum (D-26). What remains is choosing δ, which is the research-side calibration EXP-09a;
+until it runs, n ≥ 1,000 results have no tolerance to quote.
+
+### BL-30 — One rule for an explained column · `backlog-only` · re-entry 1 hour
+
+The goal-depth batch treats a column as explained when its residual diagonal is at or below an
+absolute `PIVOT_TOLERANCE`; the downdated path uses a relative rule, residual norm at or below
+`1e-12 · sqrt(tr K)`. Same concept, two thresholds (plan P-10). Unify on the relative rule and show
+the search baseline unmoved; if it moves on a badly scaled kernel, that is the decision to record.
+
+### BL-31 — Nyström search engine performance · `backlog-only` · re-entry ½ day per item
+
+The downdated engine (BL-27) made an expansion cheap enough at n = 1,000 to hit the memory wall that
+stopped EXP-01: the A* frontier stores every priced child at 124 bytes each, and a flat kernel fills
+it in minutes. At full rank the secular solve also costs more than the parent decomposition, which is
+the trigger plan P-5 named for revisiting Gragg's method. Options, measurements and a suggested order
+are in `docs/reviews/2026-09-05-nystrom-engine-performance.md`; first items: prune children above a
+greedy incumbent at push time (M1), Gragg/Melman iteration for the secular solve (T2), an
+array-backed frontier (M2). Each keeps the search baseline byte-identical.
+Slice G (`docs/plans/2026-09-nystrom-downdate.md` §10, 2026-09-05) delivered, as `PrunedAStarSearch`, a
+variant of the unchanged exact `AStarSearch`: the
+goal-sibling filter; M1 in its exact form (incumbent pruning, `incumbent_seed` for the greedy residual trace,
+`IncumbentBelowOptimum` when a seed is below the optimum, a 1e-9 relative slack plus a caller-stated absolute
+`incumbent_slack` — 1e-12 of the trace — so a seed priced on another arithmetic path cannot prune the optimum by
+rounding, even when the optimum is zero); M4 in-library (`max_frontier`, `FrontierLimitExceeded`,
+`frontier_peak` on the instance). Measured on this machine at SPECTF scale 4: n = 60, k = 5 frontier peak
+3,794,117 → 452,830; n = 80, k = 5 at 1,488,433 (the plan's before-estimate was 24 million); expansions and
+landmarks unchanged everywhere. Remaining: T2 (specified research-side,
+`~/develop/research/nystrom/harness/T2-gragg-secular-solve.md`, next); M2 (array-backed frontier, only if
+EXP-09a's `frontier_peak` column demands it); M5 (dropping the expanded set behind a problem-level tree
+declaration); the (k̄+1)·f Deshpande–Rademacher rule, only as D-27 allows (δ = 0, or through the untruncated
+root bound). Then BL-30.
+Re-ranked 2026-09-06 after EXP-09a (research `nystrom/FINDINGS.md` F-5, F-6): on decaying-spectrum kernels the
+untruncated search certifies n = 1,000 in 29–45 min and δ = 1e-4 cuts that 3–4× with the same optimum, so T2 is the
+next gain there; on flat-spectrum kernels the frontier fills 60 M entries (~7.4 GB) at ~200k expansions before the
+clock matters, so memory binds and M2 (array-backed frontier) and the bounded variant precede T2 for those cells.
+Exact certification of flat spectra at n = 1,000 is not an engineering target on this machine.
+Harness pass-through (PR #34, 2026-09-06, D-28): the A* selector takes a `search_factory`, the UCI runner
+takes a `selectors` list, and `frontier_peak` rides out on `SearchResult` into `UciHarnessResult.frontier_peaks`,
+so M2 and any bounded variant can be measured on the harness's own cells beside the certified reference
+instead of through a bespoke script. Defaults unchanged: both baselines byte-identical, no snapshot regenerated.
+Anytime A\* with the a-posteriori gap (pass-2 entry ticket, 2026-09-07; research seed
+`sessions/2026-09-28-entry-ticket-slice.md`): `AnytimeAStarSearch(PrunedAStarSearch)` adds `max_expansions` beside
+the inherited `max_frontier` and turns both stops into a result — the incumbent, `optimal=False`, and the
+certified gap `incumbent − frontier_min` — instead of `FrontierLimitExceeded`. Uncapped it is exact A\* on every
+snapshot cell and both toy problems (same state, cost, expansions), so the F-6 cells that today end with nothing
+report a bracket `[frontier_min, incumbent]`. The bounded variant BL-31 named above is this one; M2 and T2 remain.
+
+### BL-34 — External-memory best-first search for the Nyström engine · `backlog-only` · large · reward R1
+
+The F-6 frontier (60 M entries, 7.4 GB) is the binding resource on flat-spectrum kernels at
+n = 1,000, and compute per expansion (~150 ms) exceeds the I/O to spill 300 entries (~36 KB) by
+five orders of magnitude, which inverts the premise of the external-memory-search literature
+(Edelkamp et al. External A\*; Korf 2004 DDD). Because states are canonical tuples the DAG is a
+tree and *no delayed duplicate detection is needed*, removing that literature's hardest part. Open
+design question: bucket granularity for a real-valued f (too wide expands above OPT; too narrow
+means many tiny files). First diagnostic, no code: dump the in-memory frontier's f-histogram at
+several points of an isolet5 run. Unlocks every X2.1 cell (A1, E1, F1, F2, F7 comparisons at the
+field's scale). Re-gate when a frontier abstraction exists (BL-31 M2 is the same seam). Origin:
+`research/candidates/_field-2.md` cell F5.
+
+### BL-35 — Removal-direction search with an incremental removal bound · `backlog-only` · large · reward R3
+
+Start from all n columns and remove (the Narendra–Fukunaga 1977 tree); prune layer k from both
+sides. Prerequisite: the removal bound as a rank-one *downdate of the complement*, or the tree has
+depth n − k ≈ 990 with near-full eigendecompositions at every node; plausible first at n ≤ 240
+with k near n. The bidirectional B&B shape for subset selection with monotone matrix criteria is
+Cao & Kariwala's (Comput. Chem. Eng. 2008–2010, min-singular-value criteria), so the claim is a
+*direction selector by k/n on this bound*, never the shape. Unlocks W7 (safe column elimination)
+as a by-product and the removal bound's use as a second bound (parked P7). Origin: cell G1.
+
+### BL-36 — Column-cluster abstraction as an admissible hierarchical bound · `backlog-only` · large · reward R1
+
+Cluster columns so every member is within ε of its representative; search over clusters with a
+bound inflated by a Wedin/Davis–Kahan slack 2ε√k‖Y‖₂/σ_min(Y_S); refine within chosen clusters
+(hierarchical A\*, Holte et al. 1996). The crux is admissibility, undetectable at the fp64 floor
+by comparing against known optima, and flat-spectrum columns have no cluster structure. First
+diagnostic, no engine change: cluster by kernel-column cosine on the S1 cells and check the
+cluster bound at the root against the known optima. A projection-cost-preserving sketch gives a
+stronger bound with no conditioning factor but touches pass-1 S25 (parked P8). Unlocks X2.5
+(per-expansion cost) at n = 1,000 if the abstraction prunes. Origin: cell H1.
+
+### BL-37 — SMA\* on the Nyström frontier (expected negative) · `backlog-only` · large · reward R1
+
+Delete the worst leaf at the cap and back up its f. Costs: a double-ended heap and parent
+pointers raise the per-entry size from ~120 B toward 200 B; regeneration re-prices a whole sibling
+batch (110 ms) per forgotten child; on plateaus max-f and min-f leaves differ by less than the
+rounding tolerance, so deletion thrashes. First diagnostic: simulate the deletion policy on a
+logged frontier of one F-6 cell and count regeneration events. Worth a row because "SMA\*'s
+regeneration accounting fails under batched, expensive evaluation" is a publishable negative and
+closes the family. Unlocks nothing until BL-34 fails. Origin: cell F4.
+
 ## Closed
+
+### BL-39 — Conditional solves: forced and forbidden columns in the Nyström problem · closed 2026-09-07 (this PR; research candidate E3 necessity margins, seed `sessions/2026-09-10-engine-slices.md`)
+
+Necessity margins ask, for every column j, the cost of the best subset that must contain j and of the
+best that must not: 2n conditional solves, each the same certified search on a modified ground set.
+Closed by two opt-in knobs on `NystromLandmarkProblem`, `forced` and `forbidden`, with `landmark_count`
+unchanged: the search starts at the forced columns and successors add one free column above the largest
+free column already chosen, so every admissible subset is one canonical node. The bound is untouched
+(removing candidates only raises the optimum; starting deeper is a subtree of the same tree); the
+batched pricing now finds the added column wherever it sorts, so a forced column above it no longer
+sends children to the per-child oracle. `constraints` states the knobs and the UCI harness records them
+as `problem_constraints` (empty by default, printed only when set). The research driver
+`nystrom/grid/run_margins.py` and the k = 4 Krause smoke result live research-side.
+
+### BL-38 — First-in-first-out tie-breaking enumerates the plateau on nearly rank-k data · closed 2026-09-07 (this PR; research candidate C9, seed `sessions/2026-09-10-engine-slices.md`)
+
+On nearly rank-k kernels (the S1 plateau cells, the reproduction's 2^k regime) many frontier entries
+share a bound to within rounding, and the heap key `(bound, insertion_index)` works the plateau level
+by level, so the search enumerates it before a goal pops — a property the reproduction recorded as
+A\*'s. It is the tie-break's: preferring the deeper state reaches and certifies a goal after about k
+expansions. Closed by two opt-in knobs on `AStarSearch`, inherited unchanged by the pruned and anytime
+engines and stated by `configuration`: `tie_break="deepest"` (key `-len(state)` after the bound) and
+`tie_tolerance` (absolute, trace-scaled like `incumbent_slack`; the bound key is quantised to that grid
+so near-ties compare equal). Under a tolerance the popped goal is certified only when its bound is at or
+below every remaining raw bound; otherwise `optimal=False` with the honest additive gap on
+`certified_gap`, below the tolerance by construction (D-29). Defaults byte-identical on every snapshot
+cell; on the plateau fixtures deeper-first expands k + 1 states where first-in-first-out expands the
+plateau. The S1 experiment (ties versus bandwidth) is research-side.
+
+### BL-33 — Is the spectral bound monotone along the tree? · closed 2026-09-07 (this PR; research session seed `sessions/2026-09-18-monotonicity-check.md`, run early)
+
+A* with a terminal-only objective needs only admissibility (D-23), so nothing in the engine had ever
+checked whether a child's bound can fall below its parent's — which decides how the anytime gap
+(incumbent minus frontier minimum) behaves mid-run and whether root tightness predicts pruning, the
+question the research side's parked idea P2 waits on. Closed by an opt-in counter on `AStarSearch`
+(`count_bound_drops`, `bound_drop_slack`; `BoundDropCounter` left on the instance as `bound_drops`,
+stated by `configuration`), off by default and with no effect on any expansion or result, and by a
+grid run over the S1 cells whose result file and finding live research-side
+(`nystrom/data/monotonicity-S1-v1.jsonl`, `method/13-search-landscape.md`). The bound, the objective and
+the search order were not touched: a non-monotone bound is a finding, not a bug.
+
+### BL-32 — A harness row does not say which engine settings produced it · closed 2026-09-06 (PR #35, D-28)
+
+D-28 made the engine a parameter, but a `search_factory` binds its knobs inside the caller's lambda, so
+`UciHarnessResult` recorded that `astar-pruned` ran and not with what `incumbent_seed`, `incumbent_slack`
+or `max_frontier` — while the outside-git grid runner records all three on every line. Closed by having
+the engine describe itself (`AStarSearch.configuration`), read off the instance by the selector into
+`SearchResult.engine_configuration` and `UciHarnessResult.engine_configurations`.
+
+### BL-27 — Nyström A* lower bound is O(n³) per child · closed 2026-09-04 (`docs/plans/2026-09-nystrom-downdate.md`)
+
+`NystromCssCostFunction.lower_bound` recomputes an SVD of the selected columns and an n×n `eigvalsh` of
+the deflated residual for every generated child. Correct (A* matches brute force on every bundled
+instance), but it caps the search at n ≈ 40. The AAAI-15 machinery — one root eigendecomposition, then a
+rank-one downdate of the parent's spectrum per child via the secular equation — makes each child O(k·r),
+and the `research/repro/astar-css` reimplementation already does it. Port it before any run at n ≥ 500
+(the `nystrom-certified-landmarks` first experiment). Marked at the bound itself in
+`src/mllib/math/graph/nystrom_landmark_problem.py`. Since slice 6.1 the natural home is
+`NystromCssCostFunction.lower_bounds`, which already decomposes the parent once for goal-depth children
+(D-24); the downdate extends the same method to every depth.
+**Closed.** `NystromCssCostFunction.lower_bounds` prices every child above goal depth from one
+eigendecomposition of the parent and a rank-one downdate per child through `math/secular_equation.py`;
+the per-child `lower_bound` is kept as the oracle. Search baseline and example output unmoved.
+
+### BL-29 — Nyström bound on a truncated spectrum · closed 2026-09-04 (D-26; `docs/plans/2026-09-nystrom-downdate.md`)
+
+For a full-rank kernel the per-parent eigendecomposition that BL-27 leaves behind is still n³, which
+is the bottleneck at n ≥ 1,000 (EXP-09). Compute the bound on the kernel with its smallest eigenvalues
+dropped, the retained rank chosen by a dropped-mass tolerance δ (`spectrum_mass_tolerance`, default 0).
+The bound stays admissible because a Schur complement is monotone on the PSD cone, so no correction
+term is added; goal costs and the goal-depth batch stay exact on the full kernel. Ships with D-26, the
+proof in the learning log, and the admissibility tests of the plan's FR-7. Blocked on BL-27.
+**Closed.** `NystromLandmarkProblem(..., spectrum_mass_tolerance=δ)`; the oracle and the fast path both
+see the truncated kernel, goal costs stay exact, admissibility and optimum membership tested at four
+tolerances. The threshold unification it leaves behind is BL-30.
 
 ### BL-09 — Declarative `TransformerPipeline` · closed in slice 6.3 (declarative `TransformerPipeline` from JSON config; `DataTransformer`, the `temp_*` methods and the model-name ladder deleted)
 `MlLib/data/data_orchestrator.py:41,53` — the pipeline class is written but commented out ("finish above pipeline arch when

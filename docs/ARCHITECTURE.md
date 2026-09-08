@@ -18,8 +18,8 @@ Math never imports ML; ML composes math; scripts (composition roots) wire data t
 
 | Layer | Contents | Role |
 |---|---|---|
-| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction`, `RegularizationFunction`, `graphBased/` (graph, tree, `SplitFunction`/Gini), `algorithmImplementations/` (BFS, DFS on an ABC), `probabilityBased/` | academic ideas as classes |
-| `ml` | `MyLinearRegression`, `MyLogisticRegression`, `MyPerceptron`, `MySVM`, `DecisionTree`, `ProbabilisticKNN`, `modelEvaluators/`, `projectSpecificFiles/` | models composed from primitives |
+| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction`, `RegularizationFunction`, `SearchCostFunction`, `secular_equation` (eigenvalues of a rank-one downdate), `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors), `probability/` | academic ideas as classes |
+| `ml` | `MyLinearRegression`, `MyLogisticRegression`, `MyPerceptron`, `MySVM`, `DecisionTree`, `ProbabilisticKNN`, `evaluators/`, `projects/` (ad-click grids, Nyström UCI harness) | models composed from primitives |
 | `data` | `data_orchestrator` (+ `DataTransformer`), datasets, transformer JSON configs | load → transform → split |
 | `projectScripts` | `AdClickModelProjectBuildScript` etc. | composition roots / experiments (→ `examples/` in slice 3.5) |
 
@@ -78,6 +78,32 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 - **A model:** compose from `HypothesisFunction` + a loss; expose `fit`, `predict`, `predict_values`,
   `evaluate`; give it an evaluator; add it to the smoke grid only if it is part of a project comparison.
 - **A graph algorithm:** subclass `AbstractGraphAlgorithm`; implement `_search`; never override `run`.
+- **A search over an implicit problem:** implement `AbstractGraphProblem` (`initial_state`, `is_goal`,
+  `successors`) and inject a `SearchCostFunction` (`lower_bound`, `goal_cost`) into `AStarSearch`. The
+  bound must be admissible and must equal `goal_cost` at a goal state, or the search stops being a proof
+  (D-23). `AStarSearch` is exact and stores every child; `PrunedAStarSearch` is the variant that stores
+  less (goal-sibling filter, incumbent pruning, frontier cap) and rests on the same equality; a seeded
+  incumbent must be an exact objective, never a truncated bound (D-27). `AnytimeAStarSearch` is the
+  pruned variant that returns at a cap instead of raising: the incumbent, `optimal=False`, and the
+  gap it certified, on `SearchResult.certified_gap` (what the search *proved*, D-28 amended). States must be hashable and
+  canonical, so one position is one node. When a parent's successors share work, override
+  `lower_bounds(parent, successors)`; the default scores them one at a time (D-24). A conditional
+  solve (a subset that must, or must not, contain given columns) is the problem's knob, `forced` and
+  `forbidden`, never the cost function's: the bound is unchanged and the harness records the
+  constraints beside the engine's settings (`problem_constraints`, BL-39).
+- **A search variant:** subclass `AStarSearch` and override only the step where it diverges —
+  `_price_children`, `_push_children` (return the insertion index as if every child were pushed, so pop
+  order is unchanged) or `_no_goal_reachable`; never `_search`'s loop. Test it against the base class.
+  To measure it on the harness's cells, register it rather than replacing anything:
+  `AStarLandmarkSelector(name="astar-<variant>", search_factory=...)` appended to
+  `default_selectors(sample_seed)` and passed as `run_nystrom_on_uci_dataset(..., selectors=...)`.
+  The name `"astar"` must stay in the list; it is the reference every ratio is taken against (D-28).
+  A variant that adds a knob overrides `configuration` to name it, or its rows go on the record
+  without the settings that produced them (D-28, amended). The base engine has one opt-in
+  measurement of its own, `count_bound_drops` (`BoundDropCounter`, with `bound_drop_slack` as the
+  caller-stated rounding allowance): whether a child's bound ever fell below its parent's as priced.
+  Off by default, it changes no expansion or result and leaves its counts on the instance as
+  `bound_drops`, not on `SearchResult`, which carries only what the search paid and how it was set up.
 - **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
   `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
   by class name in the project's JSON config.

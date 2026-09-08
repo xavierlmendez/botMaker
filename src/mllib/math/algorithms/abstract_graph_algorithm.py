@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from mllib.math.graph.abstract_graph_problem import AbstractGraphProblem
 from mllib.math.graph.graph_structures import Graph
 
 
@@ -22,22 +23,31 @@ class SearchContext:
 class AbstractGraphAlgorithm(ABC):
     """Base class for graph search algorithms with evaluator orchestration."""
 
-    def __init__(self, graph: Graph, evaluator: Any | None = None):
+    def __init__(self, graph: Graph | AbstractGraphProblem, evaluator: Any | None = None):
         self.graph = graph
         self.evaluator = evaluator
 
-    def run(self, context: SearchContext) -> Any:
-        """Execute the algorithm and optionally evaluate results."""
+    def run(self, context: SearchContext | None = None) -> Any:
+        """Execute the algorithm and optionally evaluate results.
+
+        ``context`` is optional because an ``AbstractGraphProblem`` carries its own start state and
+        goal test; algorithms over a materialized ``Graph`` still require one (D-23).
+        """
+        if context is None and not isinstance(self.graph, AbstractGraphProblem):
+            raise ValueError(
+                "A search over a materialized Graph requires a SearchContext: "
+                "it has no start node or goal test of its own."
+            )
         result = self._search(context)
         self._notify_evaluator(result, context)
         return result
 
     @abstractmethod
-    def _search(self, context: SearchContext) -> Any:
+    def _search(self, context: SearchContext | None) -> Any:
         """Algorithm-specific search implementation."""
         raise NotImplementedError
 
-    def _notify_evaluator(self, result: Any, context: SearchContext) -> None:
+    def _notify_evaluator(self, result: Any, context: SearchContext | None) -> None:
         """
         If an evaluator is provided, pass it the result.
 

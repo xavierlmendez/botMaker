@@ -1,4 +1,4 @@
-<!-- from engineering-standards @ 869af91 -->
+<!-- from engineering-standards @ 858e988 -->
 <!-- from engineering-standards — copy verbatim; propose changes upstream. -->
 # Contributing
 
@@ -13,9 +13,13 @@ These rules keep `main` clean without relying on memory. CI and pre-commit enfor
 
 ## Slices
 
-A PR is one *slice*: one concern, ≤ ~300 changed lines of non-generated code, one-sentence title.
-Split larger work **before** opening. Format-only and rename-only changes are their own slices and
-are listed in `.git-blame-ignore-revs`.
+A PR is one *slice*: a vertical slice of functionality — one end-to-end piece that a reader can run,
+test and judge on its own, with a one-sentence title. It cuts through every layer the piece needs
+(contract, implementation, tests, records) rather than delivering one layer of several pieces.
+Size follows from the functionality, never the other way round: a slice is as large as the smallest
+end-to-end piece and no larger. "Split larger work before opening" means finding a smaller
+end-to-end piece, never shipping a layer without the rest. Format-only and rename-only changes are
+their own slices and are listed in `.git-blame-ignore-revs`.
 
 ## No unstarted code on `main`
 
@@ -28,6 +32,15 @@ in `docs/BACKLOG.md` (with the design sketch if one exists) and reference it fro
 Every feature or bug fix ships with a test in the same PR. Tests are deterministic: no network,
 no wall clock, no unseeded randomness. A bug fix adds the test that would have caught it first.
 The full standard is `.claude/agents/testing-agent.md`.
+
+## Behavioural baseline before a refactor
+
+Before restructuring code that trains or transforms data, add a test that runs the real pipeline on a
+small, seeded configuration and snapshots its outputs (metrics, or shape + columns + content hash of
+frames). Commit the snapshot. Every refactor slice must leave it byte-identical; regenerate it only in a
+PR that says why the numbers are *supposed* to change. When deleting the code the snapshot was taken
+from, capture its fingerprints first and test against those — the guarantee outlives the oracle.
+(Back-ported from botMaker, 2026-08-29: the baseline found three latent bugs before any refactor began.)
 
 ## Records
 

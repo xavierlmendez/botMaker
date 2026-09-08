@@ -11,10 +11,11 @@ hypothesis, expander, and loss are plugged in.
 src/mllib/
   math/        hypothesis h(x)=w·x+b · hypothesis_expander Φ (polynomial features) · loss_function
                      (MSE, MAE, Perceptron, Hinge — each carries its own gradient) · cost_function ·
-                     regularization_function · graphBased/ (graph, tree, Gini split) ·
-                     algorithmImplementations/ (template-method BFS/DFS) · probabilityBased/
+                     regularization_function · search_cost_function · graph/ (graph, tree, Gini split,
+                     implicit search problems) · algorithms/ (template-method BFS/DFS/A*, Nyström
+                     landmark selectors) · probability/
   ml/          MyLinearRegression · MyLogisticRegression · MyPerceptron · MySVM · DecisionTree ·
-                     ProbabilisticKNN · modelEvaluators/ · projectSpecificFiles/ (ad-click grids)
+                     ProbabilisticKNN · evaluators/ · projects/ (ad-click grids, Nyström UCI harness)
   data/        data_orchestrator (load → transform → split) · transformers
 tests/               mirrors src/mllib; the training baseline and its snapshot live in tests/ml/
 data/                datasets (≤ 1 MB each, D-19) · configs/ (per-project transformer pipelines, JSON)
@@ -28,6 +29,9 @@ notebooks/           coursework notebooks
 ```
 uv sync          # Python 3.12, locked dependencies
 uv run pytest    # full suite including the training baseline
+
+# Certified-optimal Nyström landmarks vs. the published heuristics, on three small UCI datasets
+uv run python -m mllib.ml.projects.nystrom_uci_harness
 ```
 
 Requires [`uv`](https://docs.astral.sh/uv/); it installs Python 3.12 from `.python-version` if needed.
@@ -49,7 +53,8 @@ inject `PolynomialRegressionExpander(degree=3)` into the hypothesis for polynomi
 
 ## Status
 
-The 2026-08 refactor is complete (`docs/plans/2026-08-refactor.md`, D-21). Open work is the backlog
+The 2026-08 refactor is complete (`docs/plans/2026-08-refactor.md`, D-21) and the Nyström landmark
+search is ported (`docs/plans/2026-09-nystrom-landmark-selection.md`). Open work is the backlog
 (`docs/BACKLOG.md`); the next initiatives pair with CS 6344 (probability placeholders, PCA/SVD).
 
 ## Documents
