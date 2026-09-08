@@ -240,6 +240,19 @@ closes the family. Unlocks nothing until BL-34 fails. Origin: cell F4.
 
 ## Closed
 
+### BL-39 — Conditional solves: forced and forbidden columns in the Nyström problem · closed 2026-09-07 (this PR; research candidate E3 necessity margins, seed `sessions/2026-09-10-engine-slices.md`)
+
+Necessity margins ask, for every column j, the cost of the best subset that must contain j and of the
+best that must not: 2n conditional solves, each the same certified search on a modified ground set.
+Closed by two opt-in knobs on `NystromLandmarkProblem`, `forced` and `forbidden`, with `landmark_count`
+unchanged: the search starts at the forced columns and successors add one free column above the largest
+free column already chosen, so every admissible subset is one canonical node. The bound is untouched
+(removing candidates only raises the optimum; starting deeper is a subtree of the same tree); the
+batched pricing now finds the added column wherever it sorts, so a forced column above it no longer
+sends children to the per-child oracle. `constraints` states the knobs and the UCI harness records them
+as `problem_constraints` (empty by default, printed only when set). The research driver
+`nystrom/grid/run_margins.py` and the k = 4 Krause smoke result live research-side.
+
 ### BL-38 — First-in-first-out tie-breaking enumerates the plateau on nearly rank-k data · closed 2026-09-07 (this PR; research candidate C9, seed `sessions/2026-09-10-engine-slices.md`)
 
 On nearly rank-k kernels (the S1 plateau cells, the reproduction's 2^k regime) many frontier entries

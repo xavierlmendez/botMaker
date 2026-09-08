@@ -238,3 +238,25 @@ only alternative to first-in-first-out.
 tolerance turns the exact certificate into an honest additive one and is therefore a different
 measurement, never a default. Every engine variant inherits the key through `_heap_entry` and reads the
 frontier minimum through `_frontier_minimum`; a variant that builds heap entries by hand loses both knobs.
+
+## D-30 — A conditional solve is the problem's knob; the cost, the bound and the selectors do not see it · 2026-09-07 · accepted
+**Context.** The necessity margins need, for every column, the best subset that must contain it and the
+best that must not: the same certified search on a modified ground set (BL-39, research candidate E3).
+Three places could hold the constraint — the problem, the cost function, or the engine — and the harness
+had to decide what a ratio means when the problem is not the one the baselines solved.
+**Decision.** `NystromLandmarkProblem` takes `forced` and `forbidden` and shapes its tree accordingly:
+`initial_state` is the forced columns, `successors` add free columns only, every admissible subset is
+one canonical node. The bound is untouched, because removing candidates only raises the optimum and
+starting deeper is a subtree of the tree the bound already covers; the objective is untouched and stays
+defined on every subset, so `_validate_state` does not enforce the constraints and a selector that never
+reads the tree can still price an unconstrained choice. A seeded incumbent's feasibility is the caller's
+claim, as its cost already is (D-27); the research driver seeds a conditional solve from the
+unconstrained optimum only when that optimum is feasible for it. The UCI harness threads the two knobs to
+the problem and records `problem.constraints` as `UciHarnessResult.problem_constraints`, empty by
+default; when set, the printed block states them and says that the selectors other than the searches
+are unconstrained.
+**Consequences.** Under constraints every search row solves the constrained problem and every heuristic
+row the unconstrained one, so `cost_ratios_to_optimal` can fall below one and compares two problems; the
+row says so, and such a run is a record of a conditional solve, not a baseline measurement (D-22). The
+default run is byte-identical: no constraint, no line, the same tree to the byte. A future selector that
+wants the constraints reads them off the problem it is given, never off the harness.

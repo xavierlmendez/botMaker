@@ -452,3 +452,34 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
 - **Reference.** Dechter & Pearl, *JACM* 1985 (tie-breaking and the optimality of A\*); Asai & Fukunaga,
   *JAIR* 2017 (tie-breaking strategies for cost-optimal search, the depth-based rules); Xu, Yan & Chang,
   *ICPR* 1988 (best-first branch and bound for feature selection, the plateau in this problem's family).
+
+## Conditional solves on the same tree: forced and forbidden columns · 2026-09-07
+- **What.** A certified optimum says which subset is best; it does not say which of its members
+  matter. The necessity margins do: for every column j, the best subset that must contain j and the best
+  that must not, both against the unconstrained optimum. If forbidding j costs more, j is in every
+  optimum; if forcing j costs more, it is in none; the two differences are j's signed margins. Each is
+  the same search on a modified ground set — the SAT community's backbone test, LOCO in statistics,
+  reduced-cost fixing in integer programming, all the same move.
+- **Where.** `math/graph/nystrom_landmark_problem.py` (`forced`, `forbidden`, `constraints`,
+  `initial_state`, `successors`, `_added_columns` in the cost function); the UCI harness's
+  `problem_constraints`; tests in `tests/math/graph/test_nystrom_constrained_problem.py`; the driver
+  `nystrom/grid/run_margins.py` research-side.
+- **Design.** The bound is not touched, and that is the point of doing it on the problem rather than on
+  the cost: forbidding removes candidates, which can only raise the true optimum under a bound that never
+  overestimates; forcing starts the search at a state of the same tree, whose subtree the bound already
+  covers. Canonicality had to be re-derived: with a forced column the state is no longer a prefix-extended
+  tuple, so the successor cursor runs over the *free* columns (neither forced nor forbidden) above the
+  largest free column chosen, and the child is re-sorted. Without constraints the free columns are every
+  column and the rule is the old `range(state[-1] + 1, n − still_needed + 1)` to the byte. The batched
+  pricing assumed a child was `parent + (column,)`; it now finds the one column a child adds wherever it
+  sorts, which is what keeps the forced case on the fast path.
+- **What was confusing.** Warm starts. The unconstrained optimum is a *lower* bound on a conditional
+  optimum, never an incumbent; an incumbent must be feasible for the constrained problem. So the driver
+  seeds the forbid-j solve with the unconstrained optimum only when j is not in it, and otherwise (and for
+  every force-j solve where j is new) runs the greedy rule on the constrained ground set first.
+- **Numbers.** Read from `nystrom/analysis/margins_krause_k4.json` (research side): the 52-mote Krause
+  covariance at k = 4, 1 + 104 certified solves, brute force agreeing on every conditional cost.
+- **Reference.** Krause, Singh & Guestrin, *JMLR* 2008 (the covariance and the sensor-placement
+  framing); Kilby, Slaney, Thiébaux & Walsh, AAAI 2005 (backbones); Lei, G'Sell, Rinaldo, Tibshirani &
+  Wasserman, *JASA* 2018 (LOCO); Fisher, Rudin & Dominici, *JMLR* 2019 (model class reliance, the
+  "in every / some / no good model" framing the margins borrow).

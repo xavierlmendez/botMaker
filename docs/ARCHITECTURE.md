@@ -87,7 +87,10 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
   pruned variant that returns at a cap instead of raising: the incumbent, `optimal=False`, and the
   gap it certified, on `SearchResult.certified_gap` (what the search *proved*, D-28 amended). States must be hashable and
   canonical, so one position is one node. When a parent's successors share work, override
-  `lower_bounds(parent, successors)`; the default scores them one at a time (D-24).
+  `lower_bounds(parent, successors)`; the default scores them one at a time (D-24). A conditional
+  solve (a subset that must, or must not, contain given columns) is the problem's knob, `forced` and
+  `forbidden`, never the cost function's: the bound is unchanged and the harness records the
+  constraints beside the engine's settings (`problem_constraints`, BL-39).
 - **A search variant:** subclass `AStarSearch` and override only the step where it diverges —
   `_price_children`, `_push_children` (return the insertion index as if every child were pushed, so pop
   order is unchanged) or `_no_goal_reachable`; never `_search`'s loop. Test it against the base class.

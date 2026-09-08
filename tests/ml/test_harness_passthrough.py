@@ -341,3 +341,24 @@ def test_a_variant_that_states_no_knobs_is_visibly_incomplete_rather_than_silent
         "bound_drop_slack": 0.0,
     }
     assert "budget" not in search.configuration
+
+
+def test_a_constrained_run_records_its_constraints_and_the_default_run_records_none(
+    uci_data_dir: Path,
+):
+    # BL-39: the problem's forced/forbidden columns are on the record beside the engine's settings,
+    # and the printed block states them only when they are set, so the default block is unchanged.
+    default = _run(uci_data_dir)
+    assert default.problem_constraints == {}
+    assert "constraints:" not in format_run(default)
+
+    constrained = _run(uci_data_dir, forced=(3,), forbidden=frozenset({0, 5}))
+
+    assert constrained.problem_constraints == {"forced": [3], "forbidden": [0, 5]}
+    optimum = constrained.certified_optimum
+    assert optimum.optimal
+    assert 3 in optimum.state and not ({0, 5} & set(optimum.state))
+    assert optimum.cost >= default.certified_optimum.cost - 1e-12
+    rendered = format_run(constrained)
+    assert "constraints: forced=[3] forbidden=[0, 5]" in rendered
+    assert "unconstrained" in rendered

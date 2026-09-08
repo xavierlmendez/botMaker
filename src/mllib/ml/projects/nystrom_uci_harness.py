@@ -82,6 +82,7 @@ class UciHarnessResult:
     frontier_peaks: dict[str, int | None]
     engine_configurations: dict[str, Mapping[str, object] | None]
     certified_gaps: dict[str, float | None]
+    problem_constraints: dict[str, list[int]]
     cost_ratios_to_optimal: dict[str, float]
     randomized_summaries: dict[str, RandomizedSelectorSummary]
     randomized_mean_ratios_to_optimal: dict[str, float]
@@ -121,12 +122,20 @@ def run_nystrom_on_uci_dataset(
     gamma_scale: float = 1.0,
     randomized_trials: int = 50,
     selectors: list[AbstractNystromLandmarkSelector] | None = None,
+    forced: tuple[int, ...] = (),
+    forbidden: frozenset[int] = frozenset(),
 ) -> UciHarnessResult:
     """Load one dataset, build a kernel, and run every selector against the certified optimum.
 
     ``selectors`` replaces the default suite, so a variant engine is measured on the same cell as
     the certified reference. ``None`` builds the default list, which is the run every committed
     number was taken from.
+
+    ``forced`` and ``forbidden`` constrain the problem the searches solve (a conditional solve, as
+    the necessity margins ask). The published baselines and the instrumented heuristics do not read
+    the problem's successors, so they stay unconstrained; a constrained run's ratios therefore
+    compare unconstrained selectors to the constrained optimum, and the record says so through
+    ``problem_constraints``, which the printed block states whenever it is non-empty.
     """
     features = load_feature_matrix(spec, data_dir)
     features = downsample_rows(features, max_rows=max_rows, seed=sample_seed)
@@ -136,7 +145,9 @@ def run_nystrom_on_uci_dataset(
         raise ValueError("landmark_count must be smaller than the number of sampled rows.")
 
     kernel, gamma_used = build_rbf_kernel(features, gamma=gamma, gamma_scale=gamma_scale)
-    problem = NystromLandmarkProblem(kernel, landmark_count=landmark_count)
+    problem = NystromLandmarkProblem(
+        kernel, landmark_count=landmark_count, forced=forced, forbidden=forbidden
+    )
     cost_function = NystromCssCostFunction(problem)
 
     suite = default_selectors(sample_seed) if selectors is None else selectors
@@ -195,6 +206,7 @@ def run_nystrom_on_uci_dataset(
             name: result.engine_configuration for name, result in selector_results.items()
         },
         certified_gaps={name: result.certified_gap for name, result in selector_results.items()},
+        problem_constraints=problem.constraints,
         cost_ratios_to_optimal={
             name: cost_ratio(result.cost, optimal_cost) for name, result in selector_results.items()
         },
@@ -279,6 +291,13 @@ def format_run(run: UciHarnessResult) -> str:
             f"  {name:>22} [{selector_label(name, result):>20}]: "
             f"ratio={run.cost_ratios_to_optimal[name]:.3f} cost={result.cost:.4f} "
             f"state={result.state} nodes={result.nodes_expanded}{gap}"
+        )
+    if run.problem_constraints:
+        # A constrained optimum is a different problem; the block says so before any ratio is read.
+        lines.append(
+            f"  constraints: forced={run.problem_constraints['forced']} "
+            f"forbidden={run.problem_constraints['forbidden']} "
+            "(selectors other than the searches are unconstrained)"
         )
     reference_engine = run.engine_configurations.get(CERTIFIED_SELECTOR)
     for name, configuration in run.engine_configurations.items():

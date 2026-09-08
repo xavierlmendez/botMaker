@@ -8,6 +8,7 @@ is what lets a column-subset-selection search choose landmarks without modificat
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from collections.abc import Iterable, Sequence
 
 import numpy as np
@@ -48,6 +49,18 @@ class NystromLandmarkProblem(AbstractGraphProblem[LandmarkState, LandmarkAction]
     bound computed on the truncated kernel stays admissible for the true objective (D-26); the
     objective itself, ``kernel_matrix`` and every goal cost, is never truncated. δ = 0 keeps every
     mode above rounding.
+
+    ``forced`` and ``forbidden`` make the search conditional: every subset must contain the forced
+    columns and none of the forbidden ones, with ``landmark_count`` unchanged. The search starts at
+    the forced columns, ``initial_state()`` is their sorted tuple, and successors add one *free*
+    column (neither forced nor forbidden) above the largest free column already chosen, so each
+    admissible subset is still exactly one node and states stay canonical ascending tuples. The
+    bound needs no change: removing candidates only raises the true optimum, and starting deeper
+    is a subtree of the same tree, so what is admissible for the whole tree is admissible here. The
+    2n conditional solves of the necessity margins (for every column, the best subset with it and
+    the best without it) are this knob; ``constraints`` states it for the record, empty by default.
+    The constraints shape the tree only: ``goal_cost`` and ``lower_bound`` stay defined on every
+    subset, so a selector that does not read the tree can still price an unconstrained choice.
     """
 
     def __init__(
@@ -55,6 +68,9 @@ class NystromLandmarkProblem(AbstractGraphProblem[LandmarkState, LandmarkAction]
         kernel_matrix: np.ndarray,
         landmark_count: int,
         spectrum_mass_tolerance: float = 0.0,
+        *,
+        forced: tuple[int, ...] = (),
+        forbidden: frozenset[int] = frozenset(),
     ):
         self.kernel_matrix = np.asarray(kernel_matrix, dtype=float)
         if self.kernel_matrix.ndim != 2:
@@ -71,6 +87,26 @@ class NystromLandmarkProblem(AbstractGraphProblem[LandmarkState, LandmarkAction]
             raise ValueError("spectrum_mass_tolerance must lie in [0, 1).")
         self.landmark_count = landmark_count
         self.spectrum_mass_tolerance = spectrum_mass_tolerance
+
+        column_count = self.kernel_matrix.shape[0]
+        self.forced = tuple(sorted(int(index) for index in forced))
+        self.forbidden = frozenset(int(index) for index in forbidden)
+        if len(set(self.forced)) != len(self.forced):
+            raise ValueError("forced columns must be distinct.")
+        if any(index < 0 or index >= column_count for index in (*self.forced, *self.forbidden)):
+            raise ValueError("forced and forbidden columns must be in range.")
+        if self.forbidden & set(self.forced):
+            raise ValueError("a column cannot be both forced and forbidden.")
+        if len(self.forced) > landmark_count:
+            raise ValueError("more forced columns than landmark_count.")
+        # The free columns are the only ones a successor may add, in ascending order.
+        self._free_columns = tuple(
+            index
+            for index in range(column_count)
+            if index not in self.forbidden and index not in self.forced
+        )
+        if len(self._free_columns) < landmark_count - len(self.forced):
+            raise ValueError("too few columns remain outside forbidden to reach landmark_count.")
 
         # K^{1/2} exists because K is psd; eigenvalues are clipped because a psd matrix built from
         # data can carry small negative values from rounding, and their square roots are not real.
@@ -96,8 +132,15 @@ class NystromLandmarkProblem(AbstractGraphProblem[LandmarkState, LandmarkAction]
         mass_rank = int(np.argmax(tail <= allowed))
         return max(1, min(numeric_rank, mass_rank))
 
+    @property
+    def constraints(self) -> dict[str, list[int]]:
+        """The forced and forbidden columns, for the record; empty when the problem has neither."""
+        if not self.forced and not self.forbidden:
+            return {}
+        return {"forced": list(self.forced), "forbidden": sorted(self.forbidden)}
+
     def initial_state(self) -> LandmarkState:
-        return ()
+        return self.forced
 
     def is_goal(self, state: LandmarkState) -> bool:
         self._validate_state(state)
@@ -109,14 +152,19 @@ class NystromLandmarkProblem(AbstractGraphProblem[LandmarkState, LandmarkAction]
         if still_needed <= 0:
             return []
 
-        column_count = self.kernel_matrix.shape[0]
-        first_candidate = 0 if not state else state[-1] + 1
-        # Stop where too few columns remain to finish the selection: those branches are dead ends.
-        last_candidate = column_count - still_needed
-        if first_candidate > last_candidate:
+        free = self._free_columns
+        # Candidates are the free columns above the largest free column already chosen; the forced
+        # columns sit anywhere in the state and never move this cursor. Without constraints ``free``
+        # is every column and this is ``range(state[-1] + 1, ...)`` exactly.
+        chosen_free = [index for index in state if index not in self.forced]
+        first = 0 if not chosen_free else bisect_right(free, chosen_free[-1])
+        # Stop where too few free columns remain to finish the selection: dead ends.
+        last = len(free) - still_needed
+        if first > last:
             return []
-
-        return [(index, (*state, index)) for index in range(first_candidate, last_candidate + 1)]
+        if not self.forced:
+            return [(index, (*state, index)) for index in free[first : last + 1]]
+        return [(index, tuple(sorted((*state, index)))) for index in free[first : last + 1]]
 
     def _validate_state(self, state: LandmarkState) -> None:
         column_count = self.kernel_matrix.shape[0]
@@ -126,6 +174,9 @@ class NystromLandmarkProblem(AbstractGraphProblem[LandmarkState, LandmarkAction]
             raise ValueError("State contains out-of-range landmark indices.")
         if tuple(sorted(state)) != state or len(set(state)) != len(state):
             raise ValueError("State indices must be unique and in ascending order.")
+        # The constraints are not checked here: they shape the tree (``initial_state`` and
+        # ``successors`` never produce a state outside them), while the objective is defined on
+        # every subset, and a selector that ignores the constraints may still price its choice.
 
 
 class NystromCssCostFunction(SearchCostFunction[LandmarkState, LandmarkAction]):
@@ -185,16 +236,34 @@ class NystromCssCostFunction(SearchCostFunction[LandmarkState, LandmarkAction]):
         spectrum is a rank-one downdate of it, solved through the secular equation, so one
         eigendecomposition per parent replaces one per child (BL-27).
 
-        Successors that do not extend the parent fall back to the oracle, one at a time.
+        A child is the parent plus one column, wherever that column sorts (a forced column can sit
+        above it). Successors that do not extend the parent fall back to the oracle, one at a time.
         """
         if not successors:
             return []
-        if not all(child[:-1] == parent for _, child in successors):
+        added = self._added_columns(parent, successors)
+        if added is None:
             return super().lower_bounds(parent, successors)
-        added_columns = np.fromiter((child[-1] for _, child in successors), dtype=int)
+        added_columns = np.fromiter(added, dtype=int, count=len(successors))
         if len(parent) + 1 == self.problem.landmark_count:
             return self._goal_depth_bounds(parent, added_columns)
         return self._downdated_bounds(parent, added_columns)
+
+    @staticmethod
+    def _added_columns(
+        parent: LandmarkState, successors: Sequence[tuple[LandmarkAction, LandmarkState]]
+    ) -> list[int] | None:
+        """The one column each child adds to ``parent``, or ``None`` if some child is not that."""
+        added = []
+        parent_set = set(parent)
+        for _, child in successors:
+            if len(child) != len(parent) + 1:
+                return None
+            extra = [index for index in child if index not in parent_set]
+            if len(extra) != 1:
+                return None
+            added.append(extra[0])
+        return added
 
     def _goal_depth_bounds(self, parent: LandmarkState, added_columns: np.ndarray) -> list[float]:
         """The exact residual trace of every complete child, from the parent's Schur complement."""
