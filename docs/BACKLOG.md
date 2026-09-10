@@ -238,6 +238,36 @@ logged frontier of one F-6 cell and count regeneration events. Worth a row becau
 regeneration accounting fails under batched, expensive evaluation" is a publishable negative and
 closes the family. Unlocks nothing until BL-34 fails. Origin: cell F4.
 
+### BL-40 — Harness the R620 for grid runs · `backlog-only` · re-entry 2–4 h
+
+The Dell R620 (2 × E5-2670, 110 GiB usable, Proxmox VE 9.2 at 192.168.2.10 over a direct cable to the
+Mac) is set up but carries no workload yet. Docs, credentials and the standing rules live in
+`~/develop/r620/` (read `OPERATIONS.md` first; §3 lists the undecided points — topology, where work is
+picked up, local LLM, backups). First step when this opens: create the `compute-01` guest and run one
+n ≥ 80 cell of the Nyström grid there from a botMaker checkout, comparing wall time against the Mac.
+
+### BL-41 — ncut generalization of the two-hot span modules · `backlog-only` · re-entry 4–6 h
+
+The rcut prototype (`docs/plans/2026-09-two-hot-span.md` phase 2) is built for c = 1, C = I. The
+generalization is c_i = √d_i, C = diag(c), X = D^{-1/2}E threaded as parameters of the same three
+modules — the rounding condition becomes c_i v_i + c_j v_j = 0 and the rounded objective Ê becomes
+NCut, which was verified to machine precision in the research session. The source makes it
+conditional: "Only after this works reliably for rcut should the implementation be generalized."
+Open this when slice 2.3's harness shows a single λ giving exactly K components on at least three of
+the four test graphs. Parked on the research side as P23. Do not copy the modules; add parameters.
+
+### BL-42 — torch on the R620: AVX2 requirement undocumented · `backlog-only` · re-entry 1–2 h
+
+The Dell R620's E5-2670 CPUs predate AVX2. PyTorch does not document an instruction-set requirement
+for its CPU wheels (pytorch.org/get-started/locally carries no AVX/AVX2/AVX-512 text as of
+2026-09-09), and issue #94021 (https://github.com/pytorch/pytorch/issues/94021 · issue "Set AVX2 is
+minimum supported instruction set for Linux X86", open, 2023-02-03 · retrieved 2026-09-09) shows some
+ops already hard-fail without AVX2 with the "Your CPU does not support FBGEMM" message. First step
+when this opens: install the `torch` group inside
+`compute-01` and run slice 2.3's harness on the roach graph; if it fails, record the failing op and
+decide between an AVX-less build and keeping these runs on the Mac. Blocks nothing today — the
+prototype's runs are minutes on the Mac (BL-40 is the wider R620 harnessing item).
+
 ## Closed
 
 ### BL-39 — Conditional solves: forced and forbidden columns in the Nyström problem · closed 2026-09-07 (this PR; research candidate E3 necessity margins, seed `sessions/2026-09-10-engine-slices.md`)
