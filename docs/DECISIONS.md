@@ -260,3 +260,27 @@ row the unconstrained one, so `cost_ratios_to_optimal` can fall below one and co
 row says so, and such a run is a record of a conditional solve, not a baseline measurement (D-22). The
 default run is byte-identical: no constraint, no line, the same tree to the byte. A future selector that
 wants the constraints reads them off the problem it is given, never off the harness.
+
+## D-31 — PyTorch enters as a local dependency group with the CPU index; the objective is never computed through the regularized projector · 2026-09-10 · accepted
+**Context.** The two-hot span prototype (`docs/plans/2026-09-two-hot-span.md`, research candidate
+`constrained-eigenvectors`) is the repo's first gradient-optimized module. `main` @ `85f2205` has no
+torch: absent from `pyproject.toml` dependencies and groups, zero matches in `uv.lock`, no import
+under `src/`. Three shapes were possible — a core dependency, a published extra, or a PEP 735 group —
+and the projector `P_V = V(VᵀV)⁺Vᵀ` needed an implementation that stays differentiable when columns
+go dependent, without imposing VᵀV = I, which the source forbids.
+**Decision.** torch is a PEP 735 `[dependency-groups] torch` group, with
+`[[tool.uv.index]] name = "pytorch-cpu", url = "https://download.pytorch.org/whl/cpu", explicit = true`
+and `[tool.uv.sources] torch = [{ index = "pytorch-cpu" }]`. CI adds one job running
+`uv sync --locked --dev --group torch`; torch-dependent tests use `pytest.importorskip`, so the
+default suite runs without it. Not an extra: uv documents extras as published package metadata that
+is not synced by default, and dependency groups as local-only and never published — which is what a
+research module's solver dependency is. Separately: the **training** loss uses the ridge projector
+`V(VᵀV + εI)⁻¹Vᵀ` (filter factors σᵢ²/(σᵢ²+ε), smooth, imposing no orthogonality), while **every
+reported number** — E\*, Ê and the differences — is computed with the exact `pinv` projector in
+numpy. The objective is never reported through the regularized projector.
+**Consequences.** D-21 is not reopened: `CONTRIBUTING.md` stays the steady state and this is an
+ordinary decision entry. A contributor without the group installed still gets a green suite. Because
+PyPI's default Linux wheel is the GPU build, the explicit index is what keeps a Linux checkout on the
+CPU wheel. `epsilon` is a training knob only, and a test asserts the reporting path never sees it —
+so a run's numbers mean the same thing whatever ε was. Whether the CPU wheels run on the R620 is
+undocumented upstream and is recorded as BL-42, not assumed here.
