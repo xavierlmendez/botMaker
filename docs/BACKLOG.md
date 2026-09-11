@@ -429,6 +429,33 @@ and after. Closes when `MyLogisticRegression` receives its hypothesis and loss, 
 contract serves every loss, the four bases are `abc.ABC`, and `hypothesis.py:20` no longer mutates
 what it was handed.
 
+### BL-50 — Spectral-start fixtures reproduce only on the platform that wrote them · `backlog-only` · re-entry 2–4 h
+
+Opened 2026-09-11 when BL-48 slice 1 made `ci-torch` run the whole suite: on the ubuntu runner five
+torch tests failed that had never run in CI before — the stress rung-0 oracles
+(`tests/ml/test_two_hot_span_stress.py`, roach_g5, karate and roach_g20 at `ORACLE_TOLERANCE = 1e-8`)
+and the two-hot walkthrough recording (`tests/visualization/test_two_hot_span_example.py`, roach_g5
+at 1e-9), all of them runs from the **spectral start**. The random-start refactor snapshot
+(`tests/math/algorithms/two_hot_span_refactor_snapshot.json`) passed on the same runner at 1e-9.
+
+The mechanism, measured on the Mac that wrote the fixtures: the spectral spanning set is the
+optimum of the span term, so its gradient there is rounding noise, and 20 of the 360 entries of the
+first gradient on roach G₅ (λ = 10) are below 1e-8. Adam's first step is `lr · g / (|g| + 1e-8)`, a
+sign function of `g`, so those 20 entries jump by ±lr according to which side of zero the BLAS put
+them. A 1e-14 perturbation of the start moves V by 0.094 after one step and Ê from 6.50 to 6.30;
+the same perturbation of a random start moves V by 8e-15. OpenBLAS on the runner against
+Accelerate on the Mac is that perturbation (b51d905 saw its last-digit form on the search
+fixtures). The numbers are not wrong on either platform; they are two legitimate runs from one
+start, and no tolerance separates them.
+
+Until closed, the five tests carry `only_on_fixture_platform` (`Darwin-arm64`) and skip elsewhere
+with this id in the reason, so `ci-torch` runs everything else. First step: decide whether the
+spectral start stays a reported cell given that it is a stationary point of the span term and its
+first step is decided by rounding — if it stays, the fixtures are written on the CI platform and
+compared at a stated tolerance there, and the Mac is the platform that skips; if it goes, the
+walkthrough and the rung-0 oracles move to the random start (BL-45 owns the ladder). Closes when
+no torch test is skipped by platform.
+
 ## Closed
 
 ### BL-39 — Conditional solves: forced and forbidden columns in the Nyström problem · closed 2026-09-07 (this PR; research candidate E3 necessity margins, seed `sessions/2026-09-10-engine-slices.md`)

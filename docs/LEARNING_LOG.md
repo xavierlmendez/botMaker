@@ -1296,6 +1296,14 @@ bit across slices 1-4).
   the unweighted term, and a test that had to divide a signed weighted number back out would be
   checking the sign convention and the hand value at once.
 
+**What the wider CI run found.** Running every torch test on the ubuntu runner for the first time
+failed the five spectral-start fixtures and nothing else. The spectral start is the optimum of the
+span term, so the first gradient there is rounding noise on 20 of 360 entries, and Adam's first
+step, `lr · g / (|g| + 1e-8)`, is a sign function of it: a 1e-14 perturbation of the start moves V by
+0.094 after one step, where a random start moves by 8e-15. That is a property of the start, not of
+this slice — the refactor snapshot passed on the runner — and it is recorded as BL-50 with the
+five tests skipped off the platform that wrote their fixtures.
+
 **What was confusing.** Whether `compute_penalty` should return the unweighted term and let the loss
 apply the weight and the sign. That would put the sign — the one fact that distinguishes a reward
 from a penalty — back in the loss as a per-class branch, which is the branch the slice removes. The

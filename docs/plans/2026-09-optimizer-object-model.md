@@ -113,6 +113,7 @@ fix.
 
 | Risk | Mitigation |
 |---|---|
+| Running the whole suite in `ci-torch` (slice 1) exposes fixtures that reproduce only on the platform that wrote them. | It did: the five spectral-start fixture tests fail on the ubuntu runner and skip there under `only_on_fixture_platform` with the id BL-50; the random-start refactor snapshot passes at 1e-9 on both platforms, so the guard this plan rests on is platform-stable. |
 | A fixture regenerated in slice 4 hides a numeric change made in the same slice. | Slice 4 lands in two steps inside one branch: first the new loop with the old result shape, and a test that the per-step losses equal the old loop's `loss_history` element for element on one seed; only once that test passes is the result reshaped and the fixtures regenerated, with the PR naming each regenerated file (A-2). |
 | The torch-free suite goes red because an abstract base or a test imports torch at module level. | Every abstract base lives in `math/` proper and is array-agnostic (P-6); every concrete torch class lives under `math/algorithms/two_hot_span/`; every torch test opens with `pytest.importorskip("torch")`. CI's default job, which has no torch, is the check. |
 | The step-rule abstraction leaks torch into `math` through its annotations. | `AbstractStepRule` annotates parameters and gradients as `Any`; the torch types appear only on `AdamStepRule`. A test imports `mllib.math.algorithms.abstract_optimizer` with torch absent (`sys.modules` guard) and asserts it loads. |
