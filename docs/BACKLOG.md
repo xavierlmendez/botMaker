@@ -373,6 +373,59 @@ docstring) is worth its cost, since the view already branches on `full`. Then a 
 `AbstractStepRecorder` and narration derived only for retained frames. Closes when a 5000-step
 `two_triangles` page is committed under the limit and the roach G₅ fixture is regenerated deliberately.
 
+### BL-48 — Optimizer object model: the two-hot span optimizer onto injected math objects · `in-progress` · re-entry 1–2 days
+
+Opened 2026-09-11 from D-35. The two-hot span optimizer
+(`math/algorithms/two_hot_span_optimizer.py`) is one module with no class hierarchy: thirteen knobs
+in one frozen config, free functions for the training loss and its penalties, Adam and its schedule
+built inside the function, per-step arrays on the result, and two stop conditions that raise. The
+search stack next to it is four injected objects and a result contract, and a variant touches none
+of them. This initiative gives the optimizer the search stack's shape: an `AbstractOptimizer` in
+`math/algorithms` owning `run()` with a `_step` seam; a problem object holding X and the cluster
+count and the exact reporting arithmetic; `CostFunction` redefined as a scalar of the parameters
+being optimized, with the ridge cost as its first implementation; `RegularizationFunction` made
+abstract with the collision, adjacency and diversity terms as its first implementations, each weight
+a knob on its class; step rules and schedules as injected objects; a result per D-35 (9) —
+parameters, final training loss, steps taken, stop reason, configuration, delivered numbers — with
+per-step frames on the recorder, so the two-hot recorder, view and stress harness read them from
+there.
+
+Acceptance test: BL-46 (restarts, the joint factorization) and BL-41 (ncut) each slot in without
+editing an existing class. Plan: `docs/plans/2026-09-optimizer-object-model.md`, six slices, the
+first docs-only. Closes when slice 5 has landed with both baselines byte-identical, the two-hot
+fixtures regenerated deliberately and stated in the PR, and the acceptance test written down as a
+sentence per item in the plan's §5 that the reviewer-agent can check against BL-46's first slice
+when it opens.
+
+### BL-49 — Descent stack breaks injection · `backlog-only` · re-entry 3–5 h
+
+Opened 2026-09-11 from the D-35 survey; out of BL-48's scope by decision. The descent stack is the
+code the injection stance was written about, and it breaks it in four places.
+`ml/logistic_regression.py:31-43` constructs its own `HypothesisFunction`,
+`PolynomialRegressionExpander` and `MSE` with a hardcoded seed of 10 instead of receiving them, and
+`grid_fit` (`:45-74`) mutates `loss_function`, `epochs` and `learning_rate` on the instance and
+rebuilds the hypothesis per permutation, the mutation D-35 (5) forbids. `math/loss_function.py` has
+two gradient contracts: the regression losses take `compute_gradient(actual, predicted)` (`:37`,
+`:50`) while `PerceptronLoss` and `HingeLoss` take a third `data_values` argument (`:62`, `:80`),
+and the descent base calls the two-argument form (`ml/gradient_descent.py:60`).
+`math/hypothesis.py:20` overwrites the injected expander's degree with its own. The old bases —
+`LossFunction`, `CostFunction`, `RegularizationFunction`, `HypothesisExpander` — express
+abstractness by `raise NotImplementedError` on plain classes, or not at all, rather than by
+`abc.ABC` (D-35 (2)); `CostFunction` and `RegularizationFunction` are redefined and made abstract by
+BL-48 slices 1 and 2, the other two are not.
+
+Relation to BL-26: that entry is the loop duplication (Perceptron and SVM off the descent base) and
+names the gradient-signature alignment as its enabling step; this entry is the injection break and
+the base-class form, and the signature alignment is done once, here or there, never twice. The
+`math/hypothesis.py:51` call to an `expand` signature no expander defines is not this entry: it is a
+bug and is fixed by the last slice of the BL-48 plan, with a test.
+
+First step: a fresh-objects `grid_fit` — a cell is a configuration plus a constructor per injected
+role, built per cell, never mutated (D-35 (5)) — with the training baseline byte-identical before
+and after. Closes when `MyLogisticRegression` receives its hypothesis and loss, one gradient
+contract serves every loss, the four bases are `abc.ABC`, and `hypothesis.py:20` no longer mutates
+what it was handed.
+
 ## Closed
 
 ### BL-39 — Conditional solves: forced and forbidden columns in the Nyström problem · closed 2026-09-07 (this PR; research candidate E3 necessity margins, seed `sessions/2026-09-10-engine-slices.md`)
