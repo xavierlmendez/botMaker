@@ -1252,3 +1252,63 @@ doing exactly what it was asked. The number that says so is not E\* on its own b
 - **Reference.** Prof. Schweitzer's handoff brief §13 (Ê is the criterion, R is the diagnostic — the
   λ = 10 run maximises R on every column and is still wrong, which is that sentence with numbers
   attached) and §20 (the objective, and the λ it leaves unspecified).
+
+## A penalty as an injected object · 2026-09-11
+
+**What.** The three terms the two-hot training loss adds to its ridge cost — the collision reward
+`-λ Σ_j R(v_j)`, the graph reward `-μ Σ_j term(v_j)/‖v_j‖₂²` in its two forms, and the diversity
+penalty `+ν D(V)` — as objects the loss is handed rather than branches the loss owns. The loss is
+now one line: the ridge cost, then `loss + penalty.compute_penalty(V)` for each injected penalty in
+turn. Each object carries its own weight as a knob and its own sign, so a reward comes back negative
+and a penalty positive, and the loss never asks which is which. `term(V)` beside it is the
+unweighted number a hand check reads off a five-vertex graph; `compute_penalty` is the signed
+contribution the loss sums. The two adjacency forms became two classes, `LaplacianAdjacencyPenalty`
+and `EdgeProductAdjacencyPenalty`, rather than one class with a form knob: they are two
+implementations of one concept, which is what earns a class (D-35 (1)), and a string that selects a
+branch inside a method is the shape the decision retired.
+
+**Where.** `src/mllib/math/regularization_function.py` (`AbstractRegularizationFunction`, an
+`abc.ABC` per D-35 (2), array-agnostic per D-35 (6)) ·
+`src/mllib/math/algorithms/two_hot_span/penalties.py` (the four penalties; `graph_matrices` now
+sits beside `laplacian_matrix` in `math/graph/two_hot_span_problem.py`, slice 2's dedupe target) ·
+`training_loss` and the transitional `_penalties_from_config` in
+`src/mllib/math/algorithms/two_hot_span_optimizer.py` · tests
+`tests/math/algorithms/test_two_hot_span_penalties.py` (old arithmetic as the oracle, exact
+equality; `gradcheck` per penalty; signs; the adapter) and
+`tests/math/algorithms/test_two_hot_span_refactor_baseline.py` (three seeded runs pinned to the last
+bit across slices 1-4).
+
+**Design.** Three choices worth carrying.
+- *Zero weight means absent, not zero.* The old loss guarded each term behind `if weight != 0.0` so
+  that a default run built not one tensor of any term. The objects keep that property by not
+  existing: the adapter builds a penalty only for a non-zero weight, and a composition root that
+  does not want a term leaves it out. A `weight=0.0` penalty is legal but is not a switch — it still
+  builds its tensors, and on a column of zeros the diversity term divides by zero and `0.0 * NaN`
+  poisons the loss. So the default run is bit for bit the run slice 2.2 shipped because the
+  arithmetic is literally the same expression tree, not because a zero happened to cancel.
+- *Adding `-(w·t)` is the subtraction it replaced, to the last bit.* IEEE 754 defines `a - b` as `a
+  + (-b)`, and negation is exact, so `loss + (-(w * t))` and `loss - w * t` round identically.
+  Autograd agrees: `sub` gives the second operand `-grad`, and `add` of `neg` gives `neg(grad)`, the
+  same `-w` on `t` either way. The refactor snapshot is the proof: three 30-step runs with every
+  term on, byte-identical before and after.
+- *Two methods, not one.* `term` exists because the hand values in the adjacency tests — `(d_i + d_j
+  + 2 w_ij)/2` on an edge, `w_ij` for the edge-product form, `0` off an edge — are statements about
+  the unweighted term, and a test that had to divide a signed weighted number back out would be
+  checking the sign convention and the hand value at once.
+
+**What the wider CI run found.** Running every torch test on the ubuntu runner for the first time
+failed the five spectral-start fixtures and nothing else. The spectral start is the optimum of the
+span term, so the first gradient there is rounding noise on 20 of 360 entries, and Adam's first
+step, `lr · g / (|g| + 1e-8)`, is a sign function of it: a 1e-14 perturbation of the start moves V by
+0.094 after one step, where a random start moves by 8e-15. That is a property of the start, not of
+this slice — the refactor snapshot passed on the runner — and it is recorded as BL-50 with the
+five tests skipped off the platform that wrote their fixtures.
+
+**What was confusing.** Whether `compute_penalty` should return the unweighted term and let the loss
+apply the weight and the sign. That would put the sign — the one fact that distinguishes a reward
+from a penalty — back in the loss as a per-class branch, which is the branch the slice removes. The
+training loss is a plain sum precisely because each term knows its own sign; the training knobs stay
+training knobs and never reach a reported number (D-31).
+
+- **Reference.** D-35 (1)-(3), (6); D-31 for the reporting boundary; the brief's §9 (the
+  distribution `p_j`), §10 (why the ½ is dropped from the collision term) and §20 (the objective).

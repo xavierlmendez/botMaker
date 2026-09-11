@@ -1,6 +1,8 @@
 # from engineering-standards @ 56bfdb2 (configs/python/ci.yml); local adaptations: TODO grep paths (paths, and the marker widened to `//` in *.html/*.js — back-port to engineering-standards),
 # adapted to this repo, and a second job `ci-torch` for the opt-in torch dependency group (D-31) —
 # the default `ci` job installs no torch, so the torch tests skip there via pytest.importorskip.
+# `ci-torch` runs the whole suite; the five spectral-start fixture tests skip off the platform that
+# wrote them (BL-50) and say so in the summary.
 name: ci
 
 on:
@@ -48,5 +50,5 @@ jobs:
           python-version: "3.12"
       - name: Install with the torch group
         run: uv sync --locked --dev --group torch
-      - name: Test (torch only)
-        run: uv run pytest -q tests/math/algorithms/test_two_hot_span_optimizer.py
+      - name: Test (the whole suite, so every importorskip'd torch test runs somewhere)
+        run: uv run pytest -q

@@ -25,14 +25,14 @@ pytest.importorskip("torch")
 
 import torch
 
-from mllib.math.algorithms.two_hot_span_optimizer import (
-    TwoHotSpanConfig,
-    adjacency_term,
-    fit_two_hot_span,
-    graph_matrices,
+from mllib.math.algorithms.two_hot_span.penalties import (
+    EdgeProductAdjacencyPenalty,
+    LaplacianAdjacencyPenalty,
 )
+from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
 from mllib.math.graph.two_hot_span_problem import (
     brute_force_rcut,
+    graph_matrices,
     incidence_matrix,
     laplacian_matrix,
     roach_graph,
@@ -167,12 +167,8 @@ def test_the_laplacian_form_on_an_edge_pair_is_the_degree_sum_plus_twice_the_wei
     degrees = dict(graph.degree(weight="weight"))
     weight = graph[first][second]["weight"]
 
-    value = adjacency_term(
-        torch.tensor(unit_two_hot(graph.number_of_nodes(), first, second)),
-        torch.tensor(laplacian),
-        torch.tensor(adjacency),
-        "laplacian",
-    )
+    column = torch.tensor(unit_two_hot(graph.number_of_nodes(), first, second))
+    value = LaplacianAdjacencyPenalty(laplacian).term(column)
 
     assert float(value) == pytest.approx(
         (degrees[first] + degrees[second] + 2.0 * weight) / 2.0, abs=1e-12
@@ -187,12 +183,8 @@ def test_the_laplacian_form_off_an_edge_is_the_degree_sum_alone(first, second):
     laplacian, adjacency = graph_matrices(incidence_matrix(graph))
     degrees = dict(graph.degree(weight="weight"))
 
-    value = adjacency_term(
-        torch.tensor(unit_two_hot(graph.number_of_nodes(), first, second)),
-        torch.tensor(laplacian),
-        torch.tensor(adjacency),
-        "laplacian",
-    )
+    column = torch.tensor(unit_two_hot(graph.number_of_nodes(), first, second))
+    value = LaplacianAdjacencyPenalty(laplacian).term(column)
 
     assert float(value) == pytest.approx((degrees[first] + degrees[second]) / 2.0, abs=1e-12)
 
@@ -202,12 +194,8 @@ def test_the_edge_product_form_on_an_edge_pair_is_the_edge_weight(first, second)
     graph = weighted_graph()
     laplacian, adjacency = graph_matrices(incidence_matrix(graph))
 
-    value = adjacency_term(
-        torch.tensor(unit_two_hot(graph.number_of_nodes(), first, second)),
-        torch.tensor(laplacian),
-        torch.tensor(adjacency),
-        "edge_product",
-    )
+    column = torch.tensor(unit_two_hot(graph.number_of_nodes(), first, second))
+    value = EdgeProductAdjacencyPenalty(adjacency).term(column)
 
     assert float(value) == pytest.approx(graph[first][second]["weight"], abs=1e-12)
 
@@ -218,12 +206,8 @@ def test_the_edge_product_form_off_an_edge_is_exactly_zero(first, second):
     assert not graph.has_edge(first, second)
     laplacian, adjacency = graph_matrices(incidence_matrix(graph))
 
-    value = adjacency_term(
-        torch.tensor(unit_two_hot(graph.number_of_nodes(), first, second)),
-        torch.tensor(laplacian),
-        torch.tensor(adjacency),
-        "edge_product",
-    )
+    column = torch.tensor(unit_two_hot(graph.number_of_nodes(), first, second))
+    value = EdgeProductAdjacencyPenalty(adjacency).term(column)
 
     assert float(value) == pytest.approx(0.0, abs=1e-12)
 
@@ -234,13 +218,9 @@ def test_both_forms_are_scale_invariant():
     laplacian, adjacency = graph_matrices(incidence_matrix(graph))
     column = unit_two_hot(graph.number_of_nodes(), 1, 2)
 
-    for form in ("laplacian", "edge_product"):
-        one = adjacency_term(
-            torch.tensor(column), torch.tensor(laplacian), torch.tensor(adjacency), form
-        )
-        ten = adjacency_term(
-            torch.tensor(10.0 * column), torch.tensor(laplacian), torch.tensor(adjacency), form
-        )
+    for penalty in (LaplacianAdjacencyPenalty(laplacian), EdgeProductAdjacencyPenalty(adjacency)):
+        one = penalty.term(torch.tensor(column))
+        ten = penalty.term(torch.tensor(10.0 * column))
         assert float(one) == pytest.approx(float(ten), rel=1e-12)
 
 
@@ -250,21 +230,9 @@ def test_the_term_sums_over_the_columns():
     node_total = graph.number_of_nodes()
     pair_columns = [unit_two_hot(node_total, 0, 1), unit_two_hot(node_total, 2, 3)]
 
-    together = adjacency_term(
-        torch.tensor(np.hstack(pair_columns)),
-        torch.tensor(laplacian),
-        torch.tensor(adjacency),
-        "edge_product",
-    )
+    together = EdgeProductAdjacencyPenalty(adjacency).term(torch.tensor(np.hstack(pair_columns)))
     apart = sum(
-        float(
-            adjacency_term(
-                torch.tensor(column),
-                torch.tensor(laplacian),
-                torch.tensor(adjacency),
-                "edge_product",
-            )
-        )
+        float(EdgeProductAdjacencyPenalty(adjacency).term(torch.tensor(column)))
         for column in pair_columns
     )
 
