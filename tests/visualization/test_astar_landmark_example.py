@@ -1,8 +1,9 @@
 """The example against its committed recording: the guard that says the run has not moved.
 
 `tests/visualization/fixtures/astar_landmark_rbf_chain_8x8_k3.json` is a snapshot, in the sense
-CONTRIBUTING § "Behavioural baseline" means: it is the exact document the example writes for that
-cell, byte for byte, and it is regenerated **deliberately** —
+CONTRIBUTING § "Behavioural baseline" means: it is the document the example writes for that cell —
+the same frames, states, captions and counts, floats up to the last-digit noise of the host's BLAS
+(`conftest.assert_same_recording`) — and it is regenerated **deliberately** —
 
     uv run python examples/astar_landmark_walkthrough.py \
         --output-dir tests/visualization/fixtures --cell rbf_chain_8x8_k3
@@ -23,6 +24,7 @@ from pathlib import Path
 import pytest
 
 from mllib.visualization.render import main as render_main
+from tests.visualization.conftest import assert_same_recording
 
 HERE = Path(__file__).resolve().parent
 REPOSITORY_ROOT = HERE.parents[1]
@@ -56,7 +58,7 @@ def test_the_recorded_run_is_the_one_the_committed_fixture_holds(
 ):
     recording_path, _ = example_module.write_cell("rbf_chain_8x8_k3", tmp_path)
 
-    assert recording_path.read_text() == fixture_path.read_text()
+    assert_same_recording(recording_path.read_text(), fixture_path.read_text())
 
 
 def test_the_committed_fixture_stays_small_enough_to_commit(fixture_path):

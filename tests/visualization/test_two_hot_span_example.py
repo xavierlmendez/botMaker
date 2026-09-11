@@ -28,6 +28,7 @@ import pytest
 
 from mllib.visualization.recording import Recording
 from mllib.visualization.render import main as render_main
+from tests.visualization.conftest import assert_same_recording
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "two_hot_span_roach_g5_30steps.json"
@@ -109,8 +110,8 @@ def test_the_cli_renders_the_committed_fixture_through_the_two_hot_span_view(tmp
     assert "window.walkthroughViews[KIND] = function" in page
 
 
-def test_the_example_reproduces_the_committed_recording_byte_for_byte(written: tuple[Path, Path]):
-    assert written[0].read_text() == FIXTURE.read_text()
+def test_the_example_reproduces_the_committed_recording(written: tuple[Path, Path]):
+    assert_same_recording(written[0].read_text(), FIXTURE.read_text())
 
 
 def test_the_reference_experiment_writes_its_own_pair_and_reaches_the_roach_optimum(tmp_path):

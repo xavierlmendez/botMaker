@@ -30,6 +30,7 @@ from tests.math.algorithms.test_graph_search_example_fingerprint import (
     BFS_FINGERPRINT,
     DFS_FINGERPRINT,
 )
+from tests.visualization.conftest import assert_same_recording
 
 HERE = Path(__file__).resolve().parent
 REPOSITORY_ROOT = HERE.parents[1]
@@ -109,7 +110,8 @@ def test_the_visits_in_the_frames_are_the_traversal_the_result_reports(written):
 
 
 def test_the_committed_fixture_is_the_document_the_example_writes(written):
-    assert (written / "bfs.json").read_text() == FIXTURE_PATH.read_text()
+    # The spring layout is numpy arithmetic, so its coordinates carry the host's float noise.
+    assert_same_recording((written / "bfs.json").read_text(), FIXTURE_PATH.read_text())
 
 
 def test_the_committed_fixture_stays_small_enough_to_commit():

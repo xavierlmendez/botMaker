@@ -1,5 +1,7 @@
 """What the walkthrough tests share: one real recorded run, and the committed fixture recording."""
 
+import json
+import math
 from pathlib import Path
 
 import numpy as np
@@ -32,6 +34,55 @@ CAPPED_EXPANSIONS = 5
 
 FIXTURE_NAME = "astar_landmark_rbf_chain_8x8_k3.json"
 TWO_HOT_FIXTURE_NAME = "two_hot_span_roach_g5_30steps.json"
+
+
+# The BLAS a host links (Accelerate on macOS, OpenBLAS on the CI runner) moves the last digits of a
+# bound, a coordinate or a loss; the fifteenth digit of a float is not a different run. Anything
+# else — a state, a caption, a count, a key — has to match exactly.
+FLOAT_RELATIVE_TOLERANCE = 1e-9
+FLOAT_ABSOLUTE_TOLERANCE = 1e-9
+
+
+def _first_difference(actual, expected, path: str) -> str | None:
+    """The path to the first place two JSON documents differ beyond float noise, or ``None``."""
+    if isinstance(expected, bool) or isinstance(actual, bool):
+        # `1 == True` in Python; in a recording a flag and a count are different fields.
+        same = type(actual) is type(expected) and actual == expected
+        return None if same else f"{path}: {actual!r} != {expected!r}"
+    if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
+        if math.isclose(
+            actual, expected, rel_tol=FLOAT_RELATIVE_TOLERANCE, abs_tol=FLOAT_ABSOLUTE_TOLERANCE
+        ):
+            return None
+        return f"{path}: {actual!r} != {expected!r}"
+    if isinstance(expected, dict) and isinstance(actual, dict):
+        if actual.keys() != expected.keys():
+            return f"{path}: keys {sorted(actual)} != {sorted(expected)}"
+        for key in expected:
+            found = _first_difference(actual[key], expected[key], f"{path}.{key}")
+            if found is not None:
+                return found
+        return None
+    if isinstance(expected, list) and isinstance(actual, list):
+        if len(actual) != len(expected):
+            return f"{path}: length {len(actual)} != {len(expected)}"
+        for index, (left, right) in enumerate(zip(actual, expected, strict=True)):
+            found = _first_difference(left, right, f"{path}[{index}]")
+            if found is not None:
+                return found
+        return None
+    return None if actual == expected else f"{path}: {actual!r} != {expected!r}"
+
+
+def assert_same_recording(actual_text: str, expected_text: str) -> None:
+    """The two recording documents describe the same run, up to float noise.
+
+    Same keys, same frames, same states, captions and counts; floats within
+    ``FLOAT_RELATIVE_TOLERANCE`` / ``FLOAT_ABSOLUTE_TOLERANCE``. The message names the first
+    place they part, which a byte-for-byte diff of a megabyte of JSON never did.
+    """
+    difference = _first_difference(json.loads(actual_text), json.loads(expected_text), "$")
+    assert difference is None, f"recordings differ at {difference}"
 
 
 def _kernel(repository_root: Path, name: str) -> np.ndarray:
