@@ -280,6 +280,42 @@ _Avoid_: floor alone where the rank-k floor could be meant
 The number of connected components the rounded pairs induce, compared with the K clusters asked for.
 _Avoid_: cluster count (K is what was asked; this is what was got)
 
+### Composition and knobs
+
+How a run is put together, in every domain here. The terms name what a thing *is* to the code that
+uses it, never how it is built.
+
+**Math object**: An injected collaborator that stands for a named concept and carries behaviour: a
+loss, a projector, a penalty, a step rule, a recorder, a problem. Never a bag of numbers. _Avoid_:
+component, helper, strategy
+
+**Knob**: One scalar or name setting, owned by the object it parameterises: a learning rate belongs
+to the step rule, a ridge epsilon to the projector, a step budget to the optimizer. _Avoid_:
+hyperparameter (kept for the grid's own vocabulary), option, flag
+
+**Configuration**: The knobs that produced a measurement: the algorithm's own and those of every
+math object injected into it. A row recorded without its configuration cannot be reproduced.
+_Avoid_: settings, params
+
+**Composition root**: The script or harness that instantiates concrete classes and wires them
+together. The only place a concrete class is named by name. _Avoid_: driver, runner, main
+
+### Optimization
+
+The descent side of the library, as the search side has its own vocabulary above. A run of an
+optimizer is measured the way a search is: by what it paid, how it was set up and what it delivered.
+
+**Optimizer**: The algorithm that runs a descent loop over a set of parameters, the analogue of a
+search. Never the update rule it applies. _Avoid_: trainer, solver, Adam (a step rule)
+
+**Step rule**: The update an optimizer applies at each step, with its schedule: Adam with a cosine
+schedule is one step rule. Injected into the optimizer. _Avoid_: optimizer (taken: the loop),
+scheduler alone
+
+**Training loss**: The scalar an optimizer descends: a cost plus its penalties. A training knob may
+enter it; a reported number never comes from it. _Avoid_: objective (taken: the search's word, and
+the relaxed objective is a different quantity)
+
 ### Recording and walkthroughs
 
 **Recorder**:

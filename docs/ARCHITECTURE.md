@@ -19,20 +19,29 @@ imports it; scripts (composition roots, in `examples/`) wire data to models.
 
 | Layer | Contents | Role |
 |---|---|---|
-| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction`, `RegularizationFunction`, `SearchCostFunction`, `secular_equation` (eigenvalues of a rank-one downdate), `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors), `probability/` | academic ideas as classes |
+| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction` and `RegularizationFunction` (today a dataset cost of a hypothesis and an unimplemented penalty; a scalar of the parameters being optimized and an abstract penalty as target shape, BL-48), `SearchCostFunction`, `secular_equation` (eigenvalues of a rank-one downdate), `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`, `two_hot_span_problem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors; `AbstractOptimizer`, step rules and the `two_hot_span/` package — target shape, arriving with BL-48), `probability/` | academic ideas as classes, or as functions when a class is not earned (D-35) |
 | `ml` | `MyLinearRegression`, `MyLogisticRegression`, `MyPerceptron`, `MySVM`, `DecisionTree`, `ProbabilisticKNN`, `evaluators/`, `projects/` (ad-click grids, Nyström UCI harness) | models composed from primitives |
 | `data` | `data_orchestrator` (+ `DataTransformer`), datasets, transformer JSON configs | load → transform → split |
 | `visualization` | `recorders/` (per-problem `Frame` + recorder children, e.g. `astar_landmark`), `recording.py` (the versioned JSON document), `html_renderer.py` + `template.html` + `walkthrough.js` (one offline page with a stepper), `views/` (a problem's drawing plus its layout), `render.py` (the CLI) | a run turned into frames a reader can step through, and a page to step through them in |
 | `examples/` | `ad_click_model_comparison.py`, `nystrom_batched_bounds.py`, `graph_search_vs_networkx.py`, `boston_housing_vs_sklearn.py` | composition roots / experiments |
 
-The idea→class mapping is deliberately literal: h(x)=w·x+b is `HypothesisFunction`; the feature map Φ
-is `HypothesisExpander`; per-sample loss vs dataset cost mirror the lecture distinction; each loss
-carries its own gradient.
+A class is earned, not granted by naming (D-35): a concept is a class when it is injected, when it
+has two or more implementations, or when it carries state across calls, and is otherwise a function
+named after the concept; the abstract statement is `docs/philosophy/mllib-object-model.md`. The
+familiar examples hold under the rule — h(x)=w·x+b is `HypothesisFunction` and the feature map Φ is
+`HypothesisExpander` because both are injected; per-sample loss and dataset cost stay distinct
+because each is injected somewhere; each loss carries its own gradient because losses are plural.
 
 ## 2. Contracts (what a new component must satisfy)
 
 **Injected math objects.** A model is a host for injected objects and is written once against these
 interfaces. Adding a loss or an expander never touches a model.
+
+**Knobs and configuration.** A number or a name is a knob owned by the object it parameterises, with
+its default on that object's concrete class. An algorithm's `configuration` (D-28) is its own
+frozen dataclass plus each injected object's parameters as `describe()` reads them, keyed by role.
+A grid is over factories: a cell is a configuration plus a constructor per injected role, built
+fresh per cell, never a mutated instance (D-35 rules 3–5).
 
 | Interface | Must provide | Used by |
 |---|---|---|
@@ -45,6 +54,10 @@ interfaces. Adding a loss or an expander never touches a model.
 | `ModelEvaluator` | `update_testing_prediction_data(...)`, `evaluate_model()`, `persist_evaluation_record()` | every model's `evaluate` |
 | `AbstractGraphAlgorithm` | `_search(ctx)`; the ABC owns `run()` and `_notify_evaluator()`; `SearchContext` is frozen | graph algorithms |
 | `AbstractRecorder` | `enabled` (class attribute), `frames`, `metadata`, `record(frame)` (dense, ordered), `frame_dicts()`, `describe_result(result)`; `AbstractSearchRecorder` adds `record_expansion(...)` and `record_goal(...)` | any algorithm that offers to be watched |
+| `AbstractOptimizer` | `_step(...)`; the ABC owns `run()`, the recorder guard, the stop check and result assembly; the result carries the parameters moved, the final training loss, the steps taken, a stop reason, `configuration` and the delivered numbers, never a per-step frame (D-35 rule 9) | optimizers — target, BL-48 |
+| `CostFunction` | `compute_cost(parameters)`: a scalar of the parameters being optimized, differentiable in the training arithmetic; optional `task_kind` | `AbstractOptimizer` — target, BL-48 |
+| `RegularizationFunction` | `compute_penalty(parameters)`: a scalar added to the cost, weighted by its own knob; abstract | `AbstractOptimizer` — target, BL-48 |
+| step rule | one update of the parameters from their gradient, with its schedule and its own knobs (learning rate, schedule shape); carries its moments across steps | `AbstractOptimizer` — target, BL-48 |
 
 **Gradient-descent models.** `ml.gradient_descent.GradientDescentModel(hypothesis, loss, learning_rate, epochs)`
 owns `fit` / `predict_values` / gradient / update / cost and accepts arrays or DataFrames. A subclass sets
@@ -121,6 +134,25 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 - **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
   `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
   by class name in the project's JSON config.
+- **A penalty:** subclass `RegularizationFunction`; implement `compute_penalty(parameters)` in the
+  training arithmetic, with its weight as a knob on the class; never read the cost or another
+  penalty.
+  Add a unit test that checks the gradient numerically and one that the penalty is zero where the
+  concept says it is (a 2-hot column for the collision measure). It enters a run by injection only
+  (D-35 rule 3); the optimizer is not edited.
+- **A step rule:** implement the step-rule interface; own the learning rate and the schedule as
+  knobs with defaults on the concrete class; keep the moments on the instance. Test it against a
+  closed-form step on a quadratic. A schedule is part of the step rule, not a string the optimizer
+  interprets. A grid over learning rates is a grid over step-rule constructors (D-35 rule 5).
+- **An optimizer variant:** subclass `AbstractOptimizer` and override only `_step`, or change
+  nothing and inject a different step rule, cost or penalty — never `run()`. A variant that adds a
+  knob puts it on its own dataclass so `configuration` names it (D-28). Test it against the base
+  class on the same instance and record both under the harness's `configuration`. BL-46 and BL-41
+  are the two variants the shape is judged by: each must slot in without editing an existing class
+  (D-35).
+- **Where a sentence lives:** one home per kind of sentence, D-35 rule 7 and
+  `docs/philosophy/mllib-object-model.md` §7; a module docstring cites the decision that binds it as
+  one clause plus the id, and a class docstring is the description `describe()` reads.
 
 ## 5. Known structural debt and its schedule
 
@@ -134,6 +166,9 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 | Web layer was a stub (F6) | `fastapi_app/` | removed, BL-01 |
 | Copy-on-write incompatibility, swapped FP/FN, degenerate classifier | evaluator, training loop | **done** BL-21 (3.4b), BL-22 (3.4c), BL-23 (5.3b) |
 | `camelCase` modules and methods; nested `tests/` dirs; two import roots | everywhere | Phase 4 (D-17, D-18) |
+| Descent stack breaks injection: `MyLogisticRegression` builds its own hypothesis and loss and mutates them per grid cell; `LossFunction.compute_gradient` has a 2-arg and a 3-arg form | `ml/logistic_regression.py`, `math/loss_function.py` | BL-49 (D-35) |
+| `HypothesisFunction.expand_hypothesis` calls an expander `expand(hypothesis, degree)` no expander defines | `math/hypothesis.py:51` | fix slice 5 of `docs/plans/2026-09-optimizer-object-model.md` |
+| `CostFunction` and `RegularizationFunction` had no implementation; the two-hot objective and penalties were free functions in one module | `math/cost_function.py`, `math/regularization_function.py`, `math/algorithms/two_hot_span_optimizer.py` | BL-48 slices 1–2 (D-35) |
 
 ## 6. Target layout (after Phase 4)
 
@@ -142,6 +177,7 @@ pyproject.toml  uv.lock  CLAUDE.md  README.md  CONTRIBUTING.md
 src/mllib/
   math/      hypothesis.py  hypothesis_expander.py  loss_function.py  cost_function.py  …
              recorder.py  graph/  algorithms/  probability/
+             algorithms/two_hot_span/   optimizer, step rules, projectors, penalties (torch; BL-48)
   ml/        linear_regression.py  logistic_regression.py  …  evaluators/  projects/
   visualization/  recorders/  views/  recording.py  html_renderer.py  render.py
                   template.html  walkthrough.js
@@ -150,7 +186,7 @@ tests/       mirrors src/mllib; baseline snapshot beside its test; committed rec
              tests/visualization/fixtures/
 data/        datasets (≤ 1 MB each, D-19)  configs/
 examples/    composition roots
-notebooks/   docs/
+notebooks/   docs/       philosophy/ (the abstract object model, D-35)  plans/  reviews/
 ```
 
 ## 7. Cross-codebase note

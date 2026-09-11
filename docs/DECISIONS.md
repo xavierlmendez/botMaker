@@ -389,3 +389,70 @@ of things to supply rather than a page to design, and a layout without `explain`
 those slots hidden. The glossary grows only through `CONTEXT.md`: a page cannot introduce a word the
 domain language has not accepted, and adding a tooltip is a domain-modelling act with a test behind
 it. The plan is `docs/plans/2026-09-visualization.md` § 6 (P-7, P-8), the initiative BL-43.
+
+## D-35 — A class is earned by injection, plurality or state; knobs live on the objects they parameterise; the optimizer stack is built like the search stack · 2026-09-11 · accepted
+**Context.** The two-hot span optimizer (`math/algorithms/two_hot_span_optimizer.py`, D-31) is one
+422-line module with no class hierarchy: a frozen config of thirteen scalars, free functions for the
+training loss and its penalties, torch's Adam and its schedule constructed inside the function, a
+result that carries per-step arrays, and two stop conditions that raise. Next to it the search stack
+is four injected objects — problem, cost function, evaluator, recorder — plus a result contract, and
+adding a variant touches none of them (D-23, D-24, D-28, D-32). The backlog already holds the two
+extensions that will test the optimizer's shape, BL-46 (restarts, joint factorization) and BL-41
+(ncut), and neither slots in without editing the loop. The repository's stated design stance was one
+sentence in `CLAUDE.md` ("models are composed from injected math objects") and one in
+`docs/ARCHITECTURE.md` §1 ("the idea→class mapping is deliberately literal"), and the code the
+second sentence describes does not follow it: the older math layer declares abstractness by `raise
+NotImplementedError` on plain classes, `CostFunction` and `RegularizationFunction` have no
+implementation, and the first model subclass constructs its own hypothesis and loss instead of
+receiving them. `engineering-standards` has no design guidance at all, only process and tooling, and
+its rules are meant to hold for a front-end or a CRUD service, which this philosophy would not.
+Grilled with Xavier 2026-09-11; the abstract statement is `docs/philosophy/mllib-object-model.md`.
+**Decision.** Ten rules, for `src/mllib` only. (1) **A class is earned**, not granted by naming: a
+concept becomes a class when it is injected, when it has two or more implementations, or when it
+carries state across calls. Otherwise it is a function named after the concept. This supersedes
+"deliberately literal" in `docs/ARCHITECTURE.md` §1. (2) **An interface is an `abc.ABC`** with
+`@abstractmethod`, named `Abstract*`; `typing.Protocol` is reserved for the tradePlatform seam
+(BL-19), where the other side does not subclass us. (3) **Behaviour is injected, numbers are
+knobs.** Anything with behaviour — a cost, a projector, a penalty, a step rule, a recorder, a
+problem — is a math object passed to the constructor. A number or a name is a knob owned by the
+object it parameterises, with its default on the concrete class, so injecting a version is
+instantiating it and passing it, the way `MSE()` is passed today. Adam and its schedule are step
+rules, injected, never built inside a loop. (4) **Configuration is assembled, not declared once.**
+An algorithm's `configuration` (D-28) is its own frozen dataclass plus each injected object's
+parameters as `describe()` reads them, keyed by role. The ridge epsilon appears in that record; the
+reported numbers still never depend on it (D-31). (5) **A grid is over factories.** A cell is a
+configuration plus a constructor per injected role; the composition root builds fresh objects per
+cell and never mutates an instance between cells. (6) **One class per concept per arithmetic, never
+per array library.** The ridge and the exact projector are two implementations of one concept
+(D-31); a measure written identically in numpy and torch is a duplicate to remove. Abstract bases in
+`math` never import torch; concrete torch implementations live together in one package. (7) **The
+comment ladder.** `CONTEXT.md` says what a term is; `docs/DECISIONS.md` says why a rule holds; a
+module docstring says what the module holds and which decisions bind it, as one clause plus the id;
+a class docstring is the concept and its contract, and is the description `describe()` reads; a
+method docstring states pre- and postconditions; an inline comment carries a local why that no level
+above explains. `# TODO(BL-nn)` is unchanged. (8) **Harnesses are composition roots.** They may name
+concrete classes; they consume an algorithm through its run and result contract like any caller;
+every row they record carries `configuration`. (9) **An optimizer's result follows D-28 and D-32**:
+the parameters it moved, the final training loss, the steps taken, a stop reason, its configuration
+and the numbers it delivered. Per-step frames stay on the recorder. A stop condition returns a
+reason on the result; it does not raise. (10) **Intent first.** The cognitive-load handbook and
+*Clean Code* are cited as frameworks, not obeyed as authorities; where either conflicts with showing
+what a function or class is for, intent wins, and the philosophy document names the claims it signs
+and the ones it rejects. **Consequences.** The optimizer stack takes the search stack's shape: an
+`AbstractOptimizer` in `math/algorithms` owning `run()` with a `_step` seam, mirroring
+`AbstractGraphAlgorithm`; a problem object holding the data and the exact reporting arithmetic;
+`CostFunction` redefined as a scalar of the parameters being optimized, with the ridge cost as its
+first implementation; `RegularizationFunction` made abstract with the collision, adjacency and
+diversity terms as its first implementations; step rules and schedules as objects; the two-hot
+recorder, view and stress harness reading per-step frames from the recorder, with their fixtures
+regenerated deliberately in that slice. The acceptance test is BL-46 and BL-41: each must slot in
+without editing an existing class. The descent stack is out of scope and its breaks are recorded
+(BL-49, BL-26); the latent `hypothesis.py` signature bug is a fix slice with a test, not part of the
+refactor. `CONTEXT.md` gains the terms math object, knob, configuration, composition root,
+optimizer, step rule and training loss. `fit_two_hot_span` is removed in slice 4 — every caller
+becomes a composition root, and a bare function would be a second entry point with a second
+configuration story — so its five test modules, the two harnesses and the three examples construct
+the optimizer themselves. `docs/ARCHITECTURE.md` §1, §2, §4, §5 and §6 are rewritten to this
+decision in the same PR; `CLAUDE.md` gains one read-order line pointing at the philosophy document
+for use when designing a component. The plan is `docs/plans/2026-09-optimizer-object-model.md`, the
+initiative BL-48.
