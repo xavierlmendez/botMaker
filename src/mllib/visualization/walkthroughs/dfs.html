@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Depth-first search walkthrough</title>
+<style>
+  :root {
+    --ink: #16181d;
+    --muted: #5d6470;
+    --rule: #d8dce3;
+    --panel: #f6f7f9;
+    --accent: #2f5ea8;
+  }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #ffffff;
+    color: var(--ink);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 16px; }
+  /* Pinned so the controls stay reachable however tall the drawing is or however the page is
+     zoomed; the drawing below is capped at its natural pixel size so browser zoom shrinks it. */
+  .stepper {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--panel);
+  }
+  .stepper button {
+    font: inherit;
+    padding: 4px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: #ffffff;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .stepper button:disabled { color: var(--muted); cursor: default; opacity: 0.5; }
+  /* The slider and the marker strip take a whole row to themselves: the markers are positioned as
+     a fraction of the slider's width, and anything sharing that row would be centred across two
+     lines and land under a marker. The frame counter and the hint wrap to the button row instead. */
+  .track { flex: 1 1 100%; min-width: 160px; }
+  .track input[type="range"] { width: 100%; margin: 0; }
+  .moments { position: relative; height: 24px; }
+  /* Only a strip that actually staggered a marker pays for the second row. */
+  .moments.two-rows { height: 44px; }
+  .stepper .moment {
+    position: absolute;
+    top: 2px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  /* A marker too close to the one before it drops a row rather than hiding behind it. */
+  .stepper .moment.row-2 { top: 22px; }
+  /* The end markers are anchored by their own edge; centred, half of each would be off the strip. */
+  .stepper .moment.at-start { transform: translateX(0); }
+  .stepper .moment.at-end { transform: translateX(-100%); }
+  .stepper .moment.current { color: var(--ink); border-color: var(--accent); font-weight: 600; }
+  .stepper .hint, #position { color: var(--muted); }
+  .panel {
+    margin: 16px 0 0;
+    padding: 10px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--panel);
+  }
+  .panel h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  #opening { margin: 0 0 16px; }
+  #opening ol, #ending ul, #legend ul { margin: 0; padding-left: 18px; }
+  #opening li, #ending li, #legend li { margin: 2px 0; }
+  #ending.reached { border-color: var(--accent); }
+  .quantities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin: 12px 0 0;
+  }
+  .quantities div { min-width: 96px; }
+  .quantities dt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  .quantities dd { margin: 0; font-variant-numeric: tabular-nums; }
+  #narration { margin: 10px 2px 0; font-size: 15px; }
+  #legend .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 2px;
+  }
+  abbr[title] { text-decoration: underline dotted; cursor: help; }
+  .stage { display: flex; gap: 16px; align-items: flex-start; margin-top: 16px; flex-wrap: wrap; }
+  .drawing { flex: 0 1 780px; min-width: 0; }
+  svg {
+    width: 780px;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: #ffffff;
+  }
+  /* The recorder's own sentence, kept but demoted: the narration above it is the one written for
+     a reader, and this one is the one written by the run. */
+  #caption {
+    margin: 8px 2px 0;
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 2.6em;
+  }
+  .side { flex: 0 1 320px; min-width: 260px; }
+  .side h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  #raw {
+    margin: 0;
+    padding: 10px;
+    max-height: 480px;
+    overflow: auto;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--panel);
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+  }
+  footer {
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  footer dt { font-weight: 600; color: var(--ink); margin-top: 6px; }
+  footer dd { margin: 2px 0 0; word-break: break-word; }
+</style>
+</head>
+<body>
+<h1>Depth-first search walkthrough</h1>
+<p class="subtitle">A recorded run, one frame per recorded moment. Nothing here is live: the whole
+run is in this file.</p>
+
+<section id="opening" class="panel" hidden>
+  <h2>What this page shows</h2>
+  <ol></ol>
+</section>
+
+<div class="stepper">
+  <button id="previous" type="button">&#8592; Previous</button>
+  <button id="next" type="button">Next &#8594;</button>
+  <button id="play" type="button">Play</button>
+  <label for="speed" class="hint">Speed</label>
+  <select id="speed">
+    <option value="1600">0.5x</option>
+    <option value="800" selected>1x</option>
+    <option value="400">2x</option>
+    <option value="200">4x</option>
+  </select>
+  <span id="position"></span>
+  <span class="hint">&#8592; &#8594; step, space plays, Home/End jump</span>
+  <div class="track">
+    <input id="slider" type="range" min="0" max="0" step="1" value="0" aria-label="frame" />
+    <div id="moments" class="moments" hidden></div>
+  </div>
+</div>
+
+<dl id="quantities" class="quantities" hidden></dl>
+
+<div class="stage">
+  <div class="drawing">
+    <svg id="drawing" viewBox="0 0 780 470"
+         role="img" aria-label="frame drawing"></svg>
+    <p id="narration"></p>
+    <p id="caption"></p>
+  </div>
+  <div class="side">
+    <h2>Raw fields of this frame</h2>
+    <pre id="raw"></pre>
+    <section id="legend" class="panel" hidden>
+      <h2>Legend</h2>
+      <ul></ul>
+    </section>
+  </div>
+</div>
+
+<section id="ending" class="panel" hidden>
+  <h2>How the run ended</h2>
+  <ul></ul>
+</section>
+
+<footer>
+  <dl>
+    <dt>Problem</dt>
+    <dd id="problem-fields"></dd>
+    <dt>Configuration</dt>
+    <dd id="configuration-fields"></dd>
+    <dt>Result</dt>
+    <dd id="result-fields"></dd>
+  </dl>
+</footer>
+
+<script id="recording" type="application/json">{"configuration": {"allow_revisiting": false, "max_depth": null, "start": 1}, "frames": [{"caption": "Visited node 1 at depth 0; 0 nodes pending; 1 visited so far.", "depth": 0, "end": false, "found": false, "index": 0, "node_id": 1, "pending": [], "traversal_order": [1], "visited": [1]}, {"caption": "Visited node 2 at depth 1; 1 node pending; 2 visited so far.", "depth": 1, "end": false, "found": false, "index": 1, "node_id": 2, "pending": [[5, 1]], "traversal_order": [1, 2], "visited": [1, 2]}, {"caption": "Visited node 3 at depth 2; 2 nodes pending; 3 visited so far.", "depth": 2, "end": false, "found": false, "index": 2, "node_id": 3, "pending": [[5, 1], [4, 2]], "traversal_order": [1, 2, 3], "visited": [1, 2, 3]}, {"caption": "Visited node 4 at depth 3; 3 nodes pending; 4 visited so far.", "depth": 3, "end": false, "found": false, "index": 3, "node_id": 4, "pending": [[5, 1], [4, 2], [7, 3]], "traversal_order": [1, 2, 3, 4], "visited": [1, 2, 3, 4]}, {"caption": "Visited node 5 at depth 4; 4 nodes pending; 5 visited so far.", "depth": 4, "end": false, "found": false, "index": 4, "node_id": 5, "pending": [[5, 1], [4, 2], [7, 3], [8, 4]], "traversal_order": [1, 2, 3, 4, 5], "visited": [1, 2, 3, 4, 5]}, {"caption": "Visited node 6 at depth 5; 4 nodes pending; 6 visited so far.", "depth": 5, "end": false, "found": false, "index": 5, "node_id": 6, "pending": [[5, 1], [4, 2], [7, 3], [8, 4]], "traversal_order": [1, 2, 3, 4, 5, 6], "visited": [1, 2, 3, 4, 5, 6]}, {"caption": "Visited node 7 at depth 6; 5 nodes pending; 7 visited so far.", "depth": 6, "end": false, "found": false, "index": 6, "node_id": 7, "pending": [[5, 1], [4, 2], [7, 3], [8, 4], [11, 6]], "traversal_order": [1, 2, 3, 4, 5, 6, 7], "visited": [1, 2, 3, 4, 5, 6, 7]}, {"caption": "Traversal ended after 7 visits; target found.", "depth": null, "end": true, "found": true, "index": 7, "node_id": null, "pending": [], "traversal_order": [1, 2, 3, 4, 5, 6, 7], "visited": []}], "problem": {"algorithm": "dfs", "kind": "graph_traversal", "layout": {"edges": [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 14], [14, 15], [1, 5], [3, 7], [4, 8], [6, 11], [8, 13], [9, 15], [2, 4], [10, 12], [12, 14]], "node_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], "positions": [[0.9965550307565946, -0.7773365255446658], [0.6211267971393057, -0.9033106879259656], [0.2777981203058397, -0.8073825152221844], [0.33278395823836626, -0.53298168634517], [0.7511882984253305, -0.38279266058181866], [0.43890637078922384, 0.051223594994940946], [0.15513729476425217, -0.32971252246397637], [-0.18901415298781554, -0.10072642793143385], [-0.46464581745179406, 0.3791624587644344], [-0.17521781834696726, 0.7673734213117582], [0.10392733068604275, 0.5416834617482171], [-0.4122393187720861, 0.6752289665869191], [-0.6174585171665505, 0.2724258982618906], [-0.8188475763797445, 0.6671715788242973], [-1.0, 0.4799736455227557]]}, "node_count": 15, "target_node_id": 7}, "result": {"traversal_order": [1, 2, 3, 4, 5, 6, 7], "visit_count": 7}, "schema_version": 1}</script>
+<script id="layout" type="application/json">{"algorithm": "dfs", "banner": {"height": 30, "width": 748, "x": 16, "y": 30}, "edges": [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 14], [14, 15], [1, 5], [3, 7], [4, 8], [6, 11], [8, 13], [9, 15], [2, 4], [10, 12], [12, 14]], "explain": {"ending": ["Stopped because node 7 was visited, after 7 visits.", "Visit order: 1, 2, 3, 4, 5, 6, 7."], "glossary": {"Frame": "One recorded moment of a run \u2014 an expansion, or a step \u2014 with a caption."}, "legend": [{"key": "edge", "meaning": "a pair of nodes the graph joins, which the traversal may or may not use", "name": "Edge", "swatch": "#d8dce3"}, {"key": "crossed_edge", "meaning": "an edge with both ends already visited, so the walk's shape accumulates", "name": "Crossed edge", "swatch": "#2f5ea8"}, {"key": "node_visited", "meaning": "a node already in the traversal order, with the visit it was taken at", "name": "Visited node", "swatch": "#2f5ea8"}, {"key": "node_current", "meaning": "the node this frame is about, the one just taken out and visited", "name": "Current node", "swatch": "#b4462f"}, {"key": "node_pending", "meaning": "a node waiting in the queue or on the stack, not yet visited", "name": "Pending node", "swatch": "#a2761f"}, {"key": "node_untouched", "meaning": "a node the traversal has neither visited nor put in the container yet", "name": "Untouched node", "swatch": "#eef0f4"}, {"key": "pending_strip", "meaning": "the queue or stack in the container's own order, with each node's depth", "name": "Pending strip", "swatch": "#a2761f"}, {"key": "banner", "meaning": "what this frame is: the visit it records, or why the traversal ended", "name": "Banner", "swatch": "#2f7a4f"}], "moments": [{"frame_index": 3, "label": "target pending", "reason": "Node 7 is in the stack from here; every node ahead of it is visited first."}, {"frame_index": 6, "label": "target visited", "reason": "The target is visited here and the traversal stops."}], "narration": ["Visit 1: node 1 at depth 0 left the stack, which is empty until its neighbours are pushed.", "Visit 2: node 2 at depth 1 left the stack; since the previous visit node 5 joined it, and 1 node is pending (5).", "Visit 3: node 3 at depth 2 left the stack; since the previous visit node 4 joined it, and 2 nodes are pending (5, 4).", "Visit 4: node 4 at depth 3 left the stack; since the previous visit node 7 joined it, and 3 nodes are pending (5, 4, 7); node 7 is among them.", "Visit 5: node 5 at depth 4 left the stack; since the previous visit node 8 joined it, and 4 nodes are pending (5, 4, 7, 8); node 7 is among them.", "Visit 6: node 6 at depth 5 left the stack; nothing joined it since the previous visit, and 4 nodes are pending (5, 4, 7, 8); node 7 is among them.", "Visit 7: node 7 at depth 6 left the stack; since the previous visit node 11 joined it, and 5 nodes are pending (5, 4, 7, 8, 11); node 7 is among them.", "Traversal ended after 7 visits: target found at visit 7; order 1, 2, 3, 4, 5, 6, 7."], "opening": ["Instance: a graph of 15 nodes; the traversal starts at node 1 and looks for node 7.", "Algorithm: depth-first search \u2014 the next node visited is the one most recently pushed on the stack, so the traversal runs deep before it runs wide.", "Question: is node 7 reached, and which nodes are visited before it?", "How to read: one frame per visit. Filled nodes are visited, the ringed node is the current visit, outlined nodes are pending; the strip below the graph is the stack with the next node first."], "quantities": []}, "height": 470, "legend": {"x": 16, "y": 456}, "node_radius": 15, "nodes": [{"id": 1, "x": 732.0, "y": 403.3074294318109}, {"id": 2, "x": 603.382001578532, "y": 430.0}, {"id": 3, "x": 485.7609937242686, "y": 409.6738515980542}, {"id": 4, "x": 504.59859778048923, "y": 351.5312662431341}, {"id": 5, "x": 647.9397851152719, "y": 319.70782647600504}, {"id": 6, "x": 540.955086365369, "y": 227.7444483456687}, {"id": 7, "x": 443.7386084766894, "y": 308.4607159122435}, {"id": 8, "x": 325.8357274460525, "y": 259.94102447787327}, {"id": 9, "x": 231.40704624816084, "y": 158.2577290236248}, {"id": 10, "x": 330.562215195686, "y": 76.0}, {"id": 11, "x": 426.1945814451773, "y": 123.821275873598}, {"id": 12, "x": 249.3609941958597, "y": 95.52441924372887}, {"id": 13, "x": 179.0549272257845, "y": 180.87405859124146}, {"id": 14, "x": 110.06102804454117, "y": 97.23169307975614}, {"id": 15, "x": 48.0, "y": 136.8969224443795}], "subtitle": "Depth-first search over 15 nodes, looking for node 7", "target_node_id": 7, "width": 780}</script>
+<script>
+// The picture of one visit of a graph traversal: where the walk has been, where it is, what waits.
+//
+// One graph, drawn in the same place on every frame, with four states a node can be in. Visited
+// (filled: it is in the traversal order). Current (filled and ringed: the node this frame is
+// about). Pending (outlined: it is in the queue or on the stack, waiting). Untouched (faint).
+// The edges the walk has already crossed — both ends visited — are drawn heavier than the rest,
+// so the shape of the walk accumulates on the page instead of having to be remembered.
+//
+// The reason the same view serves both algorithms is that the difference between them is entirely
+// in the pending list, which is drawn in the container's own order: the queue's next node is at the
+// head of the strip, the stack's next node is at its tail. Stepping the two pages side by side is
+// the clearest statement of what "breadth-first" and "depth-first" actually mean.
+//
+// The last frame ("end": true) is about no node at all — it says whether the traversal stopped on
+// its target or ran out of graph — so it draws the finished walk under a banner.
+
+(function () {
+  "use strict";
+
+  var KIND = "graph_traversal";
+
+  var INK = "#16181d";
+  var MUTED = "#5d6470";
+  var RULE = "#d8dce3";
+  var UNTOUCHED = "#eef0f4";
+  var VISITED = "#2f5ea8";
+  var CURRENT = "#b4462f";
+  var PENDING = "#a2761f";
+  var FOUND = "#2f7a4f";
+
+  // Every drawn thing that stands for something carries the key of the legend entry that explains
+  // it. The whole attribute is spelled out rather than assembled from a key, so the drawing's keys
+  // and the legend's can be read out of the two files and compared without running either.
+  var TAG = {
+    edge: 'data-legend="edge"',
+    crossed: 'data-legend="crossed_edge"',
+    visited: 'data-legend="node_visited"',
+    current: 'data-legend="node_current"',
+    pending: 'data-legend="node_pending"',
+    untouched: 'data-legend="node_untouched"',
+    strip: 'data-legend="pending_strip"',
+    banner: 'data-legend="banner"'
+  };
+
+  function escapeText(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function tag(name, attributes, body) {
+    var markup = "<" + name;
+    for (var key in attributes) {
+      if (attributes[key] !== null && attributes[key] !== undefined) {
+        markup += " " + key + '="' + escapeText(attributes[key]) + '"';
+      }
+    }
+    if (body === null || body === undefined) {
+      return markup + " />";
+    }
+    return markup + ">" + body + "</" + name + ">";
+  }
+
+  function label(x, y, value, attributes) {
+    var merged = { x: x, y: y };
+    for (var key in attributes || {}) {
+      merged[key] = attributes[key];
+    }
+    return tag("text", merged, escapeText(value));
+  }
+
+  // A group carrying its legend key and the one line a reader gets by resting on it. <title> is
+  // the SVG tooltip: no script, no positioning, and it survives the page being saved.
+  function tagged(attribute, hover, body) {
+    return "<g " + attribute + ">" + tag("title", {}, escapeText(hover)) + body + "</g>";
+  }
+
+  function membership(list) {
+    var seen = {};
+    for (var i = 0; i < (list || []).length; i += 1) {
+      seen[list[i]] = true;
+    }
+    return seen;
+  }
+
+  function placement(layout) {
+    var byId = {};
+    for (var i = 0; i < layout.nodes.length; i += 1) {
+      byId[layout.nodes[i].id] = layout.nodes[i];
+    }
+    return byId;
+  }
+
+  function edges(layout, node, walked) {
+    var markup = "";
+    for (var i = 0; i < layout.edges.length; i += 1) {
+      var u = node[layout.edges[i][0]];
+      var v = node[layout.edges[i][1]];
+      if (!u || !v) {
+        continue;
+      }
+      var crossed = walked[layout.edges[i][0]] && walked[layout.edges[i][1]];
+      var joins = "edge " + layout.edges[i][0] + "–" + layout.edges[i][1];
+      markup += tagged(
+        crossed ? TAG.crossed : TAG.edge,
+        crossed ? joins + ": both ends visited" : joins,
+        tag("line", {
+          x1: u.x,
+          y1: u.y,
+          x2: v.x,
+          y2: v.y,
+          stroke: crossed ? VISITED : RULE,
+          "stroke-width": crossed ? 2.5 : 1.2,
+          "stroke-opacity": crossed ? 0.75 : 1
+        })
+      );
+    }
+    return markup;
+  }
+
+  // What a reader gets by resting on a node: which of the four states it is in, and the one
+  // number that goes with that state — the visit it was taken at, or the depth it waits at.
+  function nodeHover(id, visit, pendingDepth) {
+    if (visit) {
+      return "node " + id + ": visited at " + visit;
+    }
+    if (pendingDepth !== undefined) {
+      return "node " + id + ": pending at depth " + pendingDepth;
+    }
+    return "node " + id + ": untouched";
+  }
+
+  function nodes(layout, frame, visitOf, pendingDepths) {
+    var markup = "";
+    for (var i = 0; i < layout.nodes.length; i += 1) {
+      var placed = layout.nodes[i];
+      var isCurrent = frame.node_id !== null && placed.id === frame.node_id;
+      var fill = UNTOUCHED;
+      var stroke = RULE;
+      var strokeWidth = 1.2;
+      var key = TAG.untouched;
+      if (isCurrent) {
+        fill = CURRENT;
+        stroke = INK;
+        strokeWidth = 3;
+        key = TAG.current;
+      } else if (visitOf[placed.id]) {
+        fill = VISITED;
+        stroke = VISITED;
+        key = TAG.visited;
+      } else if (pendingDepths[placed.id] !== undefined) {
+        fill = "#ffffff";
+        stroke = PENDING;
+        strokeWidth = 2.5;
+        key = TAG.pending;
+      }
+      markup += tagged(
+        key,
+        nodeHover(placed.id, visitOf[placed.id], pendingDepths[placed.id]),
+        tag("circle", {
+          cx: placed.x,
+          cy: placed.y,
+          r: layout.node_radius,
+          fill: fill,
+          stroke: stroke,
+          "stroke-width": strokeWidth
+        }) +
+          label(placed.x, placed.y + 4, placed.id, {
+            "text-anchor": "middle",
+            "font-size": 11,
+            fill: fill === UNTOUCHED || fill === "#ffffff" ? MUTED : "#ffffff"
+          })
+      );
+    }
+    return markup;
+  }
+
+  function pendingStrip(layout, frame) {
+    var pending = frame.pending || [];
+    if (frame.end) {
+      return "";
+    }
+    var heading =
+      layout.algorithm === "dfs"
+        ? "Stack (bottom first; the last one pops next)"
+        : "Queue (front first; the first one comes out next)";
+    var markup = label(16, layout.height - 44, heading, { "font-size": 11, fill: MUTED });
+    if (!pending.length) {
+      return markup + label(16, layout.height - 26, "empty", { "font-size": 12, fill: MUTED });
+    }
+    var x = 16;
+    for (var i = 0; i < pending.length && x < layout.width - 60; i += 1) {
+      var text = pending[i][0] + " @" + pending[i][1];
+      var width = 14 + text.length * 6.6;
+      markup += tagged(
+        TAG.strip,
+        "node " +
+          pending[i][0] +
+          ": pending at depth " +
+          pending[i][1] +
+          ", " +
+          (i + 1) +
+          " of " +
+          pending.length +
+          " in the " +
+          (layout.algorithm === "dfs" ? "stack" : "queue"),
+        tag("rect", {
+          x: x,
+          y: layout.height - 40,
+          width: width,
+          height: 20,
+          rx: 4,
+          fill: "#ffffff",
+          stroke: PENDING,
+          "stroke-width": 1.4
+        }) +
+          label(x + width / 2, layout.height - 26, text, {
+            "text-anchor": "middle",
+            "font-size": 11,
+            fill: INK
+          })
+      );
+      x += width + 6;
+    }
+    if (x >= layout.width - 60) {
+      markup += label(x, layout.height - 26, "…", { "font-size": 12, fill: MUTED });
+    }
+    return markup;
+  }
+
+  function banner(layout, frame) {
+    var box = layout.banner;
+    var text;
+    var colour;
+    if (frame.end) {
+      text = frame.found
+        ? "Ended: target found after " + frame.traversal_order.length + " visits."
+        : "Ended: the traversal ran out of nodes after " +
+          frame.traversal_order.length +
+          " visits; target not found.";
+      colour = frame.found ? FOUND : CURRENT;
+    } else {
+      text =
+        "Visit " +
+        frame.traversal_order.length +
+        " — node " +
+        frame.node_id +
+        " at depth " +
+        frame.depth;
+      colour = MUTED;
+    }
+    return tagged(
+      TAG.banner,
+      text,
+      tag("rect", {
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+        rx: 5,
+        fill: frame.end ? "#f3f6fa" : "#ffffff",
+        stroke: frame.end ? colour : RULE,
+        "stroke-width": frame.end ? 2 : 1
+      }) +
+        label(box.x + 10, box.y + 20, text, { "font-size": 13, fill: frame.end ? colour : INK })
+    );
+  }
+
+  window.walkthroughViews = window.walkthroughViews || {};
+  window.walkthroughViews[KIND] = function (frame, recording, svg, layout) {
+    var placed = placement(layout);
+    var walked = membership(frame.traversal_order);
+    // The visit a node was taken at, counting from one, so its hover can name it.
+    var visitOf = {};
+    for (var v = 0; v < (frame.traversal_order || []).length; v += 1) {
+      visitOf[frame.traversal_order[v]] = v + 1;
+    }
+    var pendingDepths = {};
+    for (var i = 0; i < (frame.pending || []).length; i += 1) {
+      pendingDepths[frame.pending[i][0]] = frame.pending[i][1];
+    }
+
+    svg.innerHTML =
+      label(16, 20, layout.subtitle, { "font-size": 12, fill: MUTED }) +
+      banner(layout, frame) +
+      edges(layout, placed, walked) +
+      nodes(layout, frame, visitOf, pendingDepths) +
+      pendingStrip(layout, frame) +
+      label(
+        layout.legend.x,
+        layout.legend.y,
+        "filled: visited · ringed: current · outlined: pending",
+        { "font-size": 11, fill: MUTED }
+      );
+  };
+})();
+
+</script>
+<script>
+// The stepper: everything a walkthrough does that does not depend on which problem was recorded.
+//
+// It reads two JSON blocks the renderer embedded (the recording and the view's layout), holds one
+// number — which frame is showing — and re-renders on every change to it. The picture itself is
+// none of its business: it calls the view function the page registered under the recording's kind
+// and hands it the frame, the whole recording, the <svg> element and a few markup helpers.
+//
+// Deliberately plain: an IIFE, no modules, no fetch, no dependencies. The page has to work when it
+// is opened from file://, where a module script and a fetch both fail, and the whole point of the
+// artefact is that a reader can save it, mail it, and open it in five years.
+//
+// It also fills the explanation panels, if the layout carries one under "explain". Not a sentence
+// of it is composed here: Python derived every line from the recording, and this only decides
+// which of them is on screen. A layout without an "explain" leaves every one of those panels
+// hidden, so an older recording still renders as the page it was rendered as before.
+
+(function () {
+  "use strict";
+
+  var recording = JSON.parse(document.getElementById("recording").textContent);
+  var layout = JSON.parse(document.getElementById("layout").textContent);
+  var frames = recording.frames;
+  var kind = recording.problem.kind;
+
+  var svg = document.getElementById("drawing");
+  var caption = document.getElementById("caption");
+  var raw = document.getElementById("raw");
+  var slider = document.getElementById("slider");
+  var position = document.getElementById("position");
+  var play = document.getElementById("play");
+  var speed = document.getElementById("speed");
+
+  var explanation = layout.explain || null;
+  var openingPanel = document.getElementById("opening");
+  var momentStrip = document.getElementById("moments");
+  var quantityList = document.getElementById("quantities");
+  var narration = document.getElementById("narration");
+  var legendPanel = document.getElementById("legend");
+  var endingPanel = document.getElementById("ending");
+  var momentButtons = [];
+  var quantityCells = [];
+
+  // Markup helpers handed to the view. The view builds SVG as a string and assigns it to
+  // svg.innerHTML, which parses in the SVG namespace: that avoids createElementNS, and with it the
+  // one namespace URL that would otherwise be the only external-looking reference on the page.
+  var draw = {
+    escape: function (value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    },
+    tag: function (name, attributes, body) {
+      var markup = "<" + name;
+      for (var key in attributes) {
+        if (attributes[key] !== null && attributes[key] !== undefined) {
+          markup += " " + key + '="' + draw.escape(attributes[key]) + '"';
+        }
+      }
+      if (body === null || body === undefined) {
+        return markup + " />";
+      }
+      return markup + ">" + body + "</" + name + ">";
+    },
+    label: function (x, y, value, attributes) {
+      var merged = { x: x, y: y };
+      for (var key in attributes || {}) {
+        merged[key] = attributes[key];
+      }
+      return draw.tag("text", merged, draw.escape(value));
+    },
+    round: function (value, decimals) {
+      return Number(value).toFixed(decimals === undefined ? 4 : decimals);
+    }
+  };
+
+  // A glossary term is looked up by its lowercase spelling, so a sentence that starts one with a
+  // capital and another mid-clause finds the same entry. "2-hot vector" answers to "2-hot" too,
+  // which is how the word is actually written in a sentence.
+  function glossaryIndex(glossary) {
+    var bySpelling = {};
+    Object.keys(glossary || {}).forEach(function (term) {
+      bySpelling[term.toLowerCase()] = glossary[term];
+      if (term === "2-hot vector") {
+        bySpelling["2-hot"] = glossary[term];
+      }
+    });
+    return bySpelling;
+  }
+
+  // Longest first, so "goal state" is marked as one term rather than as "state" with a word in
+  // front of it. The prefix character is captured instead of using a look-behind, which browsers
+  // took until recently to agree on and this page cannot afford to need.
+  function termPattern(bySpelling) {
+    var spellings = Object.keys(bySpelling).sort(function (a, b) {
+      return b.length - a.length;
+    });
+    if (spellings.length === 0) {
+      return null;
+    }
+    var alternation = spellings
+      .map(function (spelling) {
+        return spelling.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      })
+      .join("|");
+    return new RegExp("(^|[^A-Za-z0-9_])(" + alternation + ")(?![A-Za-z0-9_])", "gi");
+  }
+
+  function markTerms(text, bySpelling, pattern) {
+    var safe = draw.escape(text);
+    if (pattern === null) {
+      return safe;
+    }
+    // Escaping first and matching second is what keeps the markup honest: by the time a term is
+    // wrapped there is no other tag in the string for the wrapper to land inside of.
+    pattern.lastIndex = 0;
+    return safe.replace(pattern, function (whole, prefix, term) {
+      var definition = bySpelling[term.toLowerCase()];
+      if (definition === undefined) {
+        return whole;
+      }
+      return prefix + '<abbr title="' + draw.escape(definition) + '">' + term + "</abbr>";
+    });
+  }
+
+  var terms = glossaryIndex(explanation ? explanation.glossary : null);
+  var termsPattern = termPattern(terms);
+
+  function marked(text) {
+    return markTerms(text, terms, termsPattern);
+  }
+
+  function fillLines(parent, lines) {
+    lines.forEach(function (line) {
+      var item = document.createElement("li");
+      item.innerHTML = marked(line);
+      parent.appendChild(item);
+    });
+  }
+
+  // Roughly the width of a marker's label. Whether two markers collide is a question about
+  // pixels, not about frames: the same pair of frames is comfortably apart on a wide page and on
+  // top of each other on a phone, so the rule is measured against the track as it is drawn.
+  var MOMENT_CROWDING_PX = 56;
+
+  // Assign each marker a row. Markers are in frame order, so crowding is always with the last
+  // marker left on row 1; a crowded one drops to row 2 and the next comes back up, which spreads
+  // a run of near neighbours over two rows rather than hiding every one behind the last.
+  function layoutMoments() {
+    var width = momentStrip.clientWidth;
+    var lastRowOnePosition = null;
+    var staggered = false;
+    momentButtons.forEach(function (button) {
+      var position = Number(button.getAttribute("data-fraction")) * width;
+      var crowded =
+        lastRowOnePosition !== null && position - lastRowOnePosition < MOMENT_CROWDING_PX;
+      if (crowded) {
+        button.classList.add("row-2");
+        staggered = true;
+      } else {
+        button.classList.remove("row-2");
+        lastRowOnePosition = position;
+      }
+    });
+    if (staggered) {
+      momentStrip.classList.add("two-rows");
+    } else {
+      momentStrip.classList.remove("two-rows");
+    }
+  }
+
+  function addMoment(moment) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "moment";
+    button.setAttribute("data-frame", String(moment.frame_index));
+    button.title = moment.reason;
+    button.textContent = moment.label;
+    // Positioned by frame fraction against the slider's own width; a run of one frame has no
+    // fraction to take, so its single marker sits at the left end. The two ends are anchored by
+    // their own edge rather than centred, or half of a marker at 0 % or 100 % would be drawn
+    // outside the strip and clipped by the stepper.
+    var span = frames.length - 1;
+    var fraction = span > 0 ? moment.frame_index / span : 0;
+    button.style.left = fraction * 100 + "%";
+    // Kept on the element so the row assignment can be redone against a track that has changed
+    // width without recomputing which frame this was.
+    button.setAttribute("data-fraction", String(fraction));
+    if (fraction === 0) {
+      button.classList.add("at-start");
+    } else if (fraction === 1) {
+      button.classList.add("at-end");
+    }
+    button.addEventListener("click", function () {
+      stop();
+      show(moment.frame_index);
+    });
+    momentStrip.appendChild(button);
+    momentButtons.push(button);
+  }
+
+  function addQuantity(quantity) {
+    var pair = document.createElement("div");
+    var term = document.createElement("dt");
+    var value = document.createElement("dd");
+    // The strip names the number, the hover names the glossary term it belongs to. Two numbers
+    // can share a term — a frontier has a minimum and a size — and a strip printing the term
+    // twice would label neither.
+    term.textContent = quantity.label || quantity.term;
+    term.title = quantity.term + " — " + quantity.definition;
+    pair.appendChild(term);
+    pair.appendChild(value);
+    quantityList.appendChild(pair);
+    quantityCells.push({ values: quantity.values, cell: value });
+  }
+
+  function addLegendEntry(entry) {
+    var item = document.createElement("li");
+    if (entry.swatch) {
+      var swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.style.background = entry.swatch;
+      item.appendChild(swatch);
+    }
+    var name = document.createElement("b");
+    name.textContent = entry.name;
+    item.appendChild(name);
+    item.appendChild(document.createTextNode(" — " + entry.meaning));
+    legendPanel.querySelector("ul").appendChild(item);
+  }
+
+  function fillExplanation() {
+    if (explanation === null) {
+      return;
+    }
+    fillLines(openingPanel.querySelector("ol"), explanation.opening);
+    openingPanel.hidden = false;
+    explanation.moments.forEach(addMoment);
+    momentStrip.hidden = explanation.moments.length === 0;
+    layoutMoments();
+    // The rows are a function of the track's width, so they are reassigned when it changes.
+    window.addEventListener("resize", layoutMoments);
+    explanation.quantities.forEach(addQuantity);
+    quantityList.hidden = explanation.quantities.length === 0;
+    explanation.legend.forEach(addLegendEntry);
+    legendPanel.hidden = explanation.legend.length === 0;
+    fillLines(endingPanel.querySelector("ul"), explanation.ending);
+    endingPanel.hidden = false;
+  }
+
+  function showExplanation() {
+    if (explanation === null) {
+      return;
+    }
+    var reason = null;
+    momentButtons.forEach(function (button) {
+      var here = Number(button.getAttribute("data-frame")) === index;
+      if (here) {
+        reason = button.title;
+        button.classList.add("current");
+      } else {
+        button.classList.remove("current");
+      }
+    });
+    var line = marked(explanation.narration[index] || "");
+    if (reason !== null) {
+      line += " <strong>" + marked(reason) + "</strong>";
+    }
+    narration.innerHTML = line;
+    quantityCells.forEach(function (quantity) {
+      var value = quantity.values[index];
+      quantity.cell.textContent =
+        value === null || value === undefined ? "—" : String(value);
+    });
+    if (index === frames.length - 1) {
+      endingPanel.classList.add("reached");
+    } else {
+      endingPanel.classList.remove("reached");
+    }
+  }
+
+  var index = 0;
+  var timer = null;
+
+  function show(next) {
+    index = Math.max(0, Math.min(frames.length - 1, next));
+    var frame = frames[index];
+    var view = window.walkthroughViews[kind];
+    if (view) {
+      view(frame, recording, svg, layout, draw);
+    } else {
+      svg.innerHTML = draw.label(16, 32, "No view is registered for " + kind + ".");
+    }
+    caption.textContent = frame.caption;
+    raw.textContent = JSON.stringify(frame, null, 2);
+    slider.value = index;
+    position.textContent = "frame " + (index + 1) + " of " + frames.length;
+    document.getElementById("previous").disabled = index === 0;
+    document.getElementById("next").disabled = index === frames.length - 1;
+    showExplanation();
+  }
+
+  function step(delta) {
+    if (index + delta < 0 || index + delta > frames.length - 1) {
+      stop();
+      return;
+    }
+    show(index + delta);
+  }
+
+  function stop() {
+    if (timer !== null) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+    play.textContent = "Play";
+  }
+
+  function start() {
+    stop();
+    if (index === frames.length - 1) {
+      show(0);
+    }
+    timer = window.setInterval(function () {
+      step(1);
+    }, Number(speed.value));
+    play.textContent = "Pause";
+  }
+
+  function toggle() {
+    if (timer === null) {
+      start();
+    } else {
+      stop();
+    }
+  }
+
+  function describe(fields) {
+    var parts = [];
+    Object.keys(fields).sort().forEach(function (key) {
+      var value = fields[key];
+      parts.push(key + " = " + (typeof value === "object" ? JSON.stringify(value) : String(value)));
+    });
+    return parts.join("  ·  ");
+  }
+
+  document.getElementById("previous").addEventListener("click", function () {
+    stop();
+    step(-1);
+  });
+  document.getElementById("next").addEventListener("click", function () {
+    stop();
+    step(1);
+  });
+  slider.addEventListener("input", function () {
+    stop();
+    show(Number(slider.value));
+  });
+  play.addEventListener("click", toggle);
+  speed.addEventListener("change", function () {
+    if (timer !== null) {
+      start();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.target && event.target.tagName === "SELECT") {
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      stop();
+      step(-1);
+    } else if (event.key === "ArrowRight") {
+      stop();
+      step(1);
+    } else if (event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      toggle();
+    } else if (event.key === "Home") {
+      stop();
+      show(0);
+    } else if (event.key === "End") {
+      stop();
+      show(frames.length - 1);
+    } else {
+      return;
+    }
+    event.stopPropagation();
+  });
+
+  document.getElementById("problem-fields").textContent = describe(recording.problem);
+  document.getElementById("configuration-fields").textContent = describe(recording.configuration);
+  document.getElementById("result-fields").textContent = describe(recording.result);
+  slider.max = frames.length - 1;
+  fillExplanation();
+  show(0);
+})();
+
+</script>
+</body>
+</html>
