@@ -397,6 +397,9 @@ fixtures regenerated deliberately and stated in the PR, and the acceptance test 
 sentence per item in the plan's §5 that the reviewer-agent can check against BL-46's first slice
 when it opens.
 
+Progress: slice 1 (2026-09-11) — penalties as injected objects; `AbstractRegularizationFunction`;
+refactor snapshot `tests/math/algorithms/two_hot_span_refactor_snapshot.json` byte-identical.
+
 ### BL-49 — Descent stack breaks injection · `backlog-only` · re-entry 3–5 h
 
 Opened 2026-09-11 from the D-35 survey; out of BL-48's scope by decision. The descent stack is the

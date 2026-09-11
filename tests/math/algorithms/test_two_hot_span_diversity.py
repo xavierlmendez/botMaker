@@ -27,11 +27,8 @@ pytest.importorskip("torch")
 
 import torch
 
-from mllib.math.algorithms.two_hot_span_optimizer import (
-    TwoHotSpanConfig,
-    diversity_term,
-    fit_two_hot_span,
-)
+from mllib.math.algorithms.two_hot_span.penalties import DiversityPenalty
+from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
 from mllib.math.graph.two_hot_span_problem import (
     brute_force_rcut,
     collision_measures,
@@ -69,7 +66,7 @@ def seeded_graph(node_total: int, seed: int) -> nx.Graph:
 
 
 def term_of(matrix: np.ndarray) -> float:
-    return float(diversity_term(torch.tensor(matrix, dtype=torch.float64)))
+    return float(DiversityPenalty().term(torch.tensor(matrix, dtype=torch.float64)))
 
 
 # ------------------------------------------------------------------------------------------------

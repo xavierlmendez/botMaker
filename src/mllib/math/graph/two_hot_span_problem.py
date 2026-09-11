@@ -110,6 +110,28 @@ def laplacian_matrix(graph: nx.Graph) -> np.ndarray:
     return np.diag(adjacency.sum(axis=1)) - adjacency
 
 
+# The weighted adjacency is read back off the Laplacian, so it is only as symmetric and as
+# non-negative as X Xᵀ came out in float64. Anything below this is arithmetic, not a wrong graph.
+ADJACENCY_TOLERANCE = 1e-9
+
+
+def graph_matrices(X: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(L, A) from the incidence matrix: L = X Xᵀ and A = diag(diag L) - L, checked on the way out.
+
+    The adjacency is *recovered* rather than passed in, so a graph term is guaranteed to describe
+    the same graph the residual is measured against. An A that comes back asymmetric or negative
+    means the caller did not hand in an incidence matrix, which is a stop.
+    """
+    X = np.asarray(X, dtype=np.float64)
+    laplacian = X @ X.T
+    adjacency = np.diag(np.diag(laplacian)) - laplacian
+    if not np.allclose(adjacency, adjacency.T, atol=ADJACENCY_TOLERANCE, rtol=0.0):
+        raise ValueError("the recovered adjacency is not symmetric: X is not an incidence matrix")
+    if float(adjacency.min()) < -ADJACENCY_TOLERANCE:
+        raise ValueError("the recovered adjacency has a negative weight")
+    return laplacian, adjacency
+
+
 def projector_residual(X: np.ndarray, spanning_set: np.ndarray) -> float:
     """E(V) = ‖X - V V⁺ X‖²_F, the exact pseudo-inverse projector. There is no epsilon here."""
     X = np.asarray(X, dtype=float)

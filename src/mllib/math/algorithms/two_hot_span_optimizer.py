@@ -25,33 +25,43 @@ reported field still comes back through the exact numpy `pinv` projector of `two
 The diversity term is the first one that **couples the columns**: the schedule and the graph term
 both score a column on its own, and the span term is invariant to rotation inside the span, so
 nothing before slice 2.5 could tell two columns apart from one column used twice.
+
+The three terms are injected math objects (`two_hot_span/penalties.py`, D-35 (3)) and the training
+loss is their plain sum over the ridge cost. Until slice 4 of
+`docs/plans/2026-09-optimizer-object-model.md` hands the optimizer its penalties directly, this
+module still builds them from the config's weights, in `_penalties_from_config`, so that every
+caller's `TwoHotSpanConfig` keeps working; a zero weight builds no term (`penalties.py`).
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 import numpy as np
 import torch
 
+from mllib.math.algorithms.two_hot_span.penalties import (
+    CollisionPenalty,
+    DiversityPenalty,
+    EdgeProductAdjacencyPenalty,
+    LaplacianAdjacencyPenalty,
+)
 from mllib.math.graph.two_hot_span_problem import (
     clustering_from_pairs,
     collision_measures,
+    graph_matrices,
     projector_residual,
     rounded_cut,
     rounded_pairs,
     spanning_vector_count,
 )
 from mllib.math.recorder import AbstractStepRecorder, NullRecorder
+from mllib.math.regularization_function import AbstractRegularizationFunction
 
 LEARNING_RATE_SCHEDULES = ("constant", "cosine", "warmup_cosine", "linear")
 ADJACENCY_FORMS = ("laplacian", "edge_product")
-
-# The weighted adjacency is read back off the Laplacian, so it is only as symmetric and as
-# non-negative as X Xᵀ came out in float64. Anything below this is arithmetic, not a wrong graph.
-ADJACENCY_TOLERANCE = 1e-9
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,98 +180,18 @@ def learning_rate_lambda(config: TwoHotSpanConfig) -> Callable[[int], float]:
     return factor
 
 
-def adjacency_term(
-    spanning_set_t: torch.Tensor,
-    laplacian_t: torch.Tensor,
-    adjacency_t: torch.Tensor,
-    adjacency_form: str,
-) -> torch.Tensor:
-    """Σ_j term(v_j)/‖v_j‖₂², the per-column graph reward. Experimental; never reported.
-
-    For a unit 2-hot column on the pair (i, j) the two forms are worth knowing apart by hand:
-
-    * `laplacian`, vᵀ L v = (d_i + d_j + 2 w_ij)/2 — **larger** on an edge than off it, and
-      carrying a degree bias that has nothing to do with whether (i, j) is an edge at all;
-    * `edge_product`, |v|ᵀ A |v| = w_ij on an edge and exactly 0 off it — the same preference for
-      edges with none of the degree bias.
-
-    Both are rewarded (the caller subtracts μ times this sum), and both are divided by ‖v_j‖₂² so
-    the term is scale-invariant, as R(v) is.
-    """
-    squared = torch.sum(spanning_set_t * spanning_set_t, dim=0)
-    if adjacency_form == "edge_product":
-        absolute = torch.abs(spanning_set_t)
-        numerator = torch.sum(absolute * (adjacency_t @ absolute), dim=0)
-    else:
-        numerator = torch.sum(spanning_set_t * (laplacian_t @ spanning_set_t), dim=0)
-    return torch.sum(numerator / squared)
-
-
-def diversity_term(spanning_set_t: torch.Tensor) -> torch.Tensor:
-    """D(V) = Σ_i ℓ_i², the squared vertex load. Experimental; never reported.
-
-    Each column gets the brief's §9 distribution p_j = |v_j| / ‖v_j‖₁, and the **vertex load** is
-    ℓ_i = Σ_j p_ij — how much of the r units of mass the spanning set puts on vertex i. Σ_i ℓ_i = r
-    always, so by Cauchy-Schwarz D(V) = Σ_i ℓ_i² ≥ r²/n with equality exactly when every vertex
-    carries the same load r/n. It is **added** to the loss: minimising it spreads the columns over
-    the vertices and penalises a spanning set that piles several columns onto the same vertices, or
-    onto the same pair.
-
-    For exact 2-hot columns it is a statement about the pair graph and nothing else. A 2-hot column
-    on (i, j) has p = (½, ½), so ℓ_i = deg_i/2 with deg_i the number of columns incident to i, and
-    D(V) = ¼ Σ_i deg_i².
-
-    The identity worth carrying: Σ_{j<k} p_jᵀ p_k = ½(D(V) - Σ_j R(v_j)), since ‖p_j‖₂² = R(v_j).
-    So D is the **pairwise column overlap** plus the collision sum — the first term in this module
-    that is not a sum of per-column scores, and therefore the first that couples the columns. The λ
-    reward already pushes Σ_j R(v_j) up; what D adds on top of it is the overlap.
-
-    The constant r²/n is deliberately not subtracted: it is constant in V, so it changes no gradient
-    and no comparison between two runs on the same graph, and carrying it would only invite reading
-    the number as a deficit rather than as the loss term it is (the brief's §10 argument for
-    dropping the ½ from the collision term, applied again).
-    """
-    absolute = torch.abs(spanning_set_t)
-    distribution = absolute / torch.sum(absolute, dim=0)
-    load = torch.sum(distribution, dim=1)
-    return torch.sum(load * load)
-
-
-def graph_matrices(X: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """(L, A) from the incidence matrix: L = X Xᵀ and A = diag(diag L) - L, checked on the way out.
-
-    The adjacency is *recovered* rather than passed in, so the term is guaranteed to describe the
-    same graph the residual is measured against. A that comes back asymmetric or negative means the
-    caller did not hand in an incidence matrix, which is a stop.
-    """
-    X = np.asarray(X, dtype=np.float64)
-    laplacian = X @ X.T
-    adjacency = np.diag(np.diag(laplacian)) - laplacian
-    if not np.allclose(adjacency, adjacency.T, atol=ADJACENCY_TOLERANCE, rtol=0.0):
-        raise ValueError("the recovered adjacency is not symmetric: X is not an incidence matrix")
-    if float(adjacency.min()) < -ADJACENCY_TOLERANCE:
-        raise ValueError("the recovered adjacency has a negative weight")
-    return laplacian, adjacency
-
-
 def training_loss(
     X_t: torch.Tensor,
     spanning_set_t: torch.Tensor,
-    collision_weight: float,
     epsilon: float,
-    adjacency_weight: float = 0.0,
-    laplacian_t: torch.Tensor | None = None,
-    adjacency_t: torch.Tensor | None = None,
-    adjacency_form: str = "laplacian",
-    diversity_weight: float = 0.0,
+    penalties: Sequence[AbstractRegularizationFunction] = (),
 ) -> torch.Tensor:
-    """E_ridge - lambda Σ_j R(v_j) - mu Σ_j term(v_j) + nu D(V), float64.
+    """E_ridge(V) plus each injected penalty in turn, float64.
 
-    The r x r system is solved with `torch.linalg.solve`; nothing is orthogonalised. The mu term is
-    slice 2.4's experiment and the nu term slice 2.5's; each is guarded off at weight `0.0`, so at
-    the defaults not one tensor of either is built and a default run is the arithmetic slice 2.2
-    shipped, in that order. Note the signs: mu's term is a *reward* and is subtracted, nu's is a
-    *penalty* and is added.
+    The r x r system is solved with `torch.linalg.solve`; nothing is orthogonalised. Each penalty
+    carries its own weight and sign (`two_hot_span/penalties.py`), so this is a plain left-to-right
+    sum and the order of ``penalties`` is the order of the additions. With no penalties the value is
+    the ridge cost alone, the arithmetic slice 2.2 shipped.
     """
     spanning_count = spanning_set_t.shape[1]
     gram = spanning_set_t.T @ spanning_set_t
@@ -271,19 +201,32 @@ def training_loss(
     coefficients = torch.linalg.solve(ridge, spanning_set_t.T @ X_t)
     residual = X_t - spanning_set_t @ coefficients
     loss = torch.sum(residual * residual)
-    if collision_weight != 0.0:
-        squared = torch.sum(spanning_set_t * spanning_set_t, dim=0)
-        absolute = torch.sum(torch.abs(spanning_set_t), dim=0)
-        loss = loss - collision_weight * torch.sum(squared / (absolute * absolute))
-    if adjacency_weight != 0.0:
-        if laplacian_t is None or adjacency_t is None:
-            raise ValueError("adjacency_weight != 0 needs both laplacian_t and adjacency_t")
-        loss = loss - adjacency_weight * adjacency_term(
-            spanning_set_t, laplacian_t, adjacency_t, adjacency_form
-        )
-    if diversity_weight != 0.0:
-        loss = loss + diversity_weight * diversity_term(spanning_set_t)
+    for penalty in penalties:
+        loss = loss + penalty.compute_penalty(spanning_set_t)
     return loss
+
+
+def _penalties_from_config(
+    config: TwoHotSpanConfig, X: np.ndarray
+) -> tuple[AbstractRegularizationFunction, ...]:
+    """The penalties a config's weights ask for, in the order the loss has always added them.
+
+    A zero weight builds no term (`penalties.py`), so a default run is bit for bit the run slice
+    2.2 shipped. This adapter is transitional: slice 4 of the BL-48 plan injects the penalties into
+    the optimizer and the weights leave the config.
+    """
+    penalties: list[AbstractRegularizationFunction] = []
+    if config.collision_weight != 0.0:
+        penalties.append(CollisionPenalty(weight=config.collision_weight))
+    if config.adjacency_weight != 0.0:
+        laplacian, adjacency = graph_matrices(X)
+        if config.adjacency_form == "edge_product":
+            penalties.append(EdgeProductAdjacencyPenalty(adjacency, weight=config.adjacency_weight))
+        else:
+            penalties.append(LaplacianAdjacencyPenalty(laplacian, weight=config.adjacency_weight))
+    if config.diversity_weight != 0.0:
+        penalties.append(DiversityPenalty(weight=config.diversity_weight))
+    return tuple(penalties)
 
 
 def _project_zero_sum(weights: torch.Tensor, normalize_columns: bool) -> torch.Tensor:
@@ -343,12 +286,7 @@ def fit_two_hot_span(
     optimizer = torch.optim.Adam([weights], lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, learning_rate_lambda(config))
 
-    laplacian_t: torch.Tensor | None = None
-    adjacency_t: torch.Tensor | None = None
-    if config.adjacency_weight != 0.0:
-        laplacian, adjacency = graph_matrices(X)
-        laplacian_t = torch.tensor(laplacian, dtype=torch.float64)
-        adjacency_t = torch.tensor(adjacency, dtype=torch.float64)
+    penalties = _penalties_from_config(config, X)
 
     max_violation = 0.0
     losses: list[float] = []
@@ -376,17 +314,7 @@ def fit_two_hot_span(
         # The lr in force *for this step*, read off the param group the step is about to use.
         learning_rates.append(float(optimizer.param_groups[0]["lr"]))
         spanning_set_t = _project_zero_sum(weights, config.normalize_columns)
-        loss = training_loss(
-            X_t,
-            spanning_set_t,
-            config.collision_weight,
-            config.epsilon,
-            config.adjacency_weight,
-            laplacian_t,
-            adjacency_t,
-            config.adjacency_form,
-            config.diversity_weight,
-        )
+        loss = training_loss(X_t, spanning_set_t, config.epsilon, penalties)
         if not bool(torch.isfinite(loss)):
             raise NonFiniteLoss(f"the loss is not finite at step {step}")
         loss.backward()

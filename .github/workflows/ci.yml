@@ -48,5 +48,5 @@ jobs:
           python-version: "3.12"
       - name: Install with the torch group
         run: uv sync --locked --dev --group torch
-      - name: Test (torch only)
-        run: uv run pytest -q tests/math/algorithms/test_two_hot_span_optimizer.py
+      - name: Test (the whole suite, so every importorskip'd torch test runs somewhere)
+        run: uv run pytest -q
