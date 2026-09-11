@@ -335,11 +335,15 @@ def test_an_unknown_initialisation_name_is_rejected():
         )
 
 
-def test_the_default_suite_covers_all_five_named_graphs(tmp_path):
-    """`roach_g20` is the fifth: the suite is what the plan reports on, so it must run it."""
+def test_the_default_suite_covers_all_six_named_graphs(tmp_path):
+    """`roach_g20` is the fifth and `two_triangles` the sixth; the suite must run what it reports.
+
+    `two_triangles` is also the first default-suite graph inside `BRUTE_FORCE_NODE_LIMIT`, so it is
+    the only row where the suite's `Ê ≥ optimum` guard has an optimum to check rather than `None`.
+    """
     reports = run_default_suite(
         tmp_path,
-        collision_weights=(0.0,),
+        collision_weights=SMALL_WEIGHTS,
         inits=SMALL_INITS,
         step_count=SMALL_STEPS,
     )
@@ -349,13 +353,25 @@ def test_the_default_suite_covers_all_five_named_graphs(tmp_path):
         "planted_partition",
         "two_moons_knn",
         "roach_g20",
+        "two_triangles",
     ]
     assert sorted(path.name for path in tmp_path.glob("*.json")) == sorted(
         f"{report.name}.json" for report in reports
     )
-    roach_g20 = reports[-1]
+    roach_g20 = reports[-2]
     assert (roach_g20.node_count, roach_g20.edge_count, roach_g20.cluster_count) == (80, 98, 3)
     assert roach_g20.planted_labels_ratio_cut == pytest.approx(0.15, abs=1e-12)
+
+    two_triangles = reports[-1]
+    assert (two_triangles.node_count, two_triangles.edge_count, two_triangles.cluster_count) == (
+        6,
+        7,
+        2,
+    )
+    assert two_triangles.brute_force_optimum == pytest.approx(1 / 15, abs=1e-12)
+    assert two_triangles.planted_labels_ratio_cut == pytest.approx(1 / 15, abs=1e-12)
+    for row in two_triangles.rows:
+        assert row.rounded_cut >= two_triangles.brute_force_optimum - 1e-12
 
 
 def test_main_writes_a_report_for_the_eighty_node_cockroach(tmp_path):

@@ -1,10 +1,19 @@
 """Record a two-hot span rcut run and write both the recording and the walkthrough page.
 
-Three graphs, each with the collision weight the harness sweep found worth watching and the
+Four graphs, each with the collision weight the harness sweep found worth watching and the
 spectral initialisation they are all run from: the Guattery-Miller roach at λ = 10, whose antenna
-cut is the one spectral bisection famously misses, Zachary's karate club at λ = 1, and the
+cut is the one spectral bisection famously misses, Zachary's karate club at λ = 1, the
 eighty-node cockroach of He, Gu & Zhang 2012 at λ = 10, which is the same roach at k = 20 and is
-K = 3 because removing its ladder leaves the two antennae disconnected.
+K = 3 because removing its ladder leaves the two antennae disconnected, and two triangles joined by
+a weak bridge at λ = 0.1, the six-node instance whose optimum and datum are both exactly 1/15 so
+that a missed page is the optimizer's doing and nothing else's.
+
+`two_triangles` is also the first graph whose entry carries a learning rate and a step count of its
+own (0.01 and 5000, against the shared 0.05 and 300): Σλ = 0.064 there, three orders below the
+roach's, so the same step size walks straight past the optimum. A graph's own values apply only
+when the CLI left `--learning-rate` and `--steps` at their defaults, so naming either on the command
+line still means what it said, and the three older graphs — whose entries carry neither — run today's
+schedule exactly.
 
 This is a composition root and nothing else. It builds the incidence matrix, the initial V and the
 recorder, runs `fit_two_hot_span` with the recorder attached, and writes `<graph>.json` beside
@@ -56,6 +65,7 @@ from mllib.math.graph.two_hot_span_problem import (
     roach_graph,
     spectral_floor,
     spectral_spanning_set,
+    two_triangles_graph,
 )
 from mllib.visualization.html_renderer import write_walkthrough
 from mllib.visualization.recorders.two_hot_span import TwoHotSpanRecorder
@@ -82,11 +92,18 @@ ROACH_G20_RUNG_COUNT = 20
 
 # The λ each graph is recorded at, and the cluster count it is cut into. All run from the spectral
 # initialisation: it starts at E* = Σλ exactly, so the walkthrough opens on the relaxation's own
-# optimum and what it shows is what the collision reward does to it.
+# optimum and what it shows is what the collision reward does to it. An entry may also carry
+# `learning_rate` and `step_count`, which apply only when the CLI left its own at the default.
 GRAPHS: dict[str, dict[str, object]] = {
     "roach_g5": {"cluster_count": 2, "collision_weight": 10.0},
     "karate": {"cluster_count": 2, "collision_weight": 1.0},
     "roach_g20": {"cluster_count": 3, "collision_weight": 10.0},
+    "two_triangles": {
+        "cluster_count": 2,
+        "collision_weight": 0.1,
+        "learning_rate": 0.01,
+        "step_count": 5000,
+    },
 }
 
 
@@ -98,7 +115,22 @@ def build_graph(name: str) -> nx.Graph:
         return roach_graph(ROACH_G20_RUNG_COUNT)
     if name == "karate":
         return karate_graph()
+    if name == "two_triangles":
+        return two_triangles_graph()
     raise ValueError(f"unknown graph {name!r}; known: {sorted(GRAPHS)}")
+
+
+TWO_TRIANGLES_POSITIONS: list[list[float]] = [
+    # Left triangle 0-1-2: two vertices stacked at x = 0 and the bridge end at x = 1, so that the
+    # bridge (2, 3) runs horizontally at y = 0 between the two triangles and the picture says which
+    # edge is the cheap one. The right triangle is the mirror image about x = 1.5.
+    [0.0, 0.5],
+    [0.0, -0.5],
+    [1.0, 0.0],
+    [2.0, 0.0],
+    [3.0, 0.5],
+    [3.0, -0.5],
+]
 
 
 def layout_positions(name: str, graph: nx.Graph) -> list[list[float]]:
@@ -106,8 +138,15 @@ def layout_positions(name: str, graph: nx.Graph) -> list[list[float]]:
 
     The ladder reads k off the graph — a roach has n = 4k vertices — rather than off a constant, so
     the same layout draws the k = 5 roach and the k = 20 one of He, Gu & Zhang 2012.
+
+    `two_triangles` gets its own six positions rather than a spring layout, for the same reason the
+    roach gets the ladder: the thing a reader has to see is the one weak edge, and a spring layout
+    that has to guess is free to draw it anywhere. Written out because six nodes is fewer than a
+    formula.
     """
     nodes = sorted(graph.nodes())
+    if name == "two_triangles":
+        return [list(position) for position in TWO_TRIANGLES_POSITIONS]
     if name.startswith("roach"):
         # Top path 0..2k-1 at y = 1, bottom path 2k..4k-1 at y = 0, x the position along the path.
         path_length = len(nodes) // 2
@@ -184,9 +223,15 @@ def record_graph(
     CLI, which is the path that must survive on a recording alone.
 
     ``collision_weight`` of ``None`` means the graph's own λ, and ``output_name`` of ``None`` the
-    graph's own name. The experiment knobs reach ``problem`` only when they are off their defaults,
-    so the default run's document is the one it always was and an experiment's document says on its
-    face what was switched on.
+    graph's own name. ``step_count`` and ``learning_rate`` left at the module defaults mean the
+    same: a graph entry that carries its own overrides them, and one that does not leaves them
+    alone. They are ordinary values rather than ``None`` sentinels because both the CLI and the
+    tests pass them positionally-by-keyword at those defaults today, and a graph with no entry of
+    its own must keep running exactly the schedule it ran before.
+
+    The experiment knobs reach ``problem`` only when they are off their defaults, so the default
+    run's document is the one it always was and an experiment's document says on its face what was
+    switched on.
     """
     # torch is an optional group (D-31), so the import is local to the function that needs it.
     from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
@@ -196,6 +241,10 @@ def record_graph(
     if collision_weight is None:
         collision_weight = float(settings["collision_weight"])  # type: ignore[arg-type]
     collision_weight = float(collision_weight)
+    if step_count == DEFAULT_STEP_COUNT and "step_count" in settings:
+        step_count = int(settings["step_count"])  # type: ignore[arg-type]
+    if learning_rate == DEFAULT_LEARNING_RATE and "learning_rate" in settings:
+        learning_rate = float(settings["learning_rate"])  # type: ignore[arg-type]
 
     graph = build_graph(name)
     count = node_count(graph)
@@ -276,7 +325,18 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--graph", action="append", choices=sorted(GRAPHS), default=None, help="repeatable"
     )
-    parser.add_argument("--steps", type=int, default=DEFAULT_STEP_COUNT)
+    parser.add_argument(
+        "--steps",
+        type=int,
+        default=DEFAULT_STEP_COUNT,
+        help="left at the default, a graph's own step count wins",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=DEFAULT_LEARNING_RATE,
+        help="left at the default, a graph's own learning rate wins",
+    )
     parser.add_argument(
         "--frame-every",
         type=int,
@@ -311,6 +371,7 @@ def main(argv: list[str] | None = None) -> None:
             step_count=arguments.steps,
             frame_every=arguments.frame_every,
             seed=arguments.seed,
+            learning_rate=arguments.learning_rate,
             init=arguments.init,
             collision_weight=arguments.collision_weight,
             learning_rate_schedule=arguments.schedule,

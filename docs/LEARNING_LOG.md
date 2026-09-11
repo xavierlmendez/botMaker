@@ -1168,3 +1168,87 @@ k = 20 numpy returns 0.0057 / 0.0062 / 0.0246 exactly as printed, and at k = 16 
 arXiv:1201.5767 (2012), §"Partition by weak nodal domain" and Fig. 1-2 (**L5**); Guattery, Miller,
 *On the quality of spectral separators*, SIAM J. Matrix Anal. Appl. 1998, for the cockroach itself
 and for why spectral bisection misses its antenna cut.
+
+## λ is not scale-free: the collision reward against the spectral floor · 2026-09-10
+
+**What.** A six-node instance — two weight-1 triangles, 0-1-2 and 3-4-5, joined by the weight-0.1
+bridge (2, 3) — entered the prototype as the sixth `default_test_graphs()` entry because Xavier's own
+minimal implementation of the same objective ships it as its `main()` example, and the two engines
+were run side by side on it today. It is the smallest instance on which *nothing but the optimizer*
+can be blamed: n = 6 is inside `BRUTE_FORCE_NODE_LIMIT`, so the RatioCut optimum is enumerated rather
+than referenced and comes back as 1/15 = 0.066667 at exactly the planted labels [0,0,0,1,1,1], and
+all three datum roundings — `kmeans`, `discretize`, `cluster_qr`, seed 0 — land the same partition.
+Every other instance in the suite has either no optimum (n past the guard) or a datum that itself
+misses it; here the objective, the rounding rule and the datum are all exactly right, so a run that
+does not reach 1/15 has missed it for reasons of its own.
+
+The first thing it settled was **λ**. Σλ = 0.063771 on this graph. The collision reward is bounded by
+λ·r/2 — R(v) ≤ ½ per column, r = n − K = 4 — so at the prototype's λ = 10 its ceiling is **20**,
+three hundred times the floor it is competing with. And the run does exactly what that arithmetic
+says it should: the span term stops mattering, columns go 2-hot on whatever pairs are nearest and
+ignore the graph entirely, E\* rises to 1.5–2.5 — *above* the optimum, not near the floor — and Ê
+lands at 1.5–5.5 from every start tried: three random seeds at 300 and at 3000 steps, the spectral
+initialisation, and all ten restarts of the joint-factorization engine run beside it. **Not one hit.**
+At λ = 0.1 the ceiling is 0.2, the same order as Σλ, and this engine reaches Ê = 1/15 from the
+spectral initialisation and from
+two of those ten seeds (3 and 7).
+
+The reading: **λ is not a number, it is a ratio**, and the band the earlier slices quote — λ ∈ {0.1,
+0.3, 1, 3, 10} across every graph — is quoting the numerator alone. The quantity that transfers is
+**λ·r/Σλ**: the reward measured in units of the floor it has to beat, its ceiling being half of that.
+On the roach G₅ at K = 2, Σλ = 0.0713 and r = 18, so λ = 10 is λ·r/Σλ = 2525; on the triangles
+λ = 10 is 627 and λ = 0.1 is 6.3. Two graphs at "the same λ" are nowhere near the same place in the
+objective — the roach's λ = 10 sits four times deeper into the reward than the triangles' same λ —
+and a λ quoted without Σλ and r beside it says nothing about either.
+
+**Where.** `src/mllib/math/graph/two_hot_span_problem.py` (`two_triangles_graph`,
+`two_triangles_instance` and its docstring, which carries the λ·r/2 arithmetic, and the sixth entry
+of `default_test_graphs`), `tests/math/graph/test_two_hot_span_problem.py` (three new tests and
+`..._five_...` → `..._six_...`), `tests/ml/test_two_hot_span_harness.py` (the suite test, which on
+this instance finally has a `brute_force_optimum` to assert Ê against instead of `None`),
+`tests/ml/test_two_hot_span_datum.py` (the three roundings), `examples/two_hot_span_walkthrough.py`
+(the graph at λ = 0.1 with a schedule of its own, the explicit layout, `--learning-rate`),
+`tests/visualization/test_two_hot_span_example.py`, and three pages under
+`src/mllib/visualization/walkthroughs/`.
+
+**Design.**
+
+*The instance is a labelling, and its numbers are facts.* Like `roach_g20` it adds no mathematics —
+seven `add_edge` calls — and like it, it is appended **last** so every index-based reference to
+`default_test_graphs()` still names what it named. What is new is the epistemic status of its
+reference numbers. `roach_g20`'s planted RatioCut of 0.15 is a *reference*: it is not the optimum,
+and the instance is reported with two cut values side by side precisely because neither can be
+called one. The triangles' 1/15 **is** the optimum, enumerated, and it is also what the datum
+reaches. That is the difference that makes the instance useful: it converts "the run scored worse
+than the reference" into "the run is wrong", which no other instance in the suite can do.
+
+*The graph carries its own schedule, and only this one does.* λ = 0.1 needs a longer, finer run than
+λ = 10 does — 5000 steps at lr 0.01, against the shared 300 at 0.05 — because Σλ here is three orders
+below the roach's and the shared step size walks straight past the optimum. So a `GRAPHS` entry may
+now carry `learning_rate` and `step_count`, but they apply *only* when the CLI left its own flags at
+their defaults, and the three older entries carry neither. The roach G₅ walkthrough fixture is the
+guard: it is byte-identical, which is the statement that nothing about the older runs moved.
+
+**The side-by-side, which is the observation this entry exists for.** Xavier's engine reached 1/15 on
+**5 of 10 restarts** at λ = 0.1, against this repository's 2 of 10 seeds and its spectral hit. Two
+differences, and they are not separated yet. His formulation is a joint (W, H) factorization rather
+than a single moved V; and he takes ten restarts and selects the best by **training loss**. On this
+instance that selection rule coincides with selecting by Ê, which is a coincidence worth naming
+rather than trusting: the losing restarts are legible failures, one column stuck at R ≈ 0.43–0.47 —
+visibly short of ½, so visibly not 2-hot — and the training loss sees that through its collision term.
+Where a failure is *not* that legible the two selection rules must come apart, because the training
+loss is the ridge loss and carries the reward (D-31), and Ê is the criterion (§13). So this is an
+observation with a follow-up and not a result: **BL-46** pairs the two formulations on roach G₅ over
+ten seeds at λ scaled by Σλ/r, reported by Ê, and asks whether the restarts alone explain the gap.
+
+**What was confusing.** That E\* *rises* under a large λ was, at first reading, a bug. It is not: E\*
+is reported at the unrounded V through the exact `pinv` projector, and nothing constrains it to fall —
+the thing being minimised is the training loss, of which the span term is one part and the collision
+reward another, and at λ·r/2 = 20 against Σλ = 0.064 the optimizer is trading nearly two full units of
+span residual for a fraction of a unit of reward and coming out ahead on the loss. The objective is
+doing exactly what it was asked. The number that says so is not E\* on its own but E\* read against
+Σλ, which is why the floor is on every page and in every report row.
+
+- **Reference.** Prof. Schweitzer's handoff brief §13 (Ê is the criterion, R is the diagnostic — the
+  λ = 10 run maximises R on every column and is still wrong, which is that sentence with numbers
+  attached) and §20 (the objective, and the λ it leaves unspecified).

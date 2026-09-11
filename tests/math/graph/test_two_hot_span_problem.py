@@ -34,6 +34,7 @@ from mllib.math.graph.two_hot_span_problem import (
     spanning_vector_count,
     spectral_floor,
     spectral_spanning_set,
+    two_triangles_instance,
 )
 
 
@@ -183,6 +184,37 @@ def test_the_roach_g20_laplacian_reproduces_the_papers_three_smallest_eigenvalue
     eigenvalues = np.linalg.eigvalsh(laplacian_matrix(roach_g20_instance().graph))
     assert eigenvalues[0] == pytest.approx(0.0, abs=1e-10)
     assert [round(float(value), 4) for value in eigenvalues[1:4]] == [0.0057, 0.0062, 0.0246]
+
+
+def test_the_two_triangles_instance_is_six_nodes_and_seven_weighted_edges():
+    """Two weight-1 triangles and the weight-0.1 bridge (2, 3) that joins them."""
+    instance = two_triangles_instance()
+    graph = instance.graph
+    assert instance.name == "two_triangles"
+    assert instance.cluster_count == 2
+    assert (graph.number_of_nodes(), graph.number_of_edges()) == (6, 7)
+    assert nx.is_connected(graph)
+    assert graph[2][3]["weight"] == pytest.approx(0.1, abs=1e-12)
+    triangle_edges = [(0, 1), (1, 2), (0, 2), (3, 4), (4, 5), (3, 5)]
+    assert all(graph[first][second]["weight"] == 1.0 for first, second in triangle_edges)
+    assert sorted(graph.edges()) == sorted([*triangle_edges, (2, 3)])
+
+
+def test_the_two_triangles_spectral_floor_is_the_number_every_run_is_read_against():
+    """Σλ = 0.063771: the λ·r/2 = 20 collision ceiling at λ = 10 is three hundred times it."""
+    instance = two_triangles_instance()
+    assert spectral_floor(instance.graph, instance.cluster_count) == pytest.approx(
+        0.063771, abs=1e-6
+    )
+
+
+def test_the_two_triangles_optimum_is_one_fifteenth_at_the_planted_labels():
+    """Cutting the 0.1 bridge costs 0.1/3 + 0.1/3; n = 6 is inside the brute-force guard."""
+    instance = two_triangles_instance()
+    optimum, labels = brute_force_rcut(instance.graph, instance.cluster_count)
+    assert optimum == pytest.approx(1 / 15, abs=1e-12)
+    assert as_partition(labels) == as_partition(instance.planted_labels)
+    assert ratio_cut(instance.graph, instance.planted_labels) == pytest.approx(1 / 15, abs=1e-12)
 
 
 def test_rounded_cut_of_a_within_block_spanning_forest_equals_the_ratio_cut():
@@ -339,7 +371,8 @@ def test_rounded_pairs_are_the_argmax_and_argmin_of_each_column():
     assert rounded_pairs(spanning_set) == [(2, 1), (2, 0)]
 
 
-def test_default_test_graphs_are_the_five_named_connected_instances():
+def test_default_test_graphs_are_the_six_named_connected_instances():
+    """`two_triangles` is appended last, after `roach_g20`, by the same index-stability rule."""
     instances = default_test_graphs()
     assert [instance.name for instance in instances] == [
         "roach_g5",
@@ -347,8 +380,9 @@ def test_default_test_graphs_are_the_five_named_connected_instances():
         "planted_partition",
         "two_moons_knn",
         "roach_g20",
+        "two_triangles",
     ]
-    assert [instance.cluster_count for instance in instances] == [2, 2, 3, 2, 3]
+    assert [instance.cluster_count for instance in instances] == [2, 2, 3, 2, 3, 2]
     assert instances[0].graph.number_of_nodes() == 20
     for instance in instances:
         assert isinstance(instance, GraphInstance)

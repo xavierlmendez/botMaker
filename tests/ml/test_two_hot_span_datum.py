@@ -12,7 +12,12 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from mllib.math.graph.two_hot_span_problem import brute_force_rcut, ratio_cut, roach_graph
+from mllib.math.graph.two_hot_span_problem import (
+    brute_force_rcut,
+    ratio_cut,
+    roach_graph,
+    two_triangles_instance,
+)
 from mllib.ml.projects.two_hot_span_harness import (
     datum_roundings,
     round_cluster_qr,
@@ -157,6 +162,22 @@ def test_brute_force_rcut_is_at_most_every_rounding(seed):
     optimum, _ = brute_force_rcut(graph, 2)
     for labels in datum_roundings(graph, 2, seed=seed).values():
         assert optimum <= ratio_cut(graph, labels) + 1e-9
+
+
+def test_all_three_roundings_reach_the_two_triangles_optimum():
+    """What makes `two_triangles` an optimizer test: its datum is exact, so only Ê can be at fault.
+
+    Every rounding lands the planted split at the brute-force optimum 1/15, so a run that misses it
+    on this instance has missed it for reasons of its own.
+    """
+    instance = two_triangles_instance()
+    optimum, _ = brute_force_rcut(instance.graph, instance.cluster_count)
+    assert optimum == pytest.approx(1 / 15, abs=1e-12)
+    roundings = datum_roundings(instance.graph, instance.cluster_count, seed=0)
+    assert set(roundings) == set(ROUNDINGS)
+    for name, labels in roundings.items():
+        assert canonical(labels) == canonical(instance.planted_labels), name
+        assert ratio_cut(instance.graph, labels) == pytest.approx(1 / 15, abs=1e-12), name
 
 
 def test_roach_graph_roundings_split_the_optimum_from_the_documented_failure():

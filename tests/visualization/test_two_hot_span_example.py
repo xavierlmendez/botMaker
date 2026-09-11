@@ -214,3 +214,40 @@ def test_the_ladder_layout_generalises_to_the_eighty_node_cockroach():
 
 def test_the_walkthrough_knows_the_eighty_node_cockroach_at_k_three():
     assert GRAPHS["roach_g20"] == {"cluster_count": 3, "collision_weight": 10.0}
+
+
+def test_the_walkthrough_runs_two_triangles_at_its_own_lambda_and_schedule():
+    """λ = 0.1 against Σλ = 0.064, and a schedule of its own: 5000 steps at lr 0.01."""
+    assert GRAPHS["two_triangles"] == {
+        "cluster_count": 2,
+        "collision_weight": 0.1,
+        "learning_rate": 0.01,
+        "step_count": 5000,
+    }
+
+
+def test_only_two_triangles_carries_a_schedule_of_its_own():
+    """The guard on the older graphs: no entry of theirs overrides anything, so nothing moved."""
+    for name in ("roach_g5", "karate", "roach_g20"):
+        assert not {"learning_rate", "step_count"} & set(GRAPHS[name]), name
+
+
+def test_the_two_triangles_layout_separates_the_triangles_with_the_bridge_between_them():
+    positions = layout_positions("two_triangles", build_graph("two_triangles"))
+
+    assert len(positions) == 6
+    left, right = positions[:3], positions[3:]
+    # The two triangles sit apart on x: every left node is left of every right node.
+    assert max(x for x, _ in left) < min(x for x, _ in right)
+    # Nodes 2 and 3 are the inner pair — the ends of the weak bridge — and it draws horizontally.
+    assert positions[2][0] == max(x for x, _ in left)
+    assert positions[3][0] == min(x for x, _ in right)
+    assert positions[2][1] == positions[3][1]
+
+
+def test_the_two_triangles_layout_is_handed_out_by_value():
+    """A caller that mutates a position cannot move the next run's picture."""
+    first = layout_positions("two_triangles", build_graph("two_triangles"))
+    first[0][0] = 99.0
+
+    assert layout_positions("two_triangles", build_graph("two_triangles"))[0][0] == 0.0

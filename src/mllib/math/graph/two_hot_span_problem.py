@@ -335,6 +335,50 @@ def roach_g20_instance() -> GraphInstance:
     return GraphInstance("roach_g20", roach_graph(rung_count), 3, labels)
 
 
+def two_triangles_graph() -> nx.Graph:
+    """Two triangles joined by a weak bridge: 0-1-2 and 3-4-5 at weight 1, edge (2, 3) at 0.1.
+
+    Weighted on purpose — the bridge being the cheap edge is what makes the cut obvious — so the
+    edges carry ``weight`` attributes the way ``karate_graph`` does and ``incidence_matrix`` reads
+    them straight off.
+    """
+    graph = nx.Graph()
+    graph.add_nodes_from(range(6))
+    for first, second in ((0, 1), (1, 2), (0, 2), (3, 4), (4, 5), (3, 5)):
+        graph.add_edge(first, second, weight=1.0)
+    graph.add_edge(2, 3, weight=0.1)
+    return graph
+
+
+def two_triangles_instance() -> GraphInstance:
+    """The smallest weighted instance whose optimum is enumerated and whose datum is exact.
+
+    n = 6, K = 2, planted labels [0, 0, 0, 1, 1, 1]. Every quantity a run is read against here is a
+    *fact* rather than a reference: n = 6 is inside ``BRUTE_FORCE_NODE_LIMIT``, so the RatioCut
+    optimum is enumerated and comes back as 1/15 = 0.066667 at exactly the planted labels; all
+    three datum roundings (``kmeans``, ``discretize``, ``cluster_qr``, seed 0) also reach 1/15; and
+    the spectral floor is Σλ = 0.063771. So when a run misses 1/15 on this graph, nothing about the
+    objective, the rounding rule or the datum is in question — the optimizer is. Isolating the
+    optimizer's failure from the objective's is the instance's whole job, and no other instance in
+    ``default_test_graphs`` can do it: ``roach_g5`` and up are past the brute-force guard or have a
+    datum that itself misses the optimum.
+
+    It also fixes the scale of λ, which the larger instances hide. The collision reward is bounded
+    by ``λ · r / 2`` (R(v) ≤ 1/2 per column, r = n - K = 4 columns), and the span term it competes
+    with is bounded below by Σλ = 0.064. At the prototype's λ = 10 the reward's ceiling is 20 —
+    three hundred times the floor — and the span term stops mattering at all: columns go 2-hot on
+    whatever pairs are nearest and ignore the graph, E\\* jumps to 1.5-2.5, and Ê reaches 1/15 from
+    none of three random seeds at 300 or 3000 steps (nor from the spectral initialisation, nor from
+    any of ten restarts of the joint-factorization engine it was run beside). At λ = 0.1 the ceiling
+    is 0.2, the same order as Σλ, and Ê = 1/15 is reached from the spectral initialisation and from
+    two of ten random seeds. λ is
+    therefore not scale-free, and a λ quoted without Σλ and r beside it says nothing.
+    """
+    return GraphInstance(
+        "two_triangles", two_triangles_graph(), 2, np.array([0, 0, 0, 1, 1, 1], dtype=int)
+    )
+
+
 def karate_graph() -> nx.Graph:
     """Zachary's karate club: 34 vertices already labelled 0..33, two known factions.
 
@@ -377,10 +421,10 @@ def two_moons_knn_graph(
 
 
 def default_test_graphs() -> tuple[GraphInstance, ...]:
-    """The five instances the prototype reports on, roach first.
+    """The six instances the prototype reports on, roach first.
 
-    ``roach_g20`` is appended last on purpose: every index-based reference to this tuple written
-    before it existed still names the instance it named.
+    ``roach_g20`` and then ``two_triangles`` are appended last on purpose: every index-based
+    reference to this tuple written before one of them existed still names the instance it named.
     """
     karate = karate_graph()
     karate_labels = np.array(
@@ -393,6 +437,7 @@ def default_test_graphs() -> tuple[GraphInstance, ...]:
         planted_partition_graph(3, 8, 0.7, 0.05, seed=0),
         two_moons_knn_graph(40, 5, 0.08, seed=0),
         roach_g20_instance(),
+        two_triangles_instance(),
     )
     for instance in instances:
         if not nx.is_connected(instance.graph):

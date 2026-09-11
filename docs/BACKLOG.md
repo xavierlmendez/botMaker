@@ -342,6 +342,21 @@ row naming the botMaker commit, which every cell record also carries beside the 
 Closes when the ladder has run and the seed's three questions have numbers; the analysis, the findings and
 the kill-criteria re-read belong to the research repo, not here.
 
+### BL-46 — Two-hot: restarts and the joint (W, H) factorization as an optimizer variant · `backlog-only` · re-entry 2–4 h
+
+Opened 2026-09-10 from the `two_triangles` side-by-side (slice 2.8, `docs/LEARNING_LOG.md` "λ is not
+scale-free"). Two things the prototype does not do and Xavier's own minimal implementation of the same
+objective does: **restarts** — best of ten random initialisations, selected by training loss — and a **joint
+(W, H) factorization** in place of the single moved V. On the six-node triangles the two together are worth
+5/10 restarts against this engine's 2/10 seeds, and selection by training loss happened to pick the best Ê
+because the losing restarts sat at a column with R ≈ 0.43–0.47, visibly short of ½. Neither observation is a
+decision: one instance, and the selection rule only coincides with Ê selection while the failure stays that
+legible.
+
+First step: pair the two formulations on roach G₅ over 10 seeds at λ scaled by Σλ/r, and report by Ê — never
+by training loss, which is the two formulations' one incomparable quantity. Closes when the pairing says
+whether restarts alone explain the gap or the joint factorization buys something restarts do not.
+
 ## Closed
 
 ### BL-39 — Conditional solves: forced and forbidden columns in the Nyström problem · closed 2026-09-07 (this PR; research candidate E3 necessity margins, seed `sessions/2026-09-10-engine-slices.md`)
