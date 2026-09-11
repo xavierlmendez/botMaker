@@ -35,6 +35,7 @@ projector injected, so one cost class serves the report and the training loss.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -498,3 +499,90 @@ def default_test_graphs() -> tuple[GraphInstance, ...]:
         if not nx.is_connected(instance.graph):
             raise ValueError(f"{instance.name} is disconnected.")
     return instances
+
+
+@dataclass(frozen=True, slots=True)
+class TwoHotSpanReport:
+    """The numbers a run delivers, every one through the exact arithmetic of this module (D-31)."""
+
+    relaxed_objective: float
+    rounded_cut: float
+    collision_measures: np.ndarray
+    labels: np.ndarray
+
+
+class TwoHotSpanProblem:
+    """The instance an optimizer moves a spanning set over: a graph, K, and the reporting arithmetic.
+
+    Holds the incidence matrix, the graph's own Laplacian and adjacency for the graph penalties,
+    and the vector every column must be orthogonal to — the ones vector for the ratio cut, which
+    is the seam the ncut generalisation replaces with sqrt(d) (BL-41). ``report`` turns a spanning
+    set into the delivered numbers. Injected into the optimizer (D-35 (3)); numpy only.
+    """
+
+    __slots__ = (
+        "X",
+        "adjacency",
+        "cluster_count",
+        "graph",
+        "laplacian",
+        "name",
+        "node_count",
+        "spanning_vector_count",
+    )
+
+    def __init__(self, graph: nx.Graph, cluster_count: int, *, name: str = "graph"):
+        self.graph = graph
+        self.cluster_count = int(cluster_count)
+        self.name = str(name)
+        self.node_count = node_count(graph)
+        self.spanning_vector_count = spanning_vector_count(self.node_count, self.cluster_count)
+        self.X = incidence_matrix(graph)
+        self.laplacian, self.adjacency = graph_matrices(self.X)
+
+    @classmethod
+    def from_instance(cls, instance: GraphInstance) -> TwoHotSpanProblem:
+        return cls(instance.graph, instance.cluster_count, name=instance.name)
+
+    @property
+    def constraint_vector(self) -> np.ndarray:
+        """The vector the columns stay orthogonal to: ones for the ratio cut."""
+        return np.ones(self.node_count, dtype=np.float64)
+
+    @property
+    def configuration(self) -> dict[str, Any]:
+        return {
+            "name": type(self).__name__,
+            "graph": self.name,
+            "node_count": self.node_count,
+            "cluster_count": self.cluster_count,
+        }
+
+    def spectral_floor(self) -> float:
+        return spectral_floor(self.graph, self.cluster_count)
+
+    def spectral_spanning_set(self) -> np.ndarray:
+        return spectral_spanning_set(self.graph, self.cluster_count)
+
+    def report(self, spanning_set: np.ndarray) -> TwoHotSpanReport:
+        """E\\*, Ê, R(v_j) and the clustering of ``spanning_set``, through the exact projector.
+
+        A spanning set that is not finite has no report: every number is NaN and every label -1,
+        so a run stopped for a non-finite value still returns (D-35 (9)) instead of failing inside
+        the pseudo-inverse.
+        """
+        spanning_set = np.asarray(spanning_set, dtype=float)
+        if not np.isfinite(spanning_set).all():
+            return TwoHotSpanReport(
+                relaxed_objective=math.nan,
+                rounded_cut=math.nan,
+                collision_measures=np.full(spanning_set.shape[1], np.nan),
+                labels=np.full(self.node_count, -1, dtype=int),
+            )
+        pairs = rounded_pairs(spanning_set)
+        return TwoHotSpanReport(
+            relaxed_objective=ExactProjector().residual(self.X, spanning_set),
+            rounded_cut=rounded_cut(self.X, spanning_set),
+            collision_measures=collision_measures(spanning_set),
+            labels=clustering_from_pairs(self.node_count, pairs),
+        )

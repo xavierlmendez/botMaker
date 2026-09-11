@@ -27,6 +27,7 @@ pytest.importorskip("torch")
 import torch
 
 from mllib.describe import describe
+from mllib.math.algorithms.two_hot_span.optimizer import training_loss
 from mllib.math.algorithms.two_hot_span.penalties import (
     CollisionPenalty,
     DiversityPenalty,
@@ -34,11 +35,6 @@ from mllib.math.algorithms.two_hot_span.penalties import (
     LaplacianAdjacencyPenalty,
 )
 from mllib.math.algorithms.two_hot_span.projectors import RidgeProjector
-from mllib.math.algorithms.two_hot_span_optimizer import (
-    TwoHotSpanConfig,
-    _penalties_from_config,
-    training_loss,
-)
 from mllib.math.graph.two_hot_span_problem import (
     SpanCost,
     graph_matrices,
@@ -48,7 +44,13 @@ from mllib.math.graph.two_hot_span_problem import (
 from mllib.math.projector import ExactProjector
 from mllib.math.regularization_function import AbstractRegularizationFunction
 
-from .test_two_hot_span_refactor_baseline import CELLS
+# The three refactor-snapshot cells as the knobs the old `training_loss` took, for its oracle:
+# (collision_weight, adjacency_weight, adjacency_form, diversity_weight, epsilon).
+OLD_CELLS = {
+    "objective_only": (10.0, 0.0, "laplacian", 0.0, 1e-6),
+    "every_penalty_cosine_edge_product": (10.0, 0.3, "edge_product", 10.0, 1e-6),
+    "laplacian_warmup_unnormalised": (1.0, 0.5, "laplacian", 0.0, 1e-6),
+}
 
 NODE_TOTAL = 20
 SPANNING_COUNT = 3
@@ -145,30 +147,40 @@ def _old_training_loss(
     return loss
 
 
-@pytest.mark.parametrize("cell", list(CELLS))
+@pytest.mark.parametrize("cell", list(OLD_CELLS))
 def test_the_training_loss_is_the_old_training_loss_to_the_last_bit(graph_data, spanning_set, cell):
-    """Every cell of the refactor snapshot, through the adapter, against the pasted old function."""
+    """Every cell of the refactor snapshot, built as objects, against the pasted old function."""
     X, laplacian, adjacency = graph_data
-    config = CELLS[cell]
+    collision_weight, adjacency_weight, adjacency_form, diversity_weight, epsilon = OLD_CELLS[cell]
     X_t = torch.tensor(X, dtype=torch.float64)
     laplacian_t = adjacency_t = None
-    if config.adjacency_weight != 0.0:
+    penalties: list = []
+    if collision_weight != 0.0:
+        penalties.append(CollisionPenalty(weight=collision_weight))
+    if adjacency_weight != 0.0:
         laplacian_t = torch.tensor(laplacian, dtype=torch.float64)
         adjacency_t = torch.tensor(adjacency, dtype=torch.float64)
+        penalties.append(
+            EdgeProductAdjacencyPenalty(adjacency, weight=adjacency_weight)
+            if adjacency_form == "edge_product"
+            else LaplacianAdjacencyPenalty(laplacian, weight=adjacency_weight)
+        )
+    if diversity_weight != 0.0:
+        penalties.append(DiversityPenalty(weight=diversity_weight))
 
-    cost = SpanCost(RidgeProjector(config.epsilon), X_t)
-    new = training_loss(cost, spanning_set, _penalties_from_config(config, X))
+    cost = SpanCost(RidgeProjector(epsilon), X_t)
+    new = training_loss(cost, spanning_set, penalties)
 
     old = _old_training_loss(
         X_t,
         spanning_set,
-        config.collision_weight,
-        config.epsilon,
-        config.adjacency_weight,
+        collision_weight,
+        epsilon,
+        adjacency_weight,
         laplacian_t,
         adjacency_t,
-        config.adjacency_form,
-        config.diversity_weight,
+        adjacency_form,
+        diversity_weight,
     )
     assert float(new) == float(old)
 
@@ -431,37 +443,11 @@ def test_a_zero_weighted_penalty_on_a_zero_column_is_nan_which_is_why_the_adapte
     assert torch.isnan(penalty.compute_penalty(spanning_set_with_a_zero_column))
 
 
-def test_the_default_config_builds_no_penalty_so_its_loss_is_finite_on_a_zero_column(
+def test_with_no_penalty_the_loss_is_finite_on_a_zero_column(
     graph_data, spanning_set_with_a_zero_column
 ):
+    """Which is why a zero weight is absent rather than a zero-weighted term (`penalties.py`)."""
     X, _, _ = graph_data
     X_t = torch.tensor(X, dtype=torch.float64)
-    penalties = _penalties_from_config(TwoHotSpanConfig(), X)
-    assert penalties == ()
     cost = SpanCost(RidgeProjector(EPSILON), X_t)
-    assert torch.isfinite(training_loss(cost, spanning_set_with_a_zero_column, penalties))
-
-
-@pytest.mark.parametrize(
-    ("adjacency_form", "adjacency_class"),
-    [("laplacian", LaplacianAdjacencyPenalty), ("edge_product", EdgeProductAdjacencyPenalty)],
-)
-def test_every_weight_on_builds_the_three_penalties_in_the_losss_order(
-    graph_data, adjacency_form, adjacency_class
-):
-    X, _, _ = graph_data
-    config = TwoHotSpanConfig(
-        collision_weight=10.0,
-        adjacency_weight=0.3,
-        adjacency_form=adjacency_form,
-        diversity_weight=10.0,
-    )
-
-    penalties = _penalties_from_config(config, X)
-
-    assert [type(penalty) for penalty in penalties] == [
-        CollisionPenalty,
-        adjacency_class,
-        DiversityPenalty,
-    ]
-    assert [penalty.weight for penalty in penalties] == [10.0, 0.3, 10.0]
+    assert torch.isfinite(training_loss(cost, spanning_set_with_a_zero_column, ()))

@@ -382,14 +382,38 @@ def test_prefer_later_keeps_the_later_record_on_a_conflict():
 
 def test_per_rung_counts_and_medians_are_the_hand_values():
     row = row_starting(rung_table(synthetic_records()), "1")
-    # rung, cells, reached_k, drifted, not_at_k, error, timeout, skipped, over_budget, converged
-    assert row[:10] == ["1", "8", "3", "2", "2", "1", "0", "0", "0", "3"]
+    # rung, cells, reached_k, drifted, not_at_k, stopped, error, timeout, skipped, over_budget,
+    # converged
+    assert row[:11] == ["1", "8", "3", "2", "2", "0", "1", "0", "0", "0", "3"]
     # Ê-E* over the seven cells with numbers: 1, 2, 2, 2, 2.5, 4, 4
-    assert row[10:12] == ["2", "4"]
+    assert row[11:13] == ["2", "4"]
     # Ê-Σλ: 2, 3, 3.5, 4, 5, 7, 8
-    assert row[12:14] == ["4", "8"]
+    assert row[13:15] == ["4", "8"]
     # seconds over all eight cells: 0.5, 1, 2, 3, 4, 5, 6, 7 ; RSS over the seven that reported
-    assert row[14:] == ["3.5", "7", "130", "160", "60"]
+    assert row[15:] == ["3.5", "7", "130", "160", "60"]
+
+
+def test_a_stopped_cell_counts_in_the_stopped_column_and_contributes_no_number():
+    """One stopped record appended to the synthetic set, so the hand values above stay as read."""
+    stopped = make_cell(
+        "r1-s0-c-random",
+        rung=1,
+        name="sbm_a",
+        graph_seed=0,
+        init="random",
+        nu=3.0,
+        mu=0.1,
+        status="stopped",
+        seconds=0.25,
+    )
+    records = [*synthetic_records(), stopped]
+    row = row_starting(rung_table(records), "1")
+
+    # rung, cells, reached_k, drifted, not_at_k, stopped, error, timeout, skipped, over_budget,
+    # converged: one more cell, one stopped, nothing else moves.
+    assert row[:11] == ["1", "9", "3", "2", "2", "1", "1", "0", "0", "0", "3"]
+    # The stopped cell has no numbers, so the Ê-E* and Ê-Σλ medians are the eight-cell ones.
+    assert row[11:15] == ["2", "4", "4", "8"]
 
 
 def test_a_rung_whose_error_cell_has_no_numbers_renders_the_missing_marker():

@@ -24,6 +24,7 @@ from mllib.visualization.views.two_hot_span import (
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
     TWO_HOT_SHARE,
+    _stop_sentence,
     _two_hot_columns,
     _view_javascript,
     explain,
@@ -457,3 +458,20 @@ def test_the_explanation_rides_in_the_layout_the_page_embeds(two_hot_recording):
 
     assert layout["explain"] == explain(two_hot_recording).to_dict()
     assert json.loads(json.dumps(layout)) == layout
+
+
+def test_a_run_that_stopped_short_is_narrated_with_its_reason():
+    """D-34: derived from the result's stop fields, never authored; D-35 (9): a stop is a reason."""
+    sentence = _stop_sentence(
+        {"stop_reason": "constraint_violation", "stop_detail": "max |cT v_j| = 1e-3 exceeds 0"},
+        steps=4,
+    )
+
+    assert sentence == "Stopped after 4 steps, short of the budget: max |cT v_j| = 1e-3 exceeds 0."
+
+
+def test_a_recording_without_a_stop_reason_reads_as_a_budget_stop():
+    """Recordings written before the result carried a stop reason could only have run out."""
+    assert _stop_sentence({}, steps=30) == (
+        "Stopped because the step budget of 30 steps was spent; the optimizer never stops early."
+    )

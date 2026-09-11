@@ -551,6 +551,22 @@ def _fmt_drift(value: float) -> str:
     return fmt_num(value)
 
 
+def _stop_sentence(result: dict, steps: int) -> str:
+    """Why the run ended, read off the result's stop reason; a budget stop reads as it always has.
+
+    Recordings written before the result carried a stop reason have none, and they could only
+    have ended on their budget: a run that tripped a stop raised and wrote no recording.
+    """
+    reason = result.get("stop_reason", "step_budget")
+    if reason == "step_budget":
+        return (
+            f"Stopped because the step budget of {steps} steps was spent; the optimizer never stops "
+            "early."
+        )
+    detail = result.get("stop_detail") or reason
+    return f"Stopped after {steps} steps, short of the budget: {detail}."
+
+
 def _ending(recording: Recording) -> tuple[str, ...]:
     """Why the run stopped, what it ended holding, and what the page cannot tell the reader."""
     problem = recording.problem
@@ -580,8 +596,7 @@ def _ending(recording: Recording) -> tuple[str, ...]:
             )
 
     return (
-        f"Stopped because the step budget of {steps} steps was spent; the optimizer never stops "
-        "early.",
+        _stop_sentence(result, steps),
         f"Final: E* {fmt_num(result.get('relaxed_objective'))}, "
         f"Ê {fmt_num(result.get('rounded_cut'))}, Ê {MINUS_SIGN} Σλ "
         f"{fmt_num(result.get('rounded_cut_minus_floor'))}, {result.get('component_count')} "

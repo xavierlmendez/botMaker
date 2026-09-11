@@ -2,7 +2,9 @@
 
 Slice 2.3 of `docs/plans/2026-09-two-hot-span.md`, with a fifth graph added in slice 2.6. For each
 of the five test graphs the harness sweeps the collision weight λ across two initialisations, runs
-the torch optimizer of slice 2.2, and reports one JSON file and one text block per graph.
+the torch optimizer, and reports one JSON file and one text block per graph. The harness is a
+composition root (D-35 (8)): it builds a fresh optimizer per cell through
+`two_hot_span_composition` and puts the run's assembled `configuration` on every row.
 
 **The judge.** Ê, the rounded cut, is the headline number: it is the RatioCut of the partition the
 run actually produces, and it is the only number a comparison may be made on. E\\*, the relaxed
@@ -23,32 +25,30 @@ sklearn implementations appear only as oracles inside the tests.
 
 VᵀV = I is never imposed, anywhere. This is the gradient track only; the alternating analytical
 solver is parked. rcut only — ncut is BL-41. Every reported number comes back through the exact
-numpy `pinv` projector of `two_hot_span_problem` (D-31, P-2); the training ridge never reaches a
-report.
+projector (D-31, P-2); the training ridge never reaches a report. A run that stops before its
+budget is a row like any other, with its reason (D-35 (9)).
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass, replace
+import math
+from dataclasses import dataclass
 from pathlib import Path
 
 import networkx as nx
 import numpy as np
 
+from mllib.math.algorithms.abstract_optimizer import StopReason
 from mllib.math.graph.two_hot_span_problem import (
     BRUTE_FORCE_NODE_LIMIT,
     GraphInstance,
+    TwoHotSpanProblem,
     brute_force_rcut,
     default_test_graphs,
-    incidence_matrix,
     laplacian_matrix,
-    node_count,
     ratio_cut,
-    spanning_vector_count,
-    spectral_floor,
-    spectral_spanning_set,
 )
 
 DEFAULT_COLLISION_WEIGHTS = (0.0, 0.1, 0.3, 1.0, 3.0, 10.0)
@@ -57,7 +57,7 @@ DEFAULT_LEARNING_RATE = 0.05
 DEFAULT_INITS = ("random", "spectral")
 DEFAULT_EPSILON = 1e-6
 DEFAULT_SEED = 0
-# Slice 2.4's experiment, passed straight through to `TwoHotSpanConfig`. These are its defaults, so
+# Slice 2.4's experiment, passed straight through to the composition. These are its defaults, so
 # a harness run that names none of them is the run slice 2.3 shipped, and the objective stays the
 # brief's §20 objective.
 DEFAULT_SCHEDULE = "constant"
@@ -224,6 +224,8 @@ class SweepRow:
     ``E_ridge(V) - λ Σ_j R(v_j)``. It is a training diagnostic and is never E: it is computed
     through the regularized projector and it carries the collision reward, so it is neither
     comparable to E\\* nor to Ê. The field is named for what it is and must stay so named.
+    ``configuration`` is the run's own assembled record (D-35 (4)); ``stop_reason`` and
+    ``stop_detail`` say why the run ended, ``"step_budget"`` for a run that used its budget.
     """
 
     collision_weight: float
@@ -237,6 +239,9 @@ class SweepRow:
     labels: tuple[int, ...]
     max_zero_sum_violation: float
     final_training_loss: float
+    stop_reason: str
+    stop_detail: str
+    configuration: dict[str, object]
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,15 +262,15 @@ class GraphReport:
     brute_force_labels: tuple[int, ...] | None
     planted_labels_ratio_cut: float | None
     single_weight_gives_k_components: dict[float, bool]
-    config: dict[str, object]
+    configuration: dict[str, object]
 
 
-def _initial_spanning_set(graph: nx.Graph, cluster_count: int, init: str) -> np.ndarray | None:
+def _initial_spanning_set(problem: TwoHotSpanProblem, init: str) -> np.ndarray | None:
     """The starting V for an init name; ``None`` means the optimizer's own seeded randn."""
     if init == "random":
         return None
     if init == "spectral":
-        return spectral_spanning_set(graph, cluster_count)
+        return problem.spectral_spanning_set()
     raise ValueError(f"unknown init {init!r}; expected 'random' or 'spectral'")
 
 
@@ -287,14 +292,14 @@ def run_graph(
 ) -> GraphReport:
     """Sweep λ x init on one graph and assemble the report, checking every invariant on the way."""
     # torch is an optional group (D-31); the datum half of this module runs without it.
-    from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
+    from mllib.ml.projects.two_hot_span_composition import compose_two_hot_span
 
     graph = instance.graph
     cluster_count = instance.cluster_count
-    count = node_count(graph)
-    vector_count = spanning_vector_count(count, cluster_count)
-    X = incidence_matrix(graph)
-    floor = spectral_floor(graph, cluster_count)
+    problem = TwoHotSpanProblem.from_instance(instance)
+    count = problem.node_count
+    vector_count = problem.spanning_vector_count
+    floor = problem.spectral_floor()
 
     optimum: float | None = None
     optimum_labels: tuple[int, ...] | None = None
@@ -302,29 +307,34 @@ def run_graph(
         best_value, best_labels = brute_force_rcut(graph, cluster_count)
         optimum, optimum_labels = best_value, tuple(int(label) for label in best_labels)
 
-    # One config for the whole sweep, with only λ replaced per row: the recorded config is then the
-    # object the rows actually ran under, not a second one built to look like it.
-    base_config = TwoHotSpanConfig(
-        step_count=step_count,
-        learning_rate=learning_rate,
-        epsilon=epsilon,
-        seed=seed,
-        learning_rate_schedule=learning_rate_schedule,
-        warmup_steps=warmup_steps,
-        final_learning_rate_fraction=final_learning_rate_fraction,
-        adjacency_weight=adjacency_weight,
-        adjacency_form=adjacency_form,
-        diversity_weight=diversity_weight,
-    )
+    # The knobs of the whole sweep, with only λ and the start varying per row. A fresh optimizer
+    # and a fresh step rule per cell (D-35 (5)); the row records the configuration it ran under.
+    knobs = {
+        "step_count": step_count,
+        "learning_rate": learning_rate,
+        "epsilon": epsilon,
+        "seed": seed,
+        "schedule": learning_rate_schedule,
+        "warmup_steps": warmup_steps,
+        "final_learning_rate_fraction": final_learning_rate_fraction,
+        "adjacency_weight": adjacency_weight,
+        "adjacency_form": adjacency_form,
+        "diversity_weight": diversity_weight,
+    }
 
     rows: list[SweepRow] = []
     for collision_weight in collision_weights:
         for init in inits:
-            config = replace(base_config, collision_weight=float(collision_weight))
-            run = fit_two_hot_span(
-                X, cluster_count, config, _initial_spanning_set(graph, cluster_count, init)
+            optimizer = compose_two_hot_span(
+                problem,
+                collision_weight=float(collision_weight),
+                initial_spanning_set=_initial_spanning_set(problem, init),
+                **knobs,
             )
-            _check_row_invariants(run.rounded_cut, run.relaxed_objective, floor, optimum)
+            run = optimizer.run()
+            if run.stop_reason is StopReason.STEP_BUDGET:
+                # A stopped run's numbers are its report, not a measurement the invariants judge.
+                _check_row_invariants(run.rounded_cut, run.relaxed_objective, floor, optimum)
             rows.append(
                 SweepRow(
                     collision_weight=float(collision_weight),
@@ -337,14 +347,20 @@ def run_graph(
                     collision_measures=tuple(float(value) for value in run.collision_measures),
                     labels=tuple(int(label) for label in run.labels),
                     max_zero_sum_violation=float(run.max_zero_sum_violation),
-                    final_training_loss=float(run.loss_history[-1])
-                    if run.loss_history.size
-                    else 0.0,
+                    final_training_loss=(
+                        0.0 if run.final_training_loss is None else float(run.final_training_loss)
+                    ),
+                    stop_reason=run.stop_reason.value,
+                    stop_detail=run.stop_detail,
+                    configuration=dict(run.configuration),
                 )
             )
 
-    # Ties go to the first row, so the earliest λ (and within it the earliest init) wins.
-    best_row_index = int(min(range(len(rows)), key=lambda index: rows[index].rounded_cut))
+    # Ties go to the first row, so the earliest λ (and within it the earliest init) wins; a
+    # stopped row with no finite Ê cannot be best.
+    finished = [index for index, row in enumerate(rows) if math.isfinite(row.rounded_cut)]
+    candidates = finished or list(range(len(rows)))
+    best_row_index = int(min(candidates, key=lambda index: rows[index].rounded_cut))
 
     datum: dict[str, dict[str, object]] = {}
     for name, labels in datum_roundings(graph, cluster_count, seed).items():
@@ -375,18 +391,18 @@ def run_graph(
         single_weight_gives_k_components=_single_weight_gives_k_components(
             rows, collision_weights, cluster_count
         ),
-        config={
-            "step_count": base_config.step_count,
-            "learning_rate": base_config.learning_rate,
-            "epsilon": base_config.epsilon,
-            "seed": base_config.seed,
-            "normalize_columns": base_config.normalize_columns,
-            "learning_rate_schedule": base_config.learning_rate_schedule,
-            "warmup_steps": base_config.warmup_steps,
-            "final_learning_rate_fraction": base_config.final_learning_rate_fraction,
-            "adjacency_weight": base_config.adjacency_weight,
-            "adjacency_form": base_config.adjacency_form,
-            "diversity_weight": base_config.diversity_weight,
+        configuration={
+            "step_count": int(step_count),
+            "learning_rate": float(learning_rate),
+            "epsilon": float(epsilon),
+            "seed": int(seed),
+            "normalize_columns": bool(rows[0].configuration["normalize_columns"]),
+            "learning_rate_schedule": learning_rate_schedule,
+            "warmup_steps": int(warmup_steps),
+            "final_learning_rate_fraction": float(final_learning_rate_fraction),
+            "adjacency_weight": float(adjacency_weight),
+            "adjacency_form": adjacency_form,
+            "diversity_weight": float(diversity_weight),
             "collision_weights": [float(weight) for weight in collision_weights],
             "inits": list(inits),
         },
@@ -439,6 +455,12 @@ def _single_weight_gives_k_components(
 # --------------------------------------------------------------------------------------------
 
 
+def _json_number(value: float) -> float | None:
+    """A float as JSON can carry it: a non-finite number, the report of a stopped run, is null."""
+    value = float(value)
+    return value if math.isfinite(value) else None
+
+
 def report_to_dict(report: GraphReport) -> dict:
     """The report as plain JSON types: floats as floats, labels as lists, λ keys as strings."""
     return {
@@ -453,15 +475,18 @@ def report_to_dict(report: GraphReport) -> dict:
             {
                 "collision_weight": float(row.collision_weight),
                 "init": row.init,
-                "relaxed_objective": float(row.relaxed_objective),
-                "rounded_cut": float(row.rounded_cut),
-                "rounded_cut_minus_relaxed": float(row.rounded_cut_minus_relaxed),
-                "rounded_cut_minus_floor": float(row.rounded_cut_minus_floor),
+                "relaxed_objective": _json_number(row.relaxed_objective),
+                "rounded_cut": _json_number(row.rounded_cut),
+                "rounded_cut_minus_relaxed": _json_number(row.rounded_cut_minus_relaxed),
+                "rounded_cut_minus_floor": _json_number(row.rounded_cut_minus_floor),
                 "component_count": int(row.component_count),
-                "collision_measures": [float(value) for value in row.collision_measures],
+                "collision_measures": [_json_number(value) for value in row.collision_measures],
                 "labels": [int(label) for label in row.labels],
                 "max_zero_sum_violation": float(row.max_zero_sum_violation),
                 "final_training_loss": float(row.final_training_loss),
+                "stop_reason": row.stop_reason,
+                "stop_detail": row.stop_detail,
+                "configuration": dict(row.configuration),
             }
             for row in report.rows
         ],
@@ -491,7 +516,7 @@ def report_to_dict(report: GraphReport) -> dict:
             repr(float(weight)): bool(value)
             for weight, value in report.single_weight_gives_k_components.items()
         },
-        "config": dict(report.config),
+        "configuration": dict(report.configuration),
     }
 
 
@@ -565,12 +590,9 @@ def run_default_suite(output_dir: Path, **kwargs) -> list[GraphReport]:
 
 def main(argv: list[str] | None = None) -> None:
     """Run the sweep over the requested graphs, write the JSON reports and print each block."""
-    # Same reason as `run_graph`'s import: the allowed schedule and form names live beside the
-    # config that validates against them, in the torch module (D-31), and only the CLI needs them.
-    from mllib.math.algorithms.two_hot_span_optimizer import (
-        ADJACENCY_FORMS,
-        LEARNING_RATE_SCHEDULES,
-    )
+    # Same reason as `run_graph`'s import: the composition module imports the torch package (D-31),
+    # and only the CLI needs the schedule and form names.
+    from mllib.ml.projects.two_hot_span_composition import ADJACENCY_FORM_NAMES, SCHEDULE_NAMES
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--output-dir", required=True, type=Path)
@@ -580,11 +602,13 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--graphs", nargs="+", default=None, help="subset of graph names to run")
     # The experimental knobs of slices 2.4 and 2.5. Defaults are the config's own, so omitting them
     # all leaves the sweep exactly as slice 2.3 ran it.
-    parser.add_argument("--schedule", default=DEFAULT_SCHEDULE, choices=LEARNING_RATE_SCHEDULES)
+    parser.add_argument("--schedule", default=DEFAULT_SCHEDULE, choices=SCHEDULE_NAMES)
     parser.add_argument("--warmup-steps", type=int, default=DEFAULT_WARMUP_STEPS)
     parser.add_argument("--final-lr-fraction", type=float, default=DEFAULT_FINAL_LR_FRACTION)
     parser.add_argument("--adjacency-weight", type=float, default=DEFAULT_ADJACENCY_WEIGHT)
-    parser.add_argument("--adjacency-form", default=DEFAULT_ADJACENCY_FORM, choices=ADJACENCY_FORMS)
+    parser.add_argument(
+        "--adjacency-form", default=DEFAULT_ADJACENCY_FORM, choices=ADJACENCY_FORM_NAMES
+    )
     parser.add_argument("--diversity-weight", type=float, default=DEFAULT_DIVERSITY_WEIGHT)
     arguments = parser.parse_args(argv)
 

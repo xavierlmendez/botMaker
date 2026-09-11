@@ -1,7 +1,8 @@
 """The recorder for a two-hot span rcut run: one frame per optimizer step, captioned.
 
 The optimizer hands over three things per step — the step number, the training loss it just took a
-gradient of, and V as it stands — and stops there. Everything a reader wants to see is derived
+gradient of, and V as it stands — plus the learning rate in force, and stops there. The per-step
+histories live here and never on the result (D-35 (9)). Everything a reader wants to see is derived
 *here*: E\\* through the exact ``pinv`` projector, Ê through the rounded columns, R(v_j) per column,
 the rounded pairs and the components they induce. That split is deliberate and is the whole reason
 the engine stays fast when nobody watches: the derivations cost a pseudo-inverse each, which is a
@@ -22,34 +23,42 @@ labelled "E" in a caption, a field name or a dict key, here or anywhere downstre
 
 from __future__ import annotations
 
-import dataclasses
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
 
+from mllib.math.algorithms.abstract_optimizer import StopReason
 from mllib.math.graph import two_hot_span_problem as problem
 from mllib.math.projector import ExactProjector
 from mllib.math.recorder import AbstractStepRecorder, Frame
 
 if TYPE_CHECKING:
-    # Only for the annotations below. The module that defines the run imports torch, which is an
-    # optional group (D-31), and a recorder that pulled it in at import time would make every
+    # Only for the annotations below. The module that defines the result imports torch, which is
+    # an optional group (D-31), and a recorder that pulled it in at import time would make every
     # reader of a recording pay for it.
-    from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanRun
+    from mllib.math.algorithms.two_hot_span.optimizer import TwoHotSpanResult
 
 CAPTION_PRECISION = 4  # decimals on a number in a caption; the exact value rides on the frame
 
 type Pair = tuple[int, int]
 
 
+def _json_number(value: float) -> float | None:
+    """A float as JSON can carry it: a non-finite number, the report of a stopped run, is null."""
+    value = float(value)
+    return value if math.isfinite(value) else None
+
+
 @dataclass(frozen=True, slots=True)
 class TwoHotSpanFrame(Frame):
     """One optimizer step of a two-hot span run, in plain Python.
 
-    ``step`` is the step number, counted from zero, and ``training_loss`` the ridge training loss at
-    that step — the value in ``TwoHotSpanRun.loss_history[step]``, and never E\\* or Ê.
+    ``step`` is the step number, counted from zero, ``training_loss`` the ridge training loss at
+    that step — never E\\* or Ê — and ``learning_rate`` the rate the step rule had in force for it;
+    the end frame, which is no step, carries ``None`` there.
 
     ``full`` says whether the derived fields are there. On a full frame ``spanning_set`` is V as an
     n-by-r nested list of exact doubles, ``collision_measures`` is R(v_j) per column,
@@ -68,6 +77,7 @@ class TwoHotSpanFrame(Frame):
     training_loss: float
     full: bool
     end: bool = False
+    learning_rate: float | None = None
     spanning_set: tuple[tuple[float, ...], ...] | None = None
     collision_measures: tuple[float, ...] | None = None
     rounded_pairs: tuple[Pair, ...] | None = None
@@ -91,6 +101,7 @@ class TwoHotSpanFrame(Frame):
             "training_loss": self.training_loss,
             "full": self.full,
             "end": self.end,
+            "learning_rate": self.learning_rate,
             "spanning_set": (
                 None if self.spanning_set is None else [list(row) for row in self.spanning_set]
             ),
@@ -172,6 +183,8 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
     ) -> None:
         step = int(step)
         loss = float(training_loss)
+        rate = extras.get("learning_rate")
+        learning_rate = None if rate is None else float(rate)  # type: ignore[arg-type]
         if not self.is_full(step):
             self.record(
                 TwoHotSpanFrame(
@@ -180,6 +193,7 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
                     step=step,
                     training_loss=loss,
                     full=False,
+                    learning_rate=learning_rate,
                 )
             )
             return
@@ -202,25 +216,27 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
                 relaxed=relaxed,
                 cut=cut,
                 end=False,
+                learning_rate=learning_rate,
             )
         )
 
-    def record_end(self, run: TwoHotSpanRun, **extras: object) -> None:
+    def record_end(self, run: TwoHotSpanResult, **extras: object) -> None:
         """The run's last frame: its own reported numbers, not a recomputation of them."""
-        steps_taken = int(np.asarray(run.loss_history).size)
-        # A run of zero steps has no training loss to restate; the field is 0.0 and the caption
-        # says how many steps there were, which is the honest reading of an empty loss history.
-        loss = float(run.loss_history[-1]) if steps_taken else 0.0
+        steps_taken = int(run.steps_taken)
+        # A run of zero completed steps has no training loss to restate; the field is 0.0 and the
+        # caption says how many steps there were, which is the honest reading of an empty run.
+        loss = 0.0 if run.final_training_loss is None else float(run.final_training_loss)
         labels = np.asarray(run.labels)
         measures = np.asarray(run.collision_measures, dtype=float)
         relaxed = float(run.relaxed_objective)
         cut = float(run.rounded_cut)
         spanning_set = np.asarray(run.spanning_set, dtype=float)
+        stopped = None if run.stop_reason is StopReason.STEP_BUDGET else str(run.stop_detail)
         self.record(
             self._full_frame(
                 step=max(steps_taken - 1, 0),
                 training_loss=loss,
-                caption=self._end_caption(steps_taken, relaxed, cut, labels, measures),
+                caption=self._end_caption(steps_taken, relaxed, cut, labels, measures, stopped),
                 spanning_set=spanning_set,
                 measures=measures,
                 pairs=problem.rounded_pairs(spanning_set),
@@ -228,6 +244,7 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
                 relaxed=relaxed,
                 cut=cut,
                 end=True,
+                learning_rate=None,
             )
         )
 
@@ -244,6 +261,7 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
         relaxed: float,
         cut: float,
         end: bool,
+        learning_rate: float | None,
     ) -> TwoHotSpanFrame:
         """One frame carrying every derived number, with numpy scalars converted on the way in."""
         return TwoHotSpanFrame(
@@ -253,15 +271,16 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
             training_loss=training_loss,
             full=True,
             end=end,
-            spanning_set=tuple(tuple(float(value) for value in row) for row in spanning_set),
-            collision_measures=tuple(float(value) for value in measures),
+            learning_rate=learning_rate,
+            spanning_set=tuple(tuple(_json_number(value) for value in row) for row in spanning_set),
+            collision_measures=tuple(_json_number(value) for value in measures),
             rounded_pairs=tuple((int(high), int(low)) for high, low in pairs),
             labels=tuple(int(label) for label in labels),
             component_count=int(np.unique(labels).size),
-            relaxed_objective=float(relaxed),
-            rounded_cut=float(cut),
-            rounded_cut_minus_relaxed=float(cut) - float(relaxed),
-            rounded_cut_minus_floor=float(cut) - self.spectral_floor,
+            relaxed_objective=_json_number(relaxed),
+            rounded_cut=_json_number(cut),
+            rounded_cut_minus_relaxed=_json_number(float(cut) - float(relaxed)),
+            rounded_cut_minus_floor=_json_number(float(cut) - self.spectral_floor),
         )
 
     # ----------------------------------------------------------------------------------------
@@ -284,13 +303,24 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
         )
 
     def _end_caption(
-        self, steps_taken: int, relaxed: float, cut: float, labels: np.ndarray, measures: np.ndarray
+        self,
+        steps_taken: int,
+        relaxed: float,
+        cut: float,
+        labels: np.ndarray,
+        measures: np.ndarray,
+        stopped: str | None = None,
     ) -> str:
-        """One sentence for the run's own answer, the numbers it reports rather than a step's."""
+        """One sentence for the run's own answer, the numbers it reports rather than a step's.
+
+        A run that stopped short of its budget says why (``stopped`` is the stop's own sentence);
+        one that ran its budget reads exactly as it always has.
+        """
         plural = "" if steps_taken == 1 else "s"
-        return f"Run ended after {steps_taken} step{plural}: " + self._numbers(
-            relaxed, cut, labels, measures
-        )
+        opening = f"Run ended after {steps_taken} step{plural}"
+        if stopped is not None:
+            opening += f" (stopped: {stopped})"
+        return f"{opening}: " + self._numbers(relaxed, cut, labels, measures)
 
     def _numbers(self, relaxed: float, cut: float, labels: np.ndarray, measures: np.ndarray) -> str:
         """The clause every full frame's caption ends on: E\\*, its floor, Ê, components, R(v_j)."""
@@ -304,29 +334,43 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
             f"min {float(np.min(measures)):.{CAPTION_PRECISION}f}."
         )
 
-    def describe_result(self, result: TwoHotSpanRun) -> dict[str, object]:
-        """The run's reported fields as plain Python, plus Σλ and the config it ran under."""
+    def describe_result(self, result: TwoHotSpanResult) -> dict[str, object]:
+        """The run's reported fields as plain Python, plus Σλ and the configuration it ran under.
+
+        ``loss_history`` and ``learning_rate_history`` are read off this recorder's own step frames
+        (D-35 (9)): a light frame is recorded at every step whatever ``frame_every`` says, so the
+        curves are complete, and the result itself carries no history.
+        """
         labels = np.asarray(result.labels)
         relaxed = float(result.relaxed_objective)
         cut = float(result.rounded_cut)
-        losses = np.asarray(result.loss_history, dtype=float)
+        steps = [frame for frame in self.frames if not frame.end]
         return {
             "spanning_set": [
-                [float(value) for value in row]
+                [_json_number(value) for value in row]
                 for row in np.asarray(result.spanning_set, dtype=float)
             ],
-            "loss_history": [float(value) for value in losses],
-            "final_training_loss": float(losses[-1]) if losses.size else 0.0,
-            "relaxed_objective": relaxed,
-            "rounded_cut": cut,
-            "rounded_cut_minus_relaxed": cut - relaxed,
-            "rounded_cut_minus_floor": cut - self.spectral_floor,
+            "loss_history": [float(frame.training_loss) for frame in steps],
+            "learning_rate_history": [
+                None if frame.learning_rate is None else float(frame.learning_rate)
+                for frame in steps
+            ],
+            "final_training_loss": (
+                0.0 if result.final_training_loss is None else float(result.final_training_loss)
+            ),
+            "steps_taken": int(result.steps_taken),
+            "stop_reason": result.stop_reason.value,
+            "stop_detail": str(result.stop_detail),
+            "relaxed_objective": _json_number(relaxed),
+            "rounded_cut": _json_number(cut),
+            "rounded_cut_minus_relaxed": _json_number(cut - relaxed),
+            "rounded_cut_minus_floor": _json_number(cut - self.spectral_floor),
             "collision_measures": [
-                float(value) for value in np.asarray(result.collision_measures, dtype=float)
+                _json_number(value) for value in np.asarray(result.collision_measures, dtype=float)
             ],
             "labels": [int(label) for label in labels],
             "component_count": int(np.unique(labels).size),
             "max_zero_sum_violation": float(result.max_zero_sum_violation),
             "spectral_floor": self.spectral_floor,
-            "config": dataclasses.asdict(result.config),
+            "configuration": dict(result.configuration),
         }

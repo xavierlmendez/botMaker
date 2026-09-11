@@ -398,6 +398,15 @@ fixtures regenerated deliberately and stated in the PR, and the acceptance test 
 sentence per item in the plan's §5 that the reviewer-agent can check against BL-46's first slice
 when it opens.
 
+Progress: slice 4 (2026-09-11) — `AbstractOptimizer` with `run()`/`_begin`/`_step`/`_iterate`/`_assemble`;
+`TwoHotSpanOptimizer` in the package on a `TwoHotSpanProblem` (X, K, the exact arithmetic, the
+constraint vector), taking its cost, penalties, step rule and recorder; `TwoHotSpanResult` per D-35 (9)
+with `StopReason` in place of the two exceptions; `configuration` assembled through `describe`;
+`compose_two_hot_span` as the composition roots' one home; the harnesses and the recorder read
+histories off the recorder; `two_hot_span_optimizer.py` deleted; walkthrough and stress fixtures
+regenerated with every number unchanged; refactor snapshot byte-identical. The Laplacian dedupe
+stays open (ARCHITECTURE §5, with BL-50): the two derivations differ by ulps the spectral start
+amplifies, and this slice regenerated no number.
 Progress: slice 3 (2026-09-11) — step rules and schedules as injected objects (`AbstractStepRule`,
 `AdamStepRule`; `AbstractLearningRateSchedule` with four members); `learning_rate_lambda` deleted;
 refactor snapshot byte-identical, after catching a one-ulp reordering in the cosine schedule.
@@ -461,7 +470,8 @@ spectral start stays a reported cell given that it is a stationary point of the 
 first step is decided by rounding — if it stays, the fixtures are written on the CI platform and
 compared at a stated tolerance there, and the Mac is the platform that skips; if it goes, the
 walkthrough and the rung-0 oracles move to the random start (BL-45 owns the ladder). Closes when
-no torch test is skipped by platform.
+no torch test is skipped by platform. The same decision settles the Laplacian's two derivations
+(ARCHITECTURE §5): the fixture set that is regenerated deliberately takes the other's arithmetic.
 
 ## Closed
 

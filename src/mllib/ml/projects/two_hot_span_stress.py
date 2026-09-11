@@ -39,6 +39,7 @@ import argparse
 import dataclasses
 import hashlib
 import json
+import math
 import multiprocessing
 import os
 import resource
@@ -51,11 +52,12 @@ from pathlib import Path
 
 import numpy as np
 
+from mllib.math.algorithms.abstract_optimizer import StopReason
 from mllib.math.graph.two_hot_span_problem import (
     GraphInstance,
+    TwoHotSpanProblem,
     clustering_from_pairs,
     default_test_graphs,
-    incidence_matrix,
     node_count,
     planted_partition_graph,
     ratio_cut,
@@ -64,7 +66,6 @@ from mllib.math.graph.two_hot_span_problem import (
     rounded_pairs,
     spanning_vector_count,
     spectral_floor,
-    spectral_spanning_set,
 )
 from mllib.math.projector import ExactProjector
 from mllib.math.recorder import AbstractStepRecorder
@@ -93,6 +94,8 @@ FIXTURE_REPORTS_DIR = repository_root() / "tests" / "ml" / "fixtures"
 COLLISION_WEIGHT = 10.0
 LEARNING_RATE = 0.05
 STEP_COUNT = 3000
+# The optimizer's own default; a context may lower it, which is how a test makes a cell stop.
+ZERO_SUM_TOLERANCE = 1e-12
 CHECKPOINT_STEPS = (300, 1000, 3000)
 # (diversity ν, adjacency μ): the brief's objective, the roach band, and each half of the band on
 # its own — the four that make the band's two terms separable in the results.
@@ -152,16 +155,26 @@ TUNED_CELL_CHECK = "tuned_cell_roach_g5"
 # prototype's answer with the ladder's own budget, coupling and checkpoints.
 ORACLE_CHECKS = (*RUNG0_GRAPHS, TUNED_CELL_CHECK)
 
+# Every module a number passes through: the problem and its exact arithmetic, the optimizer and
+# the math objects it is handed, and the two composition roots that wire them (BL-48 slice 4).
 ENGINE_MODULES = (
     "src/mllib/math/graph/two_hot_span_problem.py",
-    "src/mllib/math/algorithms/two_hot_span_optimizer.py",
+    "src/mllib/math/algorithms/abstract_optimizer.py",
+    "src/mllib/math/algorithms/two_hot_span/optimizer.py",
+    "src/mllib/math/algorithms/two_hot_span/penalties.py",
+    "src/mllib/math/algorithms/two_hot_span/projectors.py",
+    "src/mllib/math/algorithms/two_hot_span/step_rules.py",
+    "src/mllib/ml/projects/two_hot_span_composition.py",
     "src/mllib/ml/projects/two_hot_span_harness.py",
 )
 
+# `stopped` is a run the optimizer ended before its budget with a stated reason (D-35 (9)); it is
+# a result with numbers, unlike `error`, which is a cell that produced none.
 STATUSES = (
     "reached_k",
     "drifted",
     "not_at_k",
+    "stopped",
     "error",
     "timeout",
     "skipped_deadline",
@@ -635,6 +648,12 @@ def failed_graph_record(spec: GraphSpec, message: str, seconds: float) -> dict[s
     }
 
 
+def _json_number(value: float) -> float | None:
+    """A float as JSON can carry it: a non-finite number, the report of a stopped run, is null."""
+    value = float(value)
+    return value if math.isfinite(value) else None
+
+
 def _json_ready(value: object) -> object:
     """numpy scalars and paths out, plain JSON in — checked here so `json.dumps` never surprises."""
     if isinstance(value, dict):
@@ -684,19 +703,16 @@ def _check_invariants(rounded: float, relaxed: float, floor: float) -> None:
 def run_cell(cell: CellSpec, context: dict) -> dict[str, object]:
     """One cell, start to finish, in this process. Returns the record; raises nothing it can help.
 
-    A cell that raises is a result: `NonFiniteLoss`, `ZeroSumViolation` and every `ValueError` the
-    engine or the invariant check produces come back as an `error` record with the message and with
-    whatever checkpoints completed, because the seed asks for every cell to be reported including
-    the failures.
+    A cell that stops is a result: a run the optimizer ends before its budget comes back with its
+    numbers under the `stopped` status and the reason on the record (D-35 (9)). A cell that raises
+    is a result too: every `ValueError` the composition or the invariant check produces comes back
+    as an `error` record with the message and whatever checkpoints completed, because the seed asks
+    for every cell to be reported including the failures. The cell is a composition root: a fresh
+    optimizer per cell, the recorder injected (D-35 (5), (8)).
     """
     import torch
 
-    from mllib.math.algorithms.two_hot_span_optimizer import (
-        NonFiniteLoss,
-        TwoHotSpanConfig,
-        ZeroSumViolation,
-        fit_two_hot_span,
-    )
+    from mllib.ml.projects.two_hot_span_composition import compose_two_hot_span
 
     torch.set_num_threads(int(context["threads"]))
     started = time.monotonic()
@@ -709,16 +725,14 @@ def run_cell(cell: CellSpec, context: dict) -> dict[str, object]:
     status = "error"
     message: str | None = None
     run = None
+    configuration: dict[str, object] | None = None
     try:
         instance = build_graph(cell.graph, context.get("data_dir"))
-        X = incidence_matrix(instance.graph)
-        recorder = CheckpointRecorder(X, checkpoint_steps, deadline=started + cap)
-        initial = (
-            spectral_spanning_set(instance.graph, cluster_count)
-            if cell.init == "spectral"
-            else None
-        )
-        config = TwoHotSpanConfig(
+        problem = TwoHotSpanProblem.from_instance(instance)
+        recorder = CheckpointRecorder(problem.X, checkpoint_steps, deadline=started + cap)
+        initial = problem.spectral_spanning_set() if cell.init == "spectral" else None
+        optimizer = compose_two_hot_span(
+            problem,
             step_count=step_count,
             learning_rate=LEARNING_RATE,
             collision_weight=COLLISION_WEIGHT,
@@ -726,17 +740,35 @@ def run_cell(cell: CellSpec, context: dict) -> dict[str, object]:
             adjacency_weight=cell.adjacency_weight,
             adjacency_form=cell.adjacency_form,
             diversity_weight=cell.diversity_weight,
+            zero_sum_tolerance=float(context.get("zero_sum_tolerance", ZERO_SUM_TOLERANCE)),
+            initial_spanning_set=initial,
+            recorder=recorder,
         )
-        run = fit_two_hot_span(X, cluster_count, config, initial, recorder=recorder)
-        _check_invariants(run.rounded_cut, run.relaxed_objective, floor)
-        status, drift_onset = cell_status(recorder.checkpoints, cluster_count)
+        # On the record before the run, so a timed-out cell still says what it ran under (D-35 (8)).
+        configuration = _json_ready(optimizer.configuration)
+        run = optimizer.run()
+        if run.stop_reason is StopReason.STEP_BUDGET:
+            _check_invariants(run.rounded_cut, run.relaxed_objective, floor)
+            status, drift_onset = cell_status(recorder.checkpoints, cluster_count)
+        else:
+            # A stopped run's numbers are its report, not a measurement the invariants judge.
+            status, drift_onset = "stopped", None
     except CellTimeout as error:
         status, drift_onset, message = "timeout", None, str(error)
-    except (NonFiniteLoss, ZeroSumViolation, ValueError, ImportError) as error:
+    except (ValueError, ImportError) as error:
         status, drift_onset, message = "error", None, f"{type(error).__name__}: {error}"
     converged, steps_to_convergence = convergence(recorder.checkpoints)
     record = cell_record_skeleton(cell, context, status)
     record.update(_final_numbers(run, recorder.checkpoints, floor))
+    record["configuration"] = configuration
+    if run is not None:
+        record.update(
+            {
+                "stop_reason": run.stop_reason.value,
+                "stop_detail": run.stop_detail,
+                "steps_taken": int(run.steps_taken),
+            }
+        )
     record.update(
         {
             "converged": bool(converged),
@@ -756,16 +788,19 @@ def _final_numbers(run, checkpoints: Sequence[dict], floor: float) -> dict[str, 
 
     A timed-out or failed cell still says where it had got to, which is the whole reason the
     checkpoints exist; what it cannot say is the per-column diagnostics and the training loss, which
-    the engine only assembles at the end, so those stay `None` rather than being guessed.
+    the optimizer only assembles at the end, so those stay `None` rather than being guessed. A
+    stopped run assembled its result, so it reports like a finished one.
     """
     if run is not None:
         rounded, relaxed = float(run.rounded_cut), float(run.relaxed_objective)
         numbers: dict[str, object] = {
             "component_count": int(np.unique(run.labels).size),
             "labels": [int(label) for label in run.labels],
-            "collision_measures": [float(value) for value in run.collision_measures],
+            "collision_measures": [_json_number(value) for value in run.collision_measures],
             "max_zero_sum_violation": float(run.max_zero_sum_violation),
-            "final_training_loss": (float(run.loss_history[-1]) if run.loss_history.size else None),
+            "final_training_loss": (
+                None if run.final_training_loss is None else float(run.final_training_loss)
+            ),
         }
     elif checkpoints:
         last = checkpoints[-1]
@@ -778,10 +813,10 @@ def _final_numbers(run, checkpoints: Sequence[dict], floor: float) -> dict[str, 
         return {}
     numbers.update(
         {
-            "relaxed_objective": relaxed,
-            "rounded_cut": rounded,
-            "rounded_cut_minus_relaxed": rounded - relaxed,
-            "rounded_cut_minus_floor": rounded - floor,
+            "relaxed_objective": _json_number(relaxed),
+            "rounded_cut": _json_number(rounded),
+            "rounded_cut_minus_relaxed": _json_number(rounded - relaxed),
+            "rounded_cut_minus_floor": _json_number(rounded - floor),
         }
     )
     return numbers
@@ -820,6 +855,10 @@ def cell_record_skeleton(cell: CellSpec, context: dict, status: str) -> dict[str
         "labels": None,
         "max_zero_sum_violation": None,
         "final_training_loss": None,
+        "stop_reason": None,
+        "stop_detail": None,
+        "steps_taken": None,
+        "configuration": None,
         "checkpoints": [],
         "seconds": 0.0,
         "peak_rss_mb": None,
@@ -983,13 +1022,14 @@ def oracle_tuned_cell_check() -> dict[str, object]:
     with the ladder's step budget, its coupling and its checkpoints. Ê = 4/15 at K = 2 components,
     at all three checkpoints, is the prototype's headline result.
     """
-    from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
+    from mllib.ml.projects.two_hot_span_composition import compose_two_hot_span
 
     started = time.monotonic()
     instance = next(instance for instance in default_test_graphs() if instance.name == "roach_g5")
-    X = incidence_matrix(instance.graph)
-    recorder = CheckpointRecorder(X, CHECKPOINT_STEPS)
-    config = TwoHotSpanConfig(
+    problem = TwoHotSpanProblem.from_instance(instance)
+    recorder = CheckpointRecorder(problem.X, CHECKPOINT_STEPS)
+    run = compose_two_hot_span(
+        problem,
         step_count=STEP_COUNT,
         learning_rate=LEARNING_RATE,
         collision_weight=COLLISION_WEIGHT,
@@ -997,8 +1037,8 @@ def oracle_tuned_cell_check() -> dict[str, object]:
         adjacency_form="edge_product",
         diversity_weight=10.0,
         seed=0,
-    )
-    run = fit_two_hot_span(X, instance.cluster_count, config, None, recorder=recorder)
+        recorder=recorder,
+    ).run()
     mismatched = [
         f"checkpoint {checkpoint['step']} component_count"
         for checkpoint in recorder.checkpoints

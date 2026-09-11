@@ -24,11 +24,6 @@ import torch
 
 from mllib.describe import describe
 from mllib.math.algorithms.two_hot_span.step_rules import AdamStepRule
-from mllib.math.algorithms.two_hot_span_optimizer import (
-    TwoHotSpanConfig,
-    _schedule_from_config,
-    _step_rule_from_config,
-)
 from mllib.math.learning_rate_schedule import (
     ConstantSchedule,
     CosineSchedule,
@@ -197,11 +192,12 @@ def test_describe_reads_the_learning_rate_and_the_schedule_as_the_knobs():
     assert descriptor["kind"] == "math"
 
 
-def test_the_defaults_are_the_configs_learning_rate_under_the_constant_schedule():
+def test_the_defaults_are_the_two_hot_learning_rate_under_the_constant_schedule():
     rule = AdamStepRule()
 
     assert isinstance(rule, AbstractStepRule)
-    assert rule.learning_rate == TwoHotSpanConfig().learning_rate
+    # 0.05 is the learning rate every two-hot run has used since slice 2.2.
+    assert rule.learning_rate == 0.05
     assert rule.schedule == ConstantSchedule()
 
 
@@ -249,45 +245,3 @@ def test_a_copied_or_pickled_rule_keeps_its_knobs_and_arrives_unbound(duplicate)
 # ------------------------------------------------------------------------------------------------
 # The transitional adapters, pinned so slice 4 removes them knowingly.
 # ------------------------------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("overrides", "expected"),
-    [
-        ({}, ConstantSchedule()),
-        (
-            {"learning_rate_schedule": "linear", "final_learning_rate_fraction": 0.2},
-            LinearSchedule(0.2),
-        ),
-        (
-            {"learning_rate_schedule": "cosine", "final_learning_rate_fraction": 0.2},
-            CosineSchedule(0.2),
-        ),
-        (
-            {
-                "learning_rate_schedule": "warmup_cosine",
-                "warmup_steps": 7,
-                "final_learning_rate_fraction": 0.2,
-            },
-            WarmupCosineSchedule(7, 0.2),
-        ),
-    ],
-    ids=["constant", "linear", "cosine", "warmup_cosine"],
-)
-def test_the_schedule_adapter_maps_each_name_to_its_class_with_the_configs_knobs(
-    overrides, expected
-):
-    config = TwoHotSpanConfig(step_count=50, **overrides)
-
-    assert _schedule_from_config(config) == expected
-
-
-def test_the_step_rule_adapter_yields_an_unbound_adam_at_the_configs_learning_rate():
-    config = TwoHotSpanConfig(learning_rate=0.02, learning_rate_schedule="cosine")
-
-    rule = _step_rule_from_config(config)
-
-    assert isinstance(rule, AdamStepRule)
-    assert not rule.is_bound
-    assert rule.learning_rate == 0.02
-    assert rule.schedule == CosineSchedule(0.0)

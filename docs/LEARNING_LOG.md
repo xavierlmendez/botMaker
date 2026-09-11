@@ -1413,3 +1413,66 @@ snapshot is for and why it compares exactly on the platform that wrote it (BL-50
 - **Reference.** D-35 (1), (3), (4), (5); D-31 (a schedule shapes the trajectory and never enters
   a reported number); Kingma and Ba, *Adam: a method for stochastic optimization* (ICLR 2015), from
   memory, for the moment estimates the bind-once rule protects.
+
+## An optimizer as an algorithm object · 2026-09-11
+
+**What.** The two-hot span optimizer as the search stack's shape: an `AbstractOptimizer` that owns
+the loop and a `TwoHotSpanOptimizer` that is handed everything it descends with. The base owns
+what every descent shares - the step budget, the recorder guard, the stop check, the end record -
+and asks the subclass four questions: how do the parameters start (`_begin`), what does one step do
+(`_step`), what are the parameters right now for a watcher (`_iterate`), and what does the run
+deliver (`_assemble`). The two-hot answers are the seeded start or a given one, a projection
+orthogonal to the problem's constraint vector followed by the injected cost plus penalties and the
+step rule's step, the projected V as numpy, and the problem's report through the exact
+arithmetic. A run that trips a check returns a result with a `StopReason` and a sentence; the two
+exceptions that used to abort a grid cell are gone. The record of how a run was set up is
+assembled, not declared: the optimizer's own four knobs, then each injected object's knobs read
+back through `describe` and nested by role, so the ridge epsilon and every learning rate appear in
+it and an array never does.
+
+**Where.** `src/mllib/math/algorithms/abstract_optimizer.py` (`AbstractOptimizer`, `Stop`,
+`StopReason`, `OptimizerResult`) · `src/mllib/math/algorithms/two_hot_span/optimizer.py`
+(`TwoHotSpanOptimizer`, `TwoHotSpanSettings`, `TwoHotSpanResult`, `training_cost`,
+`training_loss`, `project_orthogonal`) · `TwoHotSpanProblem` and `TwoHotSpanReport` in
+`src/mllib/math/graph/two_hot_span_problem.py` · `configuration_of` in `src/mllib/describe.py` ·
+`src/mllib/ml/projects/two_hot_span_composition.py` (names and knobs to objects, the composition
+roots' one home) · tests `tests/math/algorithms/test_abstract_optimizer.py`,
+`test_two_hot_span_optimizer_contract.py`, `tests/math/graph/test_two_hot_span_problem_object.py`
+and the refactor snapshot, byte-identical through a recorder that reads the histories off itself.
+
+**Design.** Four choices worth carrying.
+- *The problem owns the constraint vector.* The projection every forward pass applies is
+  V = W - c (cᵀW)/(cᵀc), and the rcut relaxation has c = ones. Writing c as a property of the
+  problem rather than a constant of the loop is what makes ncut a problem subclass with c = sqrt(d)
+  (BL-41) instead of an edit to `_step`; with c = ones the arithmetic is the old `_project_zero_sum`
+  to the last bit, which the snapshot proves. The check that trips a stop is cᵀ v_j as a weighted
+  column sum, `(V * c[:, None]).sum(0)`, rather than `c @ V`: for c = ones the first is the old
+  column sum to the bit and the second differs in the last ulp on most V, which the exact snapshot
+  would have refused.
+- *One optimizer, one run.* The step rule's moments and the recorder's frames belong to the run
+  that produced them, so `run()` refuses a second call and a grid is a grid over fresh objects
+  (D-35 (5)). The composition module returns a new optimizer and a new step rule on every call for
+  the same reason.
+- *Histories live on the recorder, and the recorder already had them.* Every step hands the
+  recorder the training loss and, as an extra, the learning rate in force; the two-hot recorder
+  keeps a light frame per step, so `loss_history` and `learning_rate_history` were always
+  derivable from its frames and the result never needed to carry them (D-35 (9), D-32). The refactor
+  snapshot pins both through a ten-line recorder.
+- *Names stop at `mllib.ml`.* A schedule name, an adjacency form, a weight off a command line are
+  a composition root's vocabulary (D-35 (8)); the math objects take objects. The three examples,
+  the harness and the stress ladder share one function for that translation instead of five copies
+  of the same wiring, and `tests/math` composes the objects by hand so the layer below never
+  imports the layer above.
+
+**What was confusing.** Whether the Laplacian dedupe belonged here as the plan said. It does not:
+D - A from the graph and X Xᵀ from the incidence matrix differ by ulps, the spectral start turns
+ulps into a different run (BL-50), and this slice's promise was that no number moves - the
+walkthrough and stress fixtures were regenerated for their new keys with every numeric leaf
+checked unchanged first. Collapsing the two derivations is a deliberate regeneration, and BL-50 is
+where that decision is made. The other surprise was how little the base class holds once the
+questions are named: the loop is twelve lines, and everything two-hot-specific reads as an answer
+to one of the four.
+
+- **Reference.** D-35 (3), (4), (5), (8), (9); D-32 (observation off a result); D-28 (what a result
+  carries); `AbstractGraphAlgorithm` in `math/algorithms/abstract_graph_algorithm.py`, the shape
+  this mirrors.

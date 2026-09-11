@@ -14,7 +14,6 @@ the hypothesis property is `derandomize=True`.
 from __future__ import annotations
 
 import math
-from dataclasses import replace
 
 import networkx as nx
 import numpy as np
@@ -28,14 +27,14 @@ pytest.importorskip("torch")
 import torch
 
 from mllib.math.algorithms.two_hot_span.penalties import DiversityPenalty
-from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
 from mllib.math.graph.two_hot_span_problem import (
     brute_force_rcut,
     collision_measures,
-    incidence_matrix,
     roach_graph,
     spectral_floor,
 )
+
+from .two_hot_span_support import run, run_with_history
 
 
 def two_hot_columns(node_total: int, pairs: list[tuple[int, int]]) -> np.ndarray:
@@ -75,24 +74,26 @@ def term_of(matrix: np.ndarray) -> float:
 
 
 def test_the_default_run_is_bit_identical_to_one_that_names_a_zero_diversity_weight():
-    """Adding a field with a neutral default is a claim; `np.array_equal` is the proof of it."""
-    X = incidence_matrix(roach_graph(5))
-    base = TwoHotSpanConfig(step_count=30, seed=0, collision_weight=10.0)
+    """A zero weight builds no penalty, so naming it is the same run; `np.array_equal` proves it."""
+    graph = roach_graph(5)
 
-    silent = fit_two_hot_span(X, 2, base)
-    spelled_out = fit_two_hot_span(X, 2, replace(base, diversity_weight=0.0))
+    silent, silent_history = run_with_history(
+        graph, 2, step_count=30, seed=0, collision_weight=10.0
+    )
+    spelled_out, spelled_history = run_with_history(
+        graph, 2, step_count=30, seed=0, collision_weight=10.0, diversity_weight=0.0
+    )
 
     assert np.array_equal(silent.spanning_set, spelled_out.spanning_set)
-    assert np.array_equal(silent.loss_history, spelled_out.loss_history)
+    assert np.array_equal(silent_history.loss_history, spelled_history.loss_history)
 
 
 def test_the_diversity_term_changes_the_run_it_is_switched_on_for():
     """A knob that made no difference would be a knob nobody could test the sign of."""
-    X = incidence_matrix(seeded_graph(8, seed=5))
-    base = TwoHotSpanConfig(step_count=50, seed=7, collision_weight=1.0)
+    graph = seeded_graph(8, seed=5)
 
-    off = fit_two_hot_span(X, 2, base)
-    on = fit_two_hot_span(X, 2, replace(base, diversity_weight=1.0))
+    off = run(graph, 2, step_count=50, seed=7, collision_weight=1.0)
+    on = run(graph, 2, step_count=50, seed=7, collision_weight=1.0, diversity_weight=1.0)
 
     assert not np.array_equal(off.spanning_set, on.spanning_set)
 
@@ -203,30 +204,34 @@ def test_the_diversity_term_is_never_below_the_uniform_floor(matrix):
 @pytest.mark.parametrize("diversity_weight", [0.3, 3.0])
 def test_a_run_with_the_diversity_term_keeps_every_invariant(diversity_weight):
     graph = seeded_graph(8, seed=5)
-    X = incidence_matrix(graph)
     optimum, _ = brute_force_rcut(graph, 2)
     floor = spectral_floor(graph, 2)
-    config = TwoHotSpanConfig(
-        step_count=200, seed=7, collision_weight=1.0, diversity_weight=diversity_weight
+
+    result, history = run_with_history(
+        graph, 2, step_count=200, seed=7, collision_weight=1.0, diversity_weight=diversity_weight
     )
 
-    run = fit_two_hot_span(X, 2, config)
-
-    assert run.max_zero_sum_violation <= 1e-12
-    assert np.isfinite(run.loss_history).all()
-    assert np.isfinite(run.spanning_set).all()
-    assert run.rounded_cut >= optimum - 1e-10
-    assert run.relaxed_objective >= floor - 1e-10
+    assert result.max_zero_sum_violation <= 1e-12
+    assert np.isfinite(history.loss_history).all()
+    assert np.isfinite(result.spanning_set).all()
+    assert result.rounded_cut >= optimum - 1e-10
+    assert result.relaxed_objective >= floor - 1e-10
 
 
 def test_a_heavier_diversity_weight_spreads_the_load_further():
     """The term's whole claim: raise ν and the heaviest vertex load comes down."""
-    X = incidence_matrix(roach_graph(5))
-    base = TwoHotSpanConfig(step_count=200, seed=0, collision_weight=3.0)
+    graph = roach_graph(5)
 
     def max_load(diversity_weight: float) -> float:
-        run = fit_two_hot_span(X, 2, replace(base, diversity_weight=diversity_weight))
-        absolute = np.abs(run.spanning_set)
+        result = run(
+            graph,
+            2,
+            step_count=200,
+            seed=0,
+            collision_weight=3.0,
+            diversity_weight=diversity_weight,
+        )
+        absolute = np.abs(result.spanning_set)
         return float(np.max((absolute / absolute.sum(axis=0)).sum(axis=1)))
 
     assert max_load(10.0) < max_load(0.0)
@@ -237,21 +242,9 @@ def test_a_heavier_diversity_weight_spreads_the_load_further():
 # ------------------------------------------------------------------------------------------------
 
 
-def test_a_negative_diversity_weight_is_refused():
-    with pytest.raises(ValueError, match="diversity_weight must not be negative"):
-        TwoHotSpanConfig(diversity_weight=-0.5)
-
-
-def test_the_harness_records_the_diversity_weight_it_ran_under():
-    from mllib.math.graph.two_hot_span_problem import GraphInstance
-    from mllib.ml.projects.two_hot_span_harness import run_graph
-
-    report = run_graph(
-        GraphInstance("tiny", seeded_graph(8, seed=1), 2),
-        collision_weights=(1.0,),
-        inits=("spectral",),
-        step_count=5,
-        diversity_weight=0.75,
-    )
-
-    assert report.config["diversity_weight"] == 0.75
+def test_a_negative_diversity_weight_is_a_composition_roots_refusal():
+    """The penalty class takes any weight; the sign rule lives where names and knobs are turned
+    into objects (`mllib.ml.projects.two_hot_span_composition`) and is tested there. What the math
+    layer promises is that the term's sign is fixed by the class, not by the weight's sign.
+    """
+    assert DiversityPenalty(weight=-0.5).weight == -0.5

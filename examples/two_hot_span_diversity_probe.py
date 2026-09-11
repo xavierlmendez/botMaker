@@ -25,8 +25,8 @@ of `two_hot_span_problem`.
     uv run --group torch python examples/two_hot_span_diversity_probe.py --graphs roach_g5
     uv run --group torch python examples/two_hot_span_diversity_probe.py --graphs roach_g20
 
-This is a composition root: it builds the graphs, assembles the configurations, runs
-`fit_two_hot_span`, and prints two tables per graph. It computes no mathematics of its own beyond
+This is a composition root: it builds the graphs, composes a fresh optimizer per cell through
+`two_hot_span_composition`, runs it, and prints two tables per graph. It computes no mathematics of its own beyond
 counting pairs and reading the load off the final V — the graph helpers are imported from slice
 2.4's probe rather than copied, so the two tables count a pair the same way.
 """
@@ -57,6 +57,8 @@ from two_hot_span_adjacency_probe import (
     is_roach,
     references_for,
 )
+
+from mllib.math.graph.two_hot_span_problem import TwoHotSpanProblem
 
 DEFAULT_STEP_COUNT = 300
 DEFAULT_SEED = 0
@@ -94,7 +96,7 @@ def max_vertex_load(spanning_set: np.ndarray) -> float:
 def probe_row(
     name: str,
     graph: nx.Graph,
-    X: np.ndarray,
+    problem: TwoHotSpanProblem,
     spectral: np.ndarray,
     *,
     cluster_count: int,
@@ -107,19 +109,21 @@ def probe_row(
     seed: int,
 ) -> dict[str, object]:
     """One cell of the grid: run it and read off everything the tables print."""
-    from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
+    from mllib.ml.projects.two_hot_span_composition import compose_two_hot_span
 
-    config = TwoHotSpanConfig(
+    # A fresh optimizer per cell (D-35 (5)); `none` still has to name a legal form, and at mu = 0
+    # no graph penalty is built.
+    run = compose_two_hot_span(
+        problem,
         step_count=step_count,
         learning_rate=DEFAULT_LEARNING_RATE,
         collision_weight=collision_weight,
         seed=seed,
         adjacency_weight=adjacency_weight,
-        # `none` still has to name a legal form; at mu = 0 it is never read.
         adjacency_form="laplacian" if form == "none" else form,
         diversity_weight=diversity_weight,
-    )
-    run = fit_two_hot_span(X, cluster_count, config, spectral if init == "spectral" else None)
+        initial_spanning_set=spectral if init == "spectral" else None,
+    ).run()
     pairs = distinct_pairs(run.spanning_set)
     return {
         "collision_weight": collision_weight,
@@ -144,17 +148,15 @@ def probe_row(
 
 def probe_rows(name: str, graph: nx.Graph, step_count: int, seed: int) -> list[dict[str, object]]:
     """Every cell of the λ x init x adjacency x ν grid, as one row each."""
-    from mllib.math.graph.two_hot_span_problem import incidence_matrix, spectral_spanning_set
-
     cluster_count = CLUSTER_COUNTS[name]
-    X = incidence_matrix(graph)
-    spectral = spectral_spanning_set(graph, cluster_count)
+    problem = TwoHotSpanProblem(graph, cluster_count, name=name)
+    spectral = problem.spectral_spanning_set()
     grid = itertools.product(COLLISION_WEIGHTS, INITS, ADJACENCIES, DIVERSITY_WEIGHTS)
     return [
         probe_row(
             name,
             graph,
-            X,
+            problem,
             spectral,
             cluster_count=cluster_count,
             collision_weight=collision_weight,
@@ -236,16 +238,14 @@ def convergence_rows(
     name: str, graph: nx.Graph, winner: dict[str, object], seed: int
 ) -> list[dict[str, object]]:
     """The winning cell re-run longer: was 300 steps converged, or only stopped?"""
-    from mllib.math.graph.two_hot_span_problem import incidence_matrix, spectral_spanning_set
-
     cluster_count = CLUSTER_COUNTS[name]
-    X = incidence_matrix(graph)
-    spectral = spectral_spanning_set(graph, cluster_count)
+    problem = TwoHotSpanProblem(graph, cluster_count, name=name)
+    spectral = problem.spectral_spanning_set()
     return [
         probe_row(
             name,
             graph,
-            X,
+            problem,
             spectral,
             cluster_count=cluster_count,
             collision_weight=float(winner["collision_weight"]),  # type: ignore[arg-type]

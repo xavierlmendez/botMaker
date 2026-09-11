@@ -121,7 +121,8 @@ class Recording:
 
     def to_json(self) -> str:
         """The document as the exact JSON text ``save`` writes, trailing newline included."""
-        return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
+        # allow_nan=False: JSON has no NaN and the page's JSON.parse would refuse the document.
+        return json.dumps(self.to_dict(), indent=2, sort_keys=True, allow_nan=False) + "\n"
 
     @classmethod
     def load(cls, path: str | Path) -> Recording:
