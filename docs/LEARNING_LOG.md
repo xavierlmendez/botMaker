@@ -483,3 +483,39 @@ code that exists on 2026-08-28; each should be expanded when the module is next 
   framing); Kilby, Slaney, Thiébaux & Walsh, AAAI 2005 (backbones); Lei, G'Sell, Rinaldo, Tibshirani &
   Wasserman, *JASA* 2018 (LOCO); Fisher, Rudin & Dominici, *JMLR* 2019 (model class reliance, the
   "in every / some / no good model" framing the margins borrow).
+
+## Two-hot spanning sets: the rounded cut is a RatioCut · 2026-09-10
+- **What.** The graph objects behind a continuous relaxation of ratio-cut clustering. A spanning set
+  is an n × r matrix V, r = n − K, whose columns are only ever asked to be zero-sum; its quality is
+  the projector residual E(V) = ‖X − V V⁺ X‖²_F against the incidence matrix X, whose column for edge
+  (i, j) is √w (e_i − e_j) so that X Xᵀ is the unnormalized Laplacian. Rounding a column to
+  e_argmax − e_argmin turns V into a set of vertex pairs; the connected components of that pair graph
+  are the clustering, and Ê = E(round(V)) is exactly Σ_B cut(B, B̄)/|B| of that partition. The floor
+  under both is Σλ, the sum of the K smallest eigenvalues of the Laplacian.
+- **Where.** `src/mllib/math/graph/two_hot_span_problem.py` · test
+  `tests/math/graph/test_two_hot_span_problem.py` · plan `docs/plans/2026-09-two-hot-span.md` § 3
+  (slice 2.1).
+- **Design.** VᵀV = I is never imposed, which is the whole point of the family: orthonormality is
+  what forces the classical spectral relaxation to be rounded by a *separate* algorithm (k-means,
+  discretize, cluster_qr), and dropping it lets the rounding be the trivial one. Because V may go
+  rank-deficient, the projector is the pseudo-inverse one everywhere in this module — a reduced QR
+  would silently return an n × r Q whatever the rank and over-span, which is a different function.
+  The oracle for small graphs is a restricted-growth-string enumeration of set partitions, guarded at
+  n ≤ 10, not the A* engine: the search machinery buys nothing when the answer is a Bell number of
+  labellings. The test checks it against a second, deliberately naive enumeration written inside the
+  test file (itertools.product, keep the surjective labellings), so the same mistake would have to be
+  made twice in two shapes. One asymmetry had to be designed in: a *constant* column (the zero column
+  included) has equal largest and smallest entries and no pair to read off, so it rounds to the zero
+  column and contributes no edge — writing +1 and −1 into the same cell would leave a 1-hot column that
+  is not zero-sum, and Ê would stop being the RatioCut of the pair graph's components.
+- **What was confusing.** The word "spanning forest" in "Ê = RatioCut when the rounded pairs form a
+  within-block spanning forest". The forest lives on the *pair graph*, not on the input graph: its
+  edges are arbitrary vertex pairs and need not be edges of G at all. Once that was clear the identity
+  test wrote itself — draw a partition, draw a random tree on each block's vertex set, and the ± scaled
+  two-hot columns of those n − K pairs round back to exactly that partition. The random per-column
+  scales are there on purpose: rounding is scale-invariant, and a test with unit columns would not say so.
+- **Reference.** Guattery & Miller 1998 for the roach graph (n = 4k, m = 5k − 2; one antenna alone is
+  the K = 2 RatioCut optimum at 4/(3k) — brute force at k = 2, exhaustive 2^19 bipartition scan at
+  k = 5 — while the best *balanced* cut, antennae vs. ladder at 2/k, is the one spectral bisection is
+  famously wrong about); von Luxburg 2007 for the RatioCut/NCut
+  relaxation this departs from. ncut is out of scope here and parked as BL-41.

@@ -1,7 +1,7 @@
 <!-- transcribed from the research repo's evidence-to-plan run 2026-09-09..10; §5 of that plan was the source -->
 # Two-hot spanning sets — minimal rcut prototype
 
-Status: **proposed** · Written 2026-09-09 · Owner: Xavier
+Status: **accepted** (2026-09-10, slice 2.1 opened) · Written 2026-09-09 · Owner: Xavier
 Target: three stacked slices from `feat/two-hot-span-problem` into `main` (`main` @ `85f2205`).
 Why the code exists: `~/develop/research/candidates/constrained-eigenvectors.md` and Prof.
 Schweitzer's handoff brief §20 ("the exact next step").
