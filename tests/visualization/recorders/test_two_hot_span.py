@@ -22,10 +22,10 @@ from mllib.math.algorithms.two_hot_span_optimizer import (
 )
 from mllib.math.graph.two_hot_span_problem import (
     incidence_matrix,
-    projector_residual,
     rounded_cut,
     spectral_floor,
 )
+from mllib.math.projector import ExactProjector
 from mllib.math.recorder import NullRecorder
 from mllib.visualization.recorders.two_hot_span import TwoHotSpanRecorder
 
@@ -106,7 +106,7 @@ def test_every_full_frames_numbers_are_the_pinv_numbers_of_the_v_it_carries():
     assert full
     for frame in full:
         spanning_set = np.asarray(frame.spanning_set, dtype=float)
-        assert frame.relaxed_objective == projector_residual(X, spanning_set)
+        assert frame.relaxed_objective == ExactProjector().residual(X, spanning_set)
         assert frame.rounded_cut == rounded_cut(X, spanning_set)
         assert frame.rounded_cut_minus_relaxed == frame.rounded_cut - frame.relaxed_objective
 

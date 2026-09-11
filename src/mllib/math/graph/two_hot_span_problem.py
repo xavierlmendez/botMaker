@@ -27,17 +27,23 @@ to be zero-sum, and the projector is the pseudo-inverse one, which is defined wh
 Everything in this module is the rcut form (``c = 1``, ``C = I``); the normalized cut is out of
 scope and tracked as BL-41.
 
-Reported numbers always come from this module's exact ``pinv`` projector. The ridge projector of
-the torch training loop (slice 2.2) is a training knob and never reaches a report.
+Reported numbers always come through the exact projector (`mllib.math.projector.ExactProjector`);
+the ridge projector the training loop descends is a training knob and never reaches a report
+(D-31). ``SpanCost`` here is the span residual as the cost an optimizer descends, with its
+projector injected, so one cost class serves the report and the training loss.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 import networkx as nx
 import numpy as np
+
+from mllib.math.cost_function import AbstractCostFunction
+from mllib.math.projector import AbstractProjector, ExactProjector
 
 # Above this many vertices the set-partition enumeration stops being an oracle and starts being a
 # search: the Bell number of 11 is already 678 570 labellings per cluster count.
@@ -132,12 +138,39 @@ def graph_matrices(X: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return laplacian, adjacency
 
 
-def projector_residual(X: np.ndarray, spanning_set: np.ndarray) -> float:
-    """E(V) = ‖X - V V⁺ X‖²_F, the exact pseudo-inverse projector. There is no epsilon here."""
-    X = np.asarray(X, dtype=float)
-    spanning_set = np.asarray(spanning_set, dtype=float)
-    residual = X - spanning_set @ (np.linalg.pinv(spanning_set) @ X)
-    return float(np.sum(residual * residual))
+def _as_numpy(values: Any) -> np.ndarray:
+    """A numpy view of an array in either arithmetic, off the gradient path."""
+    if hasattr(values, "detach"):
+        values = values.detach().cpu()
+    return np.asarray(values)
+
+
+@dataclass(frozen=True, slots=True)
+class SpanCost(AbstractCostFunction):
+    """E(V) = ‖X - P_V X‖²_F: the span residual of the incidence matrix, the two-hot cost.
+
+    The projector is injected, so the same cost reads exactly for a report
+    (`ExactProjector`) and smoothly for training (`RidgeProjector`, D-31); ``X`` is held in the
+    projector's arithmetic. Injected into the training loss, which adds the penalties to it.
+    """
+
+    projector: AbstractProjector
+    X: Any = field(compare=False, repr=False)
+
+    def compute_cost(self, parameters: Any) -> Any:
+        """E(V) at the spanning set ``parameters``, through the injected projector."""
+        return self.projector.residual(self.X, parameters)
+
+    # Value semantics on X too: the generated tuple comparison cannot compare arrays.
+    def __eq__(self, other: object) -> bool:
+        if type(other) is not type(self):
+            return NotImplemented
+        return self.projector == other.projector and np.array_equal(
+            _as_numpy(self.X), _as_numpy(other.X)
+        )
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.projector, tuple(np.shape(self.X))))
 
 
 def collision_measure(vector: np.ndarray) -> float:
@@ -218,7 +251,7 @@ def clustering_from_pairs(node_count: int, pairs: Iterable[tuple[int, int]]) -> 
 
 def rounded_cut(X: np.ndarray, spanning_set: np.ndarray) -> float:
     """Ê, the headline number: the projector residual of the rounded spanning set."""
-    return projector_residual(X, round_columns(spanning_set))
+    return ExactProjector().residual(X, round_columns(spanning_set))
 
 
 def ratio_cut(graph: nx.Graph, labels: np.ndarray) -> float:

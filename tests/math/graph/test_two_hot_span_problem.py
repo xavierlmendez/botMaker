@@ -15,6 +15,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from mllib.describe import describe
 from mllib.math.graph.two_hot_span_problem import (
     GraphInstance,
     brute_force_rcut,
@@ -24,7 +25,6 @@ from mllib.math.graph.two_hot_span_problem import (
     default_test_graphs,
     incidence_matrix,
     laplacian_matrix,
-    projector_residual,
     ratio_cut,
     roach_g20_instance,
     roach_graph,
@@ -36,6 +36,7 @@ from mllib.math.graph.two_hot_span_problem import (
     spectral_spanning_set,
     two_triangles_instance,
 )
+from mllib.math.projector import ExactProjector
 
 
 def random_weighted_graph(n: int, seed: int, extra_edges: int = 4) -> nx.Graph:
@@ -301,7 +302,7 @@ def test_spectral_spanning_set_attains_the_spectral_floor():
         X = incidence_matrix(graph)
         spanning_set = spectral_spanning_set(graph, cluster_count)
         assert np.allclose(spanning_set.sum(axis=0), 0.0, atol=1e-10)
-        assert projector_residual(X, spanning_set) == pytest.approx(
+        assert ExactProjector().residual(X, spanning_set) == pytest.approx(
             spectral_floor(graph, cluster_count), abs=1e-10
         )
 
@@ -317,7 +318,7 @@ def test_projector_residual_and_rounded_cut_stay_above_the_spectral_floor():
         X = incidence_matrix(graph)
         spanning_set = random_zero_sum_spanning_set(n, cluster_count, seed=600 + seed)
         floor = spectral_floor(graph, cluster_count)
-        assert projector_residual(X, spanning_set) >= floor - 1e-10
+        assert ExactProjector().residual(X, spanning_set) >= floor - 1e-10
         assert rounded_cut(X, spanning_set) >= floor - 1e-10
 
 
@@ -399,9 +400,10 @@ def test_spanning_vector_count_rejects_cluster_counts_outside_one_to_n_minus_one
         spanning_vector_count(5, 0)
 
 
-def test_projector_residual_exposes_no_epsilon_parameter():
+def test_the_exact_projector_exposes_no_epsilon():
     """D-31 guard: the ridge is a training knob and must never reach the reporting path."""
-    assert "epsilon" not in inspect.signature(projector_residual).parameters
+    assert "epsilon" not in inspect.signature(ExactProjector.residual).parameters
+    assert describe(ExactProjector)["params"] == []
 
 
 @settings(deadline=None, max_examples=50, derandomize=True)

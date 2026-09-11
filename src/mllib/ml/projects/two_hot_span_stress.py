@@ -58,7 +58,6 @@ from mllib.math.graph.two_hot_span_problem import (
     incidence_matrix,
     node_count,
     planted_partition_graph,
-    projector_residual,
     ratio_cut,
     roach_g20_instance,
     rounded_cut,
@@ -67,6 +66,7 @@ from mllib.math.graph.two_hot_span_problem import (
     spectral_floor,
     spectral_spanning_set,
 )
+from mllib.math.projector import ExactProjector
 from mllib.math.recorder import AbstractStepRecorder
 from mllib.ml.projects.two_hot_span_harness import ROUNDING_NAMES, datum_roundings
 
@@ -461,7 +461,7 @@ class CheckpointRecorder(AbstractStepRecorder):
         self.checkpoints.append(
             {
                 "step": int(step_number),
-                "relaxed_objective": float(projector_residual(self.X, current)),
+                "relaxed_objective": float(ExactProjector().residual(self.X, current)),
                 "rounded_cut": float(rounded_cut(self.X, current)),
                 "component_count": int(np.unique(labels).size),
                 "labels": [int(label) for label in labels],

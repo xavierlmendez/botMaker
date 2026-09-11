@@ -19,7 +19,7 @@ imports it; scripts (composition roots, in `examples/`) wire data to models.
 
 | Layer | Contents | Role |
 |---|---|---|
-| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction` (today a dataset cost of a hypothesis; a scalar of the parameters being optimized as target shape, BL-48 slice 2), `AbstractRegularizationFunction` (a penalty added to a training loss, D-35 (2); its two-hot implementations live in `algorithms/two_hot_span/penalties.py`), `SearchCostFunction`, `secular_equation` (eigenvalues of a rank-one downdate), `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`, `two_hot_span_problem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors; the `two_hot_span/` package (today `penalties.py`; `AbstractOptimizer` and the step rules arrive with BL-48)), `probability/` | academic ideas as classes, or as functions when a class is not earned (D-35) |
+| `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `AbstractCostFunction` (a scalar of the parameters being optimized, D-35 (2); `SpanCost` in `graph/two_hot_span_problem.py` is its first implementation), `projector.py` (`AbstractProjector`, `ExactProjector`: the projection onto a spanning set's span, read through its residual; the exact pseudo-inverse is the reporting arithmetic, D-31), `AbstractRegularizationFunction` (a penalty added to a training loss, D-35 (2); its two-hot implementations live in `algorithms/two_hot_span/penalties.py`), `SearchCostFunction`, `secular_equation` (eigenvalues of a rank-one downdate), `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`, `two_hot_span_problem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors; the `two_hot_span/` package (today `penalties.py` and `projectors.py`, the `RidgeProjector`; `AbstractOptimizer` and the step rules arrive with BL-48)), `probability/` | academic ideas as classes, or as functions when a class is not earned (D-35) |
 | `ml` | `MyLinearRegression`, `MyLogisticRegression`, `MyPerceptron`, `MySVM`, `DecisionTree`, `ProbabilisticKNN`, `evaluators/`, `projects/` (ad-click grids, Nyström UCI harness) | models composed from primitives |
 | `data` | `data_orchestrator` (+ `DataTransformer`), datasets, transformer JSON configs | load → transform → split |
 | `visualization` | `recorders/` (per-problem `Frame` + recorder children, e.g. `astar_landmark`), `recording.py` (the versioned JSON document), `html_renderer.py` + `template.html` + `walkthrough.js` (one offline page with a stepper), `views/` (a problem's drawing plus its layout), `render.py` (the CLI) | a run turned into frames a reader can step through, and a page to step through them in |
@@ -55,7 +55,8 @@ fresh per cell, never a mutated instance (D-35 rules 3–5).
 | `AbstractGraphAlgorithm` | `_search(ctx)`; the ABC owns `run()` and `_notify_evaluator()`; `SearchContext` is frozen | graph algorithms |
 | `AbstractRecorder` | `enabled` (class attribute), `frames`, `metadata`, `record(frame)` (dense, ordered), `frame_dicts()`, `describe_result(result)`; `AbstractSearchRecorder` adds `record_expansion(...)` and `record_goal(...)` | any algorithm that offers to be watched |
 | `AbstractOptimizer` | `_step(...)`; the ABC owns `run()`, the recorder guard, the stop check and result assembly; the result carries the parameters moved, the final training loss, the steps taken, a stop reason, `configuration` and the delivered numbers, never a per-step frame (D-35 rule 9) | optimizers — target, BL-48 |
-| `CostFunction` | `compute_cost(parameters)`: a scalar of the parameters being optimized, differentiable in the training arithmetic; optional `task_kind` | `AbstractOptimizer` — target, BL-48 |
+| `AbstractCostFunction` | `compute_cost(parameters)`: a scalar of the parameters being optimized, differentiable in the training arithmetic; optional `task_kind` | `training_loss` of the two-hot optimizer (`SpanCost`); `AbstractOptimizer` — target, BL-48 slice 4 |
+| `AbstractProjector` | `residual(X, spanning_set)`: ‖X − P_V X‖²_F, the projection onto V's span read through what it leaves of X; `ExactProjector` (numpy `pinv`, no knob) for every reported E\* and Ê, `RidgeProjector` (torch, `epsilon` a knob) for training, and never the other way round (D-31) | `SpanCost`; `rounded_cut`; the optimizer's reported numbers; the two-hot recorder and stress harness |
 | `AbstractRegularizationFunction` | `compute_penalty(parameters)`: the signed, weighted scalar a training loss adds, its weight a knob on the concrete class; `term(parameters)`: the unweighted quantity the term measures, the number a hand check reads | `training_loss` of the two-hot optimizer; `AbstractOptimizer` — target, BL-48 slice 4 |
 | step rule | one update of the parameters from their gradient, with its schedule and its own knobs (learning rate, schedule shape); carries its moments across steps | `AbstractOptimizer` — target, BL-48 |
 
@@ -141,6 +142,10 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
   value on a column small enough to read, and `torch.autograd.gradcheck` on a V with no zero
   column. It enters a run by injection only (D-35 rule 3); a weight of zero is not a switch, the
   composition root leaves the penalty out; the optimizer is not edited.
+- **A projector arithmetic:** subclass `AbstractProjector` as a frozen dataclass, knobs on the
+  class; implement `residual(X, spanning_set)`. Add one test that it approaches `ExactProjector`'s
+  residual as its knob goes to zero on a full-rank V, and one against a pasted closed form. It is
+  injected into `SpanCost` for training only; a reported number never comes through it (D-31).
 - **A step rule:** implement the step-rule interface; own the learning rate and the schedule as
   knobs with defaults on the concrete class; keep the moments on the instance. Test it against a
   closed-form step on a quadratic. A schedule is part of the step rule, not a string the optimizer
@@ -169,7 +174,7 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 | `camelCase` modules and methods; nested `tests/` dirs; two import roots | everywhere | Phase 4 (D-17, D-18) |
 | Descent stack breaks injection: `MyLogisticRegression` builds its own hypothesis and loss and mutates them per grid cell; `LossFunction.compute_gradient` has a 2-arg and a 3-arg form | `ml/logistic_regression.py`, `math/loss_function.py` | BL-49 (D-35) |
 | `HypothesisFunction.expand_hypothesis` calls an expander `expand(hypothesis, degree)` no expander defines | `math/hypothesis.py:51` | fix slice 5 of `docs/plans/2026-09-optimizer-object-model.md` |
-| `CostFunction` and `RegularizationFunction` had no implementation; the two-hot objective and penalties were free functions in one module | `math/cost_function.py`, `math/regularization_function.py`, `math/algorithms/two_hot_span_optimizer.py` | `RegularizationFunction` **done** BL-48 slice 1 (`AbstractRegularizationFunction`, four penalties); `CostFunction` waits for slice 2 (D-35) |
+| `CostFunction` and `RegularizationFunction` had no implementation; the two-hot objective and penalties were free functions in one module | `math/cost_function.py`, `math/regularization_function.py`, `math/algorithms/two_hot_span_optimizer.py` | `RegularizationFunction` **done** BL-48 slice 1 (`AbstractRegularizationFunction`, four penalties); `CostFunction` **done** slice 2 (`AbstractCostFunction`, `SpanCost` over an injected projector) (D-35) |
 
 ## 6. Target layout (after Phase 4)
 

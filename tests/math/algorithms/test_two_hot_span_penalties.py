@@ -33,12 +33,19 @@ from mllib.math.algorithms.two_hot_span.penalties import (
     EdgeProductAdjacencyPenalty,
     LaplacianAdjacencyPenalty,
 )
+from mllib.math.algorithms.two_hot_span.projectors import RidgeProjector
 from mllib.math.algorithms.two_hot_span_optimizer import (
     TwoHotSpanConfig,
     _penalties_from_config,
     training_loss,
 )
-from mllib.math.graph.two_hot_span_problem import graph_matrices, incidence_matrix, roach_graph
+from mllib.math.graph.two_hot_span_problem import (
+    SpanCost,
+    graph_matrices,
+    incidence_matrix,
+    roach_graph,
+)
+from mllib.math.projector import ExactProjector
 from mllib.math.regularization_function import AbstractRegularizationFunction
 
 from .test_two_hot_span_refactor_baseline import CELLS
@@ -149,7 +156,8 @@ def test_the_training_loss_is_the_old_training_loss_to_the_last_bit(graph_data, 
         laplacian_t = torch.tensor(laplacian, dtype=torch.float64)
         adjacency_t = torch.tensor(adjacency, dtype=torch.float64)
 
-    new = training_loss(X_t, spanning_set, config.epsilon, _penalties_from_config(config, X))
+    cost = SpanCost(RidgeProjector(config.epsilon), X_t)
+    new = training_loss(cost, spanning_set, _penalties_from_config(config, X))
 
     old = _old_training_loss(
         X_t,
@@ -246,9 +254,10 @@ def test_the_training_loss_adds_each_penalty_left_to_right_exactly(graph_data, s
         DiversityPenalty(weight=10.0),
     )
 
-    with_penalties = training_loss(X_t, spanning_set, EPSILON, penalties)
+    cost = SpanCost(RidgeProjector(EPSILON), X_t)
+    with_penalties = training_loss(cost, spanning_set, penalties)
 
-    expected = training_loss(X_t, spanning_set, EPSILON)
+    expected = training_loss(cost, spanning_set)
     for penalty in penalties:
         expected = expected + penalty.compute_penalty(spanning_set)
     assert float(with_penalties) == float(expected)
@@ -257,9 +266,33 @@ def test_the_training_loss_adds_each_penalty_left_to_right_exactly(graph_data, s
 def test_the_training_loss_with_no_penalties_is_the_ridge_cost_alone(graph_data, spanning_set):
     X, _, _ = graph_data
     X_t = torch.tensor(X, dtype=torch.float64)
-    assert float(training_loss(X_t, spanning_set, EPSILON)) == float(
-        training_loss(X_t, spanning_set, EPSILON, ())
+    cost = SpanCost(RidgeProjector(EPSILON), X_t)
+    assert float(training_loss(cost, spanning_set)) == float(training_loss(cost, spanning_set, ()))
+
+
+def test_the_training_loss_is_a_float64_tensor_on_the_gradient_path(graph_data, spanning_set):
+    """The old signature could only return a tensor; the injected cost must keep that promise."""
+    X, _, _ = graph_data
+    cost = SpanCost(RidgeProjector(EPSILON), torch.tensor(X, dtype=torch.float64))
+    penalties = tuple(penalty_named(name, graph_data, 1.5) for name in PENALTY_NAMES)
+    leaf = spanning_set.clone().requires_grad_(True)
+
+    loss = training_loss(cost, leaf, penalties)
+
+    assert torch.is_tensor(loss)
+    assert loss.dtype == torch.float64
+    assert loss.requires_grad
+    assert torch.autograd.gradcheck(
+        lambda parameters: training_loss(cost, parameters, penalties), (leaf,), eps=1e-6, atol=1e-6
     )
+
+
+def test_a_cost_in_the_reporting_arithmetic_is_refused_by_the_training_loss(
+    graph_data, spanning_set
+):
+    X, _, _ = graph_data
+    with pytest.raises(TypeError, match="training arithmetic"):
+        training_loss(SpanCost(ExactProjector(), X), spanning_set)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -405,7 +438,8 @@ def test_the_default_config_builds_no_penalty_so_its_loss_is_finite_on_a_zero_co
     X_t = torch.tensor(X, dtype=torch.float64)
     penalties = _penalties_from_config(TwoHotSpanConfig(), X)
     assert penalties == ()
-    assert torch.isfinite(training_loss(X_t, spanning_set_with_a_zero_column, EPSILON, penalties))
+    cost = SpanCost(RidgeProjector(EPSILON), X_t)
+    assert torch.isfinite(training_loss(cost, spanning_set_with_a_zero_column, penalties))
 
 
 @pytest.mark.parametrize(

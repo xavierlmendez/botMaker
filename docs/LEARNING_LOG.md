@@ -1312,3 +1312,54 @@ training knobs and never reach a reported number (D-31).
 
 - **Reference.** D-35 (1)-(3), (6); D-31 for the reporting boundary; the brief's §9 (the
   distribution `p_j`), §10 (why the ½ is dropped from the collision term) and §20 (the objective).
+
+## The ridge projector as a filter-factor smoother · 2026-09-11
+
+**What.** The projector onto the span of a spanning set V, as one concept with two arithmetics.
+The exact projector P_V = V V⁺ through the pseudo-inverse is the definition of "the span": it is
+the same map whether V's columns are independent or three copies of one vector, because the
+pseudo-inverse projects onto the column space and nothing else. The ridge projector
+P_ε = V (VᵀV + εI)⁻¹ Vᵀ is not that map; in the singular basis of V, with singular values s_i,
+it keeps direction i with the filter factor s_i²/(s_i²+ε), which is one where s_i² ≫ ε, zero
+where a column has collapsed, and smooth in between. So ‖X - P_ε X‖² = ‖X‖² - Σ_i (2f_i - f_i²)
+‖u_iᵀ X‖²: each direction gives X back what it keeps, twice, minus what keeping it twice
+double-counts. The ridge residual is never below the exact one and falls to it as ε falls. That
+smoothness is the whole point: `torch.linalg.solve` and the gradient stay defined as columns go
+dependent, which the pseudo-inverse does not promise, and VᵀV = I is never imposed (D-31).
+
+**Where.** `src/mllib/math/projector.py` (`AbstractProjector`, `ExactProjector`) ·
+`src/mllib/math/algorithms/two_hot_span/projectors.py` (`RidgeProjector`) ·
+`src/mllib/math/cost_function.py` (`AbstractCostFunction`) · `SpanCost` in
+`src/mllib/math/graph/two_hot_span_problem.py` · tests `tests/math/test_projector.py` and
+`tests/math/algorithms/test_two_hot_span_projectors.py` (the old bodies pasted as oracles, exact
+equality; the closed form; ε → 0; a dependent column; gradcheck) and the refactor snapshot
+`tests/math/algorithms/test_two_hot_span_refactor_baseline.py`, byte-identical.
+
+**Design.** Four choices worth carrying.
+- *One concept, two arithmetics, one name.* The exact and the ridge projector are two members of
+  `AbstractProjector`, not a function and an unrelated inline solve, which is D-35 (6) applied:
+  the array library is the implementation's business and the concept has one home.
+- *One cost class, the projector injected.* The plan named a `RidgeSpanCost`. `SpanCost(projector,
+  X)` serves both the report and the training loss by taking its projector, so there is no
+  `ExactSpanCost` beside it and the cost is written once (D-35 (1): a class is earned by injection,
+  and the projector is the thing injected).
+- *The collision measure is not a duplicate.* The plan's evidence called the numpy
+  `collision_measure` and the torch collision term "the same arithmetic twice". It is not: the
+  numpy one returns 0 for the zero vector and divides by the largest entry before squaring, so a
+  vector of subnormals does not square to 0/0, and neither guard belongs on the gradient path. Two
+  arithmetics of one diagnostic, kept apart on purpose, and the plan's §2 says so now.
+- *The Laplacian dedupe waits for slice 4.* D − A from the graph and X Xᵀ from the incidence
+  matrix are the same matrix up to ulps, and ulps are exactly what the spectral start amplifies
+  (BL-50). Collapsing them moves the spectral-start fixtures, and slice 4 is the slice that
+  regenerates fixtures, so the collapse rides with it rather than forcing a regeneration here.
+
+**What was confusing.** Whether `ExactProjector` needed to be a class at all, with no knob and one
+implementation. It does, because the concept has two implementations and a caller injects one of
+them into `SpanCost`; the empty frozen dataclass is the price of `describe()` reading an empty
+parameter list rather than `(*args, **kwargs)` off a plain class. And whether the D-31 guard could
+survive the removal of `projector_residual`: it does, moved onto `ExactProjector.residual`'s
+signature and `describe(ExactProjector)["params"]`, and it still says the same thing.
+
+- **Reference.** D-31 (the reporting boundary; ε is a training knob); D-35 (1) (a class is earned)
+  and (6) (one class per concept per arithmetic); Hansen, *Rank-Deficient and Discrete Ill-Posed
+  Problems* (SIAM 1998) for filter factors, from memory.
