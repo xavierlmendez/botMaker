@@ -398,6 +398,9 @@ fixtures regenerated deliberately and stated in the PR, and the acceptance test 
 sentence per item in the plan's §5 that the reviewer-agent can check against BL-46's first slice
 when it opens.
 
+Progress: slice 3 (2026-09-11) — step rules and schedules as injected objects (`AbstractStepRule`,
+`AdamStepRule`; `AbstractLearningRateSchedule` with four members); `learning_rate_lambda` deleted;
+refactor snapshot byte-identical, after catching a one-ulp reordering in the cosine schedule.
 Progress: slice 2 (2026-09-11) — `AbstractCostFunction`, the projector as one concept with two
 arithmetics (`ExactProjector`, `RidgeProjector`), `SpanCost`; refactor snapshot byte-identical;
 Laplacian dedupe moved to slice 4.

@@ -14,8 +14,9 @@ headline number and R(v_j) (`collision_measures`) is a per-column diagnostic. rc
 generalisation replaces the ones vector by c = sqrt(d) and is out of scope here (BL-41).
 
 **Three experimental training knobs, all off by default (slices 2.4 and 2.5).** A learning-rate
-schedule (`learning_rate_schedule`, `warmup_steps`, `final_learning_rate_fraction`), an optional
-per-column graph term (`adjacency_weight`, `adjacency_form`), and an optional column-diversity term
+schedule (`learning_rate_schedule`, `warmup_steps`, `final_learning_rate_fraction`, now a schedule
+object on the step rule, `two_hot_span/step_rules.py`), an optional per-column graph term
+(`adjacency_weight`, `adjacency_form`), and an optional column-diversity term
 (`diversity_weight`). With the shipped defaults — `"constant"`, `adjacency_weight = 0.0` and
 `diversity_weight = 0.0` — none of them runs, and the objective is exactly the brief's §20
 objective, `E_ridge(V) - λ Σ_j R(v_j)`. They are knobs of the *training* path in the sense D-31
@@ -35,8 +36,7 @@ caller's `TwoHotSpanConfig` keeps working; a zero weight builds no term (`penalt
 
 from __future__ import annotations
 
-import math
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -49,6 +49,7 @@ from mllib.math.algorithms.two_hot_span.penalties import (
     LaplacianAdjacencyPenalty,
 )
 from mllib.math.algorithms.two_hot_span.projectors import RidgeProjector
+from mllib.math.algorithms.two_hot_span.step_rules import AdamStepRule
 from mllib.math.cost_function import AbstractCostFunction
 from mllib.math.graph.two_hot_span_problem import (
     SpanCost,
@@ -59,9 +60,17 @@ from mllib.math.graph.two_hot_span_problem import (
     rounded_pairs,
     spanning_vector_count,
 )
+from mllib.math.learning_rate_schedule import (
+    AbstractLearningRateSchedule,
+    ConstantSchedule,
+    CosineSchedule,
+    LinearSchedule,
+    WarmupCosineSchedule,
+)
 from mllib.math.projector import ExactProjector
 from mllib.math.recorder import AbstractStepRecorder, NullRecorder
 from mllib.math.regularization_function import AbstractRegularizationFunction
+from mllib.math.step_rule import AbstractStepRule
 
 LEARNING_RATE_SCHEDULES = ("constant", "cosine", "warmup_cosine", "linear")
 ADJACENCY_FORMS = ("laplacian", "edge_product")
@@ -148,41 +157,6 @@ class TwoHotSpanRun:
     learning_rate_history: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=np.float64))
 
 
-def learning_rate_lambda(config: TwoHotSpanConfig) -> Callable[[int], float]:
-    """The `LambdaLR` multiplier for step t, 1.0 at t = 0 for every schedule but `warmup_cosine`.
-
-    One factor function, not four schedulers: the whole point of `LambdaLR` here is that a single
-    Adam instance survives the run, so its moment estimates are never reset (which restarting an
-    optimizer per phase would do, and which is a change to the *trajectory*, not to the step size).
-
-    `final_learning_rate_fraction` is the fraction of `learning_rate` in force at the **last** step,
-    so `cosine` and `linear` interpolate over `step_count - 1` steps. `warmup_cosine` starts at 0,
-    rises linearly to 1 at step `warmup_steps`, and cosines down from there.
-    """
-    name = config.learning_rate_schedule
-    fraction = float(config.final_learning_rate_fraction)
-    last_step = max(config.step_count - 1, 1)
-    warmup = int(config.warmup_steps)
-
-    def factor(step: int) -> float:
-        if name == "constant":
-            return 1.0
-        if name == "linear":
-            return 1.0 + (fraction - 1.0) * (step / last_step)
-        if name == "cosine":
-            return fraction + (1.0 - fraction) * 0.5 * (1.0 + math.cos(math.pi * step / last_step))
-        # warmup_cosine
-        if warmup > 0 and step < warmup:
-            return step / warmup
-        remaining = config.step_count - 1 - warmup
-        if remaining <= 0:
-            return 1.0
-        progress = (step - warmup) / remaining
-        return fraction + (1.0 - fraction) * 0.5 * (1.0 + math.cos(math.pi * progress))
-
-    return factor
-
-
 def training_loss(
     cost: AbstractCostFunction,
     spanning_set_t: torch.Tensor,
@@ -227,6 +201,24 @@ def _penalties_from_config(
     if config.diversity_weight != 0.0:
         penalties.append(DiversityPenalty(weight=config.diversity_weight))
     return tuple(penalties)
+
+
+def _schedule_from_config(config: TwoHotSpanConfig) -> AbstractLearningRateSchedule:
+    """The schedule object a config's name and shape knobs ask for. Transitional, as above."""
+    name = config.learning_rate_schedule
+    fraction = float(config.final_learning_rate_fraction)
+    if name == "constant":
+        return ConstantSchedule()
+    if name == "linear":
+        return LinearSchedule(final_fraction=fraction)
+    if name == "cosine":
+        return CosineSchedule(final_fraction=fraction)
+    return WarmupCosineSchedule(warmup_steps=int(config.warmup_steps), final_fraction=fraction)
+
+
+def _step_rule_from_config(config: TwoHotSpanConfig) -> AbstractStepRule:
+    """Adam at the config's learning rate under its schedule: one fresh rule per run."""
+    return AdamStepRule(config.learning_rate, _schedule_from_config(config))
 
 
 def _project_zero_sum(weights: torch.Tensor, normalize_columns: bool) -> torch.Tensor:
@@ -281,14 +273,12 @@ def fit_two_hot_span(
 
     X_t = torch.tensor(np.asarray(X, dtype=np.float64))
     weights = initial.clone().requires_grad_(True)
-    # One Adam for the whole run, its step size scaled by a LambdaLR: rebuilding the optimizer per
-    # phase would reset the moment estimates, which changes the trajectory and not just the lr.
-    optimizer = torch.optim.Adam([weights], lr=config.learning_rate)
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, learning_rate_lambda(config))
 
-    # Transitional, as `_penalties_from_config` is: slice 4 injects the cost with the penalties.
+    # Transitional, all three: slice 4 injects the cost, the penalties and the step rule.
     cost = SpanCost(RidgeProjector(config.epsilon), X_t)
     penalties = _penalties_from_config(config, X)
+    step_rule = _step_rule_from_config(config)
+    step_rule.bind(weights, config.step_count)
 
     max_violation = 0.0
     losses: list[float] = []
@@ -312,9 +302,8 @@ def fit_two_hot_span(
     inspect("at initialisation")
 
     for step in range(config.step_count):
-        optimizer.zero_grad(set_to_none=True)
-        # The lr in force *for this step*, read off the param group the step is about to use.
-        learning_rates.append(float(optimizer.param_groups[0]["lr"]))
+        step_rule.zero_gradient()
+        learning_rates.append(step_rule.learning_rate_in_force())
         spanning_set_t = _project_zero_sum(weights, config.normalize_columns)
         loss = training_loss(cost, spanning_set_t, penalties)
         if not bool(torch.isfinite(loss)):
@@ -322,8 +311,7 @@ def fit_two_hot_span(
         loss.backward()
         if weights.grad is None or not bool(torch.isfinite(weights.grad).all()):
             raise NonFiniteLoss(f"the gradient is not finite at step {step}")
-        optimizer.step()
-        scheduler.step()
+        step_rule.step()
         losses.append(float(loss.detach()))
         current = inspect(f"after step {step}")
         if recorder.enabled:

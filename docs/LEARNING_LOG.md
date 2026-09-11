@@ -1363,3 +1363,53 @@ signature and `describe(ExactProjector)["params"]`, and it still says the same t
 - **Reference.** D-31 (the reporting boundary; ε is a training knob); D-35 (1) (a class is earned)
   and (6) (one class per concept per arithmetic); Hansen, *Rank-Deficient and Discrete Ill-Posed
   Problems* (SIAM 1998) for filter factors, from memory.
+
+## Step rules with schedules · 2026-09-11
+
+**What.** The update an optimizer applies each step, as an object it is handed rather than an
+Adam it builds. `AdamStepRule` holds the learning rate and a schedule object as its knobs, is bound
+once to the parameters of one run, and from then on answers three questions the loop asks:
+clear the gradient, what learning rate is in force for this step, take the step. The schedule is
+its own object with four implementations - constant, linear, cosine, warm-up cosine - each a
+frozen dataclass whose knobs are its shape (the final fraction, the warm-up length) and nothing
+else: the run's length is passed to `multiplier(step, step_count)` at each call, so `step_count`
+keeps one owner, the optimizer, instead of being written into the config and again into the
+schedule. The old `learning_rate_lambda(config)` closure, one factor function that branched on a
+name, is deleted; its arithmetic is now four `multiplier` bodies pinned against the pasted closure
+to the last bit over a thousand steps.
+
+**Where.** `src/mllib/math/step_rule.py` (`AbstractStepRule`: `bind`, `learning_rate_in_force`,
+`zero_gradient`, `step`) · `src/mllib/math/learning_rate_schedule.py` (the abstract schedule and
+its four members) · `src/mllib/math/algorithms/two_hot_span/step_rules.py` (`AdamStepRule`, the
+torch member) · the transitional `_schedule_from_config` and `_step_rule_from_config` in
+`src/mllib/math/algorithms/two_hot_span_optimizer.py` · tests
+`tests/math/test_learning_rate_schedule.py` (the old closure as the oracle, exact; the shapes as
+hypothesis properties) and `tests/math/algorithms/test_two_hot_span_step_rules.py` (a leaf moved by
+the rule `torch.equal` after every step to a hand-built Adam under `LambdaLR`; the contract of a
+stateful object) and the refactor snapshot, byte-identical.
+
+**Design.** Three choices worth carrying.
+- *State is what earns the step rule its class.* A schedule is a pure function of the step and
+  could have stayed one; Adam is not, because its moment estimates accumulate across the run, and
+  a thing with a lifetime is a class under D-35 (1). The same fact fixes the contract: one bind
+  per run, refused twice, because a rebuilt Adam resets its moments and changes the trajectory,
+  not just the step size - which is why the old code kept one Adam under a `LambdaLR` and why the
+  rule keeps that pair inside it.
+- *The schedule is injected into the rule, not into the optimizer.* It multiplies the rule's
+  learning rate, so it parameterises the rule (D-35 (3)): `AdamStepRule(0.05, CosineSchedule(0.1))`
+  is one step rule, and a grid over schedules is a grid over rule constructors (D-35 (5)).
+- *Equality is on the knobs, not the state.* Two rules set up alike compare equal before and after
+  one of them has run, and a copied or pickled rule arrives unbound with its knobs intact, so a
+  configuration record can name the rule without dragging its moments along (D-35 (4)).
+
+**What was confusing.** The exact refactor snapshot went red on the cosine cell at index 14 by
+one unit in the last place. The schedule had been written as `math.pi * (step / last_step)` and
+the closure it replaced as `math.pi * step / last_step`; the two round differently, and thirty
+Adam steps carry the difference into the loss. The schedule now carries the original order with a
+comment saying so. The lesson is about the word "bit-identical": a refactor that *reads* as the
+same arithmetic is not proved the same by reading it, only by the snapshot, which is what the
+snapshot is for and why it compares exactly on the platform that wrote it (BL-50).
+
+- **Reference.** D-35 (1), (3), (4), (5); D-31 (a schedule shapes the trajectory and never enters
+  a reported number); Kingma and Ba, *Adam: a method for stochastic optimization* (ICLR 2015), from
+  memory, for the moment estimates the bind-once rule protects.
