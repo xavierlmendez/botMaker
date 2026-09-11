@@ -357,6 +357,22 @@ First step: pair the two formulations on roach G₅ over 10 seeds at λ scaled b
 by training loss, which is the two formulations' one incomparable quantity. Closes when the pairing says
 whether restarts alone explain the gap or the joint factorization buys something restarts do not.
 
+### BL-47 — Walkthrough pages cost bytes per step, not per full frame · `backlog-only` · re-entry 2–3 h
+
+Opened 2026-09-10 from slice 2.8, where the `two_triangles` pages had to be rendered at 1500 steps rather
+than the instance's own 5000 to clear the 1024 kB `check-added-large-files` limit. `--frame-every` thins
+full frames only, so a page's size tracks the **step count**: at 5000 steps the page is 2.9 MB, of which
+1.79 MB is 4799 light frames (≈ 374 B each, and roughly 230 B of that is the nine null-valued derived keys
+a light frame writes out because `TwoHotSpanFrame.to_dict` keeps one dict shape for every frame) and
+0.79 MB is the explain layer's one narration sentence per frame. Measured: dropping the null keys alone
+leaves 1.84 MB, still over; a light frame every ten steps with the nulls dropped and narration thinned to
+match lands near 460 KB at the full 5000.
+
+First step: decide whether the one-shape-per-frame rule (`visualization/recorders/two_hot_span.py` module
+docstring) is worth its cost, since the view already branches on `full`. Then a `light_every` on
+`AbstractStepRecorder` and narration derived only for retained frames. Closes when a 5000-step
+`two_triangles` page is committed under the limit and the roach G₅ fixture is regenerated deliberately.
+
 ## Closed
 
 ### BL-39 — Conditional solves: forced and forbidden columns in the Nyström problem · closed 2026-09-07 (this PR; research candidate E3 necessity margins, seed `sessions/2026-09-10-engine-slices.md`)
