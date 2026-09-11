@@ -30,6 +30,7 @@ import networkx as nx
 import numpy as np
 
 from mllib.math.graph import two_hot_span_problem as problem
+from mllib.math.projector import ExactProjector
 from mllib.math.recorder import AbstractStepRecorder, Frame
 
 if TYPE_CHECKING:
@@ -187,7 +188,7 @@ class TwoHotSpanRecorder(AbstractStepRecorder):
         measures = problem.collision_measures(current)
         pairs = problem.rounded_pairs(current)
         labels = problem.clustering_from_pairs(self.node_count, pairs)
-        relaxed = problem.projector_residual(self.X, current)
+        relaxed = ExactProjector().residual(self.X, current)
         cut = problem.rounded_cut(self.X, current)
         self.record(
             self._full_frame(

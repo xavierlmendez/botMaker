@@ -271,6 +271,12 @@ E\*, the objective at the unrounded V, computed through the exact `pinv` project
 through the ridge projector the training loss uses.
 _Avoid_: training loss (a different quantity), relaxed cut
 
+**Projector**:
+P_V, the projection onto the span of a spanning set, read through the residual it leaves on X. One
+concept with two arithmetics: the exact pseudo-inverse projector that every reported number comes
+through, and the ridge projector, smooth in a training knob ε, that the training loss descends.
+_Avoid_: projection matrix, ridge alone (the knob, not the projector)
+
 **Spectral floor**:
 Σλ, the sum of the K smallest Laplacian eigenvalues: the lower bound every E\* and Ê is read
 against.

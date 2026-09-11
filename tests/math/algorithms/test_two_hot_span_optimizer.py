@@ -13,6 +13,7 @@ import pytest
 
 pytest.importorskip("torch")
 
+from mllib.describe import describe
 from mllib.math.algorithms.two_hot_span_optimizer import (
     NonFiniteLoss,
     TwoHotSpanConfig,
@@ -21,12 +22,12 @@ from mllib.math.algorithms.two_hot_span_optimizer import (
 from mllib.math.graph.two_hot_span_problem import (
     brute_force_rcut,
     incidence_matrix,
-    projector_residual,
     ratio_cut,
     roach_graph,
     spectral_floor,
     spectral_spanning_set,
 )
+from mllib.math.projector import ExactProjector
 
 
 def _seeded_graph(node_total: int, seed: int) -> nx.Graph:
@@ -119,8 +120,9 @@ def test_reporting_path_never_uses_epsilon():
     )
     assert small.relaxed_objective == large.relaxed_objective
     assert small.rounded_cut == large.rounded_cut
-    assert small.relaxed_objective == projector_residual(X, small.spanning_set)
-    assert "epsilon" not in inspect.signature(projector_residual).parameters
+    assert small.relaxed_objective == ExactProjector().residual(X, small.spanning_set)
+    assert "epsilon" not in inspect.signature(ExactProjector.residual).parameters
+    assert describe(ExactProjector)["params"] == []
 
 
 def test_reported_cut_is_above_the_brute_force_optimum_and_the_floor():

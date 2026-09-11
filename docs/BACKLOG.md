@@ -383,7 +383,8 @@ search stack next to it is four injected objects and a result contract, and a va
 of them. This initiative gives the optimizer the search stack's shape: an `AbstractOptimizer` in
 `math/algorithms` owning `run()` with a `_step` seam; a problem object holding X and the cluster
 count and the exact reporting arithmetic; `CostFunction` redefined as a scalar of the parameters
-being optimized, with the ridge cost as its first implementation; `RegularizationFunction` made
+being optimized, with the ridge cost as its first implementation (shipped as `SpanCost` over an
+injected projector, slice 2); `RegularizationFunction` made
 abstract with the collision, adjacency and diversity terms as its first implementations, each weight
 a knob on its class; step rules and schedules as injected objects; a result per D-35 (9) —
 parameters, final training loss, steps taken, stop reason, configuration, delivered numbers — with
@@ -397,6 +398,9 @@ fixtures regenerated deliberately and stated in the PR, and the acceptance test 
 sentence per item in the plan's §5 that the reviewer-agent can check against BL-46's first slice
 when it opens.
 
+Progress: slice 2 (2026-09-11) — `AbstractCostFunction`, the projector as one concept with two
+arithmetics (`ExactProjector`, `RidgeProjector`), `SpanCost`; refactor snapshot byte-identical;
+Laplacian dedupe moved to slice 4.
 Progress: slice 1 (2026-09-11) — penalties as injected objects; `AbstractRegularizationFunction`;
 refactor snapshot `tests/math/algorithms/two_hot_span_refactor_snapshot.json` byte-identical.
 

@@ -48,15 +48,18 @@ from mllib.math.algorithms.two_hot_span.penalties import (
     EdgeProductAdjacencyPenalty,
     LaplacianAdjacencyPenalty,
 )
+from mllib.math.algorithms.two_hot_span.projectors import RidgeProjector
+from mllib.math.cost_function import AbstractCostFunction
 from mllib.math.graph.two_hot_span_problem import (
+    SpanCost,
     clustering_from_pairs,
     collision_measures,
     graph_matrices,
-    projector_residual,
     rounded_cut,
     rounded_pairs,
     spanning_vector_count,
 )
+from mllib.math.projector import ExactProjector
 from mllib.math.recorder import AbstractStepRecorder, NullRecorder
 from mllib.math.regularization_function import AbstractRegularizationFunction
 
@@ -181,26 +184,23 @@ def learning_rate_lambda(config: TwoHotSpanConfig) -> Callable[[int], float]:
 
 
 def training_loss(
-    X_t: torch.Tensor,
+    cost: AbstractCostFunction,
     spanning_set_t: torch.Tensor,
-    epsilon: float,
     penalties: Sequence[AbstractRegularizationFunction] = (),
 ) -> torch.Tensor:
-    """E_ridge(V) plus each injected penalty in turn, float64.
+    """The injected cost plus each injected penalty in turn, a float64 tensor on the gradient path.
 
-    The r x r system is solved with `torch.linalg.solve`; nothing is orthogonalised. Each penalty
-    carries its own weight and sign (`two_hot_span/penalties.py`), so this is a plain left-to-right
-    sum and the order of ``penalties`` is the order of the additions. With no penalties the value is
-    the ridge cost alone, the arithmetic slice 2.2 shipped.
+    The cost is `SpanCost` over the `RidgeProjector` for training (D-31); a cost in the reporting
+    arithmetic is refused here rather than failing at `backward`. Each penalty carries its own
+    weight and sign (`two_hot_span/penalties.py`), so this is a plain left-to-right sum and the
+    order of ``penalties`` is the order of the additions. With no penalties the value is the ridge
+    cost alone, the arithmetic slice 2.2 shipped.
     """
-    spanning_count = spanning_set_t.shape[1]
-    gram = spanning_set_t.T @ spanning_set_t
-    ridge = gram + epsilon * torch.eye(
-        spanning_count, dtype=spanning_set_t.dtype, device=spanning_set_t.device
-    )
-    coefficients = torch.linalg.solve(ridge, spanning_set_t.T @ X_t)
-    residual = X_t - spanning_set_t @ coefficients
-    loss = torch.sum(residual * residual)
+    loss = cost.compute_cost(spanning_set_t)
+    if not torch.is_tensor(loss):
+        raise TypeError(
+            f"the cost must be in the training arithmetic (a torch tensor); got {type(loss).__name__}"
+        )
     for penalty in penalties:
         loss = loss + penalty.compute_penalty(spanning_set_t)
     return loss
@@ -286,6 +286,8 @@ def fit_two_hot_span(
     optimizer = torch.optim.Adam([weights], lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, learning_rate_lambda(config))
 
+    # Transitional, as `_penalties_from_config` is: slice 4 injects the cost with the penalties.
+    cost = SpanCost(RidgeProjector(config.epsilon), X_t)
     penalties = _penalties_from_config(config, X)
 
     max_violation = 0.0
@@ -314,7 +316,7 @@ def fit_two_hot_span(
         # The lr in force *for this step*, read off the param group the step is about to use.
         learning_rates.append(float(optimizer.param_groups[0]["lr"]))
         spanning_set_t = _project_zero_sum(weights, config.normalize_columns)
-        loss = training_loss(X_t, spanning_set_t, config.epsilon, penalties)
+        loss = training_loss(cost, spanning_set_t, penalties)
         if not bool(torch.isfinite(loss)):
             raise NonFiniteLoss(f"the loss is not finite at step {step}")
         loss.backward()
@@ -337,7 +339,7 @@ def fit_two_hot_span(
     run = TwoHotSpanRun(
         spanning_set=spanning_set,
         loss_history=np.array(losses, dtype=np.float64),
-        relaxed_objective=projector_residual(X, spanning_set),
+        relaxed_objective=ExactProjector().residual(X, spanning_set),
         rounded_cut=rounded_cut(X, spanning_set),
         collision_measures=collision_measures(spanning_set),
         labels=clustering_from_pairs(node_total, pairs),
