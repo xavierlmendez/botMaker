@@ -46,9 +46,14 @@ class HypothesisFunction:
         return np.sign(self.hypothesis @ data + self.bias)
 
     def expand_hypothesis(self):
-        # if the hypothesis is [[x1], [x2]] and degree=3 then we will return [[1, x1, x1^2, x1^3], [1, x2, x2^2, x2^3]]
-        # in this application the data's features are a basis vector of the dimensional space
-        self.hypothesis = self.hypothesis_expander.expand(self.hypothesis, self.degree)
+        """Recompute the expanded hypothesis from the initial weights through the expander.
+
+        The same call the constructor makes, so the result is the constructor's: for the polynomial
+        expander at degree d, each initial weight becomes its powers 1..d. It expands the initial
+        weights, never the already-expanded hypothesis, or a second call would expand twice. Fixed
+        in BL-48 slice 5: it used to call an ``expand(hypothesis, degree)`` no expander defines.
+        """
+        self.hypothesis = self.hypothesis_expander.expand_hypothesis(self.initial_hypothesis)
 
     def get_weights(self):
         return self.hypothesis
