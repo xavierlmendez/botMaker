@@ -230,3 +230,82 @@ _Avoid_: random (for anything but a single labelled draw)
 **Cell**:
 One experimental configuration: dataset, kernel, bandwidth scale, n and k, with every selector's
 result recorded against the certified optimum.
+
+### Two-hot spanning sets
+
+The relaxation side of graph partitioning: a continuous optimizer moves a spanning set whose columns
+are rounded to vertex pairs. Senses follow the research glossary
+(`method/16-relaxation-landscape.md`) and `docs/plans/2026-09-two-hot-span.md`.
+
+**2-hot vector**:
+A vector with exactly two non-zero coordinates, of opposite sign: a vertex pair written as a vector.
+_Avoid_: two-sparse vector, indicator
+
+**Spanning set**:
+The n×r matrix V whose columns the optimizer moves, rewarded for being 2-hot. Its span, not its
+individual columns, is what the relaxed objective sees.
+_Avoid_: basis (the columns need not be independent), embedding
+
+**Collision measure**:
+The per-column regularizer R(v_j) that rewards a column for concentrating on two coordinates. A
+diagnostic of how 2-hot a column has become, never the criterion a run is judged by.
+_Avoid_: sparsity penalty, concentration loss
+
+**Roundability**:
+How far a relaxed column is from its nearest 2-hot vector, and hence how much the rounded cut can
+exceed the relaxed objective.
+_Avoid_: rounding error, discretization gap
+
+**Rounded pair**:
+The two coordinates a column is rounded to: its largest and its smallest entry, the vertex pair the
+column stands for.
+_Avoid_: support, top-two
+
+**Rounded cut**:
+Ê, the ratio-cut value of the partition the rounded pairs induce; the value the relaxation actually
+delivers, as against the value it relaxed to.
+_Avoid_: discrete cut, final cut
+
+**Relaxed objective**:
+E\*, the objective at the unrounded V, computed through the exact `pinv` projector (D-31) and never
+through the ridge projector the training loss uses.
+_Avoid_: training loss (a different quantity), relaxed cut
+
+**Spectral floor**:
+Σλ, the sum of the K smallest Laplacian eigenvalues: the lower bound every E\* and Ê is read
+against.
+_Avoid_: floor alone where the rank-k floor could be meant
+
+**Component count**:
+The number of connected components the rounded pairs induce, compared with the K clusters asked for.
+_Avoid_: cluster count (K is what was asked; this is what was got)
+
+### Recording and walkthroughs
+
+**Recorder**:
+An injected collaborator an algorithm hands its state to at the moments its state advances; off by
+default (`NullRecorder`), never part of a result.
+_Avoid_: state recorder, observer, logger, hook
+
+**Frame**:
+One recorded moment of a run — for a search one expansion, for an optimizer one step — with a caption
+a reader can follow.
+_Avoid_: snapshot, state (taken: a search configuration), trace (taken: residual trace)
+
+**Recording**:
+The frames of one run plus its metadata and the run's own result, as a versioned JSON document written
+when the run ends.
+_Avoid_: history, log
+
+**Walkthrough**:
+A recording rendered as a single offline HTML page with a stepper.
+_Avoid_: dashboard, animation
+
+**Key moment**:
+A frame a view derives from the recording as one that decides the run, marked on the stepper.
+_Avoid_: highlight, milestone, bookmark
+
+**Narration**:
+The sentence a view derives for a frame from that frame and the one before it; never authored per
+run.
+_Avoid_: caption (the recorder's own sentence, a different thing), commentary

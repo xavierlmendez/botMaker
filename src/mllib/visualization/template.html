@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{TITLE}}</title>
+<style>
+  :root {
+    --ink: #16181d;
+    --muted: #5d6470;
+    --rule: #d8dce3;
+    --panel: #f6f7f9;
+    --accent: #2f5ea8;
+  }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #ffffff;
+    color: var(--ink);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 16px; }
+  /* Pinned so the controls stay reachable however tall the drawing is or however the page is
+     zoomed; the drawing below is capped at its natural pixel size so browser zoom shrinks it. */
+  .stepper {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--panel);
+  }
+  .stepper button {
+    font: inherit;
+    padding: 4px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: #ffffff;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .stepper button:disabled { color: var(--muted); cursor: default; opacity: 0.5; }
+  /* The slider and the marker strip take a whole row to themselves: the markers are positioned as
+     a fraction of the slider's width, and anything sharing that row would be centred across two
+     lines and land under a marker. The frame counter and the hint wrap to the button row instead. */
+  .track { flex: 1 1 100%; min-width: 160px; }
+  .track input[type="range"] { width: 100%; margin: 0; }
+  .moments { position: relative; height: 24px; }
+  /* Only a strip that actually staggered a marker pays for the second row. */
+  .moments.two-rows { height: 44px; }
+  .stepper .moment {
+    position: absolute;
+    top: 2px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  /* A marker too close to the one before it drops a row rather than hiding behind it. */
+  .stepper .moment.row-2 { top: 22px; }
+  /* The end markers are anchored by their own edge; centred, half of each would be off the strip. */
+  .stepper .moment.at-start { transform: translateX(0); }
+  .stepper .moment.at-end { transform: translateX(-100%); }
+  .stepper .moment.current { color: var(--ink); border-color: var(--accent); font-weight: 600; }
+  .stepper .hint, #position { color: var(--muted); }
+  .panel {
+    margin: 16px 0 0;
+    padding: 10px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--panel);
+  }
+  .panel h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  #opening { margin: 0 0 16px; }
+  #opening ol, #ending ul, #legend ul { margin: 0; padding-left: 18px; }
+  #opening li, #ending li, #legend li { margin: 2px 0; }
+  #ending.reached { border-color: var(--accent); }
+  .quantities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin: 12px 0 0;
+  }
+  .quantities div { min-width: 96px; }
+  .quantities dt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  .quantities dd { margin: 0; font-variant-numeric: tabular-nums; }
+  #narration { margin: 10px 2px 0; font-size: 15px; }
+  #legend .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 2px;
+  }
+  abbr[title] { text-decoration: underline dotted; cursor: help; }
+  .stage { display: flex; gap: 16px; align-items: flex-start; margin-top: 16px; flex-wrap: wrap; }
+  .drawing { flex: 0 1 {{WIDTH}}px; min-width: 0; }
+  svg {
+    width: {{WIDTH}}px;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: #ffffff;
+  }
+  /* The recorder's own sentence, kept but demoted: the narration above it is the one written for
+     a reader, and this one is the one written by the run. */
+  #caption {
+    margin: 8px 2px 0;
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 2.6em;
+  }
+  .side { flex: 0 1 320px; min-width: 260px; }
+  .side h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  #raw {
+    margin: 0;
+    padding: 10px;
+    max-height: 480px;
+    overflow: auto;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--panel);
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+  }
+  footer {
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  footer dt { font-weight: 600; color: var(--ink); margin-top: 6px; }
+  footer dd { margin: 2px 0 0; word-break: break-word; }
+</style>
+</head>
+<body>
+<h1>{{TITLE}}</h1>
+<p class="subtitle">A recorded run, one frame per recorded moment. Nothing here is live: the whole
+run is in this file.</p>
+
+<section id="opening" class="panel" hidden>
+  <h2>What this page shows</h2>
+  <ol></ol>
+</section>
+
+<div class="stepper">
+  <button id="previous" type="button">&#8592; Previous</button>
+  <button id="next" type="button">Next &#8594;</button>
+  <button id="play" type="button">Play</button>
+  <label for="speed" class="hint">Speed</label>
+  <select id="speed">
+    <option value="1600">0.5x</option>
+    <option value="800" selected>1x</option>
+    <option value="400">2x</option>
+    <option value="200">4x</option>
+  </select>
+  <span id="position"></span>
+  <span class="hint">&#8592; &#8594; step, space plays, Home/End jump</span>
+  <div class="track">
+    <input id="slider" type="range" min="0" max="0" step="1" value="0" aria-label="frame" />
+    <div id="moments" class="moments" hidden></div>
+  </div>
+</div>
+
+<dl id="quantities" class="quantities" hidden></dl>
+
+<div class="stage">
+  <div class="drawing">
+    <svg id="drawing" viewBox="0 0 {{WIDTH}} {{HEIGHT}}"
+         role="img" aria-label="frame drawing"></svg>
+    <p id="narration"></p>
+    <p id="caption"></p>
+  </div>
+  <div class="side">
+    <h2>Raw fields of this frame</h2>
+    <pre id="raw"></pre>
+    <section id="legend" class="panel" hidden>
+      <h2>Legend</h2>
+      <ul></ul>
+    </section>
+  </div>
+</div>
+
+<section id="ending" class="panel" hidden>
+  <h2>How the run ended</h2>
+  <ul></ul>
+</section>
+
+<footer>
+  <dl>
+    <dt>Problem</dt>
+    <dd id="problem-fields"></dd>
+    <dt>Configuration</dt>
+    <dd id="configuration-fields"></dd>
+    <dt>Result</dt>
+    <dd id="result-fields"></dd>
+  </dl>
+</footer>
+
+<script id="recording" type="application/json">{{RECORDING_JSON}}</script>
+<script id="layout" type="application/json">{{LAYOUT_JSON}}</script>
+<script>
+{{VIEW_JS}}
+</script>
+<script>
+{{WALKTHROUGH_JS}}
+</script>
+</body>
+</html>

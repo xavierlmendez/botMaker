@@ -13,13 +13,17 @@ src/mllib/
                      (MSE, MAE, Perceptron, Hinge — each carries its own gradient) · cost_function ·
                      regularization_function · search_cost_function · graph/ (graph, tree, Gini split,
                      implicit search problems) · algorithms/ (template-method BFS/DFS/A*, Nyström
-                     landmark selectors) · probability/
+                     landmark selectors) · recorder (injected observation, off by default) · probability/
   ml/          MyLinearRegression · MyLogisticRegression · MyPerceptron · MySVM · DecisionTree ·
                      ProbabilisticKNN · evaluators/ · projects/ (ad-click grids, Nyström UCI harness)
+  visualization/ recorders/ (a run as frames a reader can step through) · recording (the frames as a
+                     versioned JSON document) · html_renderer + template.html + walkthrough.js (one
+                     offline page with a stepper) · views/ (a problem's drawing) · render (the CLI);
+                     sits above ml and math
   data/        data_orchestrator (load → transform → split) · transformers
 tests/               mirrors src/mllib; the training baseline and its snapshot live in tests/ml/
 data/                datasets (≤ 1 MB each, D-19) · configs/ (per-project transformer pipelines, JSON)
-examples/            composition roots: ad-click model comparison, Boston housing vs sklearn, graph search vs networkx
+examples/            composition roots: ad-click model comparison, Boston housing vs sklearn, graph search vs networkx, A* landmark walkthrough
 docs/                plan, backlog, decisions, learning log, reviews, reports
 notebooks/           coursework notebooks
 ```
@@ -32,6 +36,15 @@ uv run pytest    # full suite including the training baseline
 
 # Certified-optimal Nyström landmarks vs. the published heuristics, on three small UCI datasets
 uv run python -m mllib.ml.projects.nystrom_uci_harness
+
+# Record two landmark searches and write each as one offline page you can step through
+uv run python examples/astar_landmark_walkthrough.py --output-dir build/walkthroughs
+
+# Walk one graph breadth-first and depth-first, against networkx: a recording and a page each
+uv run python examples/graph_search_vs_networkx.py --output-dir build/walkthroughs
+
+# Re-render any saved recording; the view is chosen from the document's problem kind
+uv run python -m mllib.visualization.render --recording x.json --output x.html
 ```
 
 Requires [`uv`](https://docs.astral.sh/uv/); it installs Python 3.12 from `.python-version` if needed.

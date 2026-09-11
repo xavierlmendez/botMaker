@@ -9,19 +9,21 @@ PR as any change to a layer boundary, a base-class contract, or an extension poi
 Knowledge is sorted by *kind*, not by feature, with a strictly one-way dependency flow:
 
 ```
-projectScripts ──▶ ml ──▶ math
-       ▲
-   data
+examples ──▶ visualization ──▶ ml ──▶ math
+    ▲
+  data
 ```
 
-Math never imports ML; ML composes math; scripts (composition roots) wire data to models.
+Math never imports ML; ML composes math; `visualization` sits above both and nothing below it
+imports it; scripts (composition roots, in `examples/`) wire data to models.
 
 | Layer | Contents | Role |
 |---|---|---|
 | `math` | `HypothesisFunction`, `HypothesisExpander`, `LossFunction` (MSE, MAE, Perceptron, Hinge), `CostFunction`, `RegularizationFunction`, `SearchCostFunction`, `secular_equation` (eigenvalues of a rank-one downdate), `graph/` (graph, tree, `SplitFunction`/Gini, `AbstractGraphProblem`, `NystromLandmarkProblem`), `algorithms/` (BFS, DFS, A* on an ABC; Nyström landmark selectors), `probability/` | academic ideas as classes |
 | `ml` | `MyLinearRegression`, `MyLogisticRegression`, `MyPerceptron`, `MySVM`, `DecisionTree`, `ProbabilisticKNN`, `evaluators/`, `projects/` (ad-click grids, Nyström UCI harness) | models composed from primitives |
 | `data` | `data_orchestrator` (+ `DataTransformer`), datasets, transformer JSON configs | load → transform → split |
-| `projectScripts` | `AdClickModelProjectBuildScript` etc. | composition roots / experiments (→ `examples/` in slice 3.5) |
+| `visualization` | `recorders/` (per-problem `Frame` + recorder children, e.g. `astar_landmark`), `recording.py` (the versioned JSON document), `html_renderer.py` + `template.html` + `walkthrough.js` (one offline page with a stepper), `views/` (a problem's drawing plus its layout), `render.py` (the CLI) | a run turned into frames a reader can step through, and a page to step through them in |
+| `examples/` | `ad_click_model_comparison.py`, `nystrom_batched_bounds.py`, `graph_search_vs_networkx.py`, `boston_housing_vs_sklearn.py` | composition roots / experiments |
 
 The idea→class mapping is deliberately literal: h(x)=w·x+b is `HypothesisFunction`; the feature map Φ
 is `HypothesisExpander`; per-sample loss vs dataset cost mirror the lecture distinction; each loss
@@ -42,6 +44,7 @@ interfaces. Adding a loss or an expander never touches a model.
 | `TransformerPipeline` | a `Transformer` of `Transformer`s; `from_config([{transformer, args}])` resolves names in `mllib.data.transformers` only | `ProjectTransformations` |
 | `ModelEvaluator` | `update_testing_prediction_data(...)`, `evaluate_model()`, `persist_evaluation_record()` | every model's `evaluate` |
 | `AbstractGraphAlgorithm` | `_search(ctx)`; the ABC owns `run()` and `_notify_evaluator()`; `SearchContext` is frozen | graph algorithms |
+| `AbstractRecorder` | `enabled` (class attribute), `frames`, `metadata`, `record(frame)` (dense, ordered), `frame_dicts()`, `describe_result(result)`; `AbstractSearchRecorder` adds `record_expansion(...)` and `record_goal(...)` | any algorithm that offers to be watched |
 
 **Gradient-descent models.** `ml.gradient_descent.GradientDescentModel(hypothesis, loss, learning_rate, epochs)`
 owns `fit` / `predict_values` / gradient / update / cost and accepts arrays or DataFrames. A subclass sets
@@ -104,6 +107,17 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
   caller-stated rounding allowance): whether a child's bound ever fell below its parent's as priced.
   Off by default, it changes no expansion or result and leaves its counts on the instance as
   `bound_drops`, not on `SearchResult`, which carries only what the search paid and how it was set up.
+- **A recorder:** subclass `Frame` in `visualization/recorders/<problem>.py` with the fields that
+  problem's reader needs and extend `to_dict` explicitly (name the base — `Frame.to_dict(self)` —
+  since `slots=True` breaks a zero-argument `super()`); subclass `AbstractSearchRecorder` (or
+  `AbstractRecorder` for a non-search algorithm), convert every value to plain Python and write a
+  caption sentence. The engine injects it (`AStarSearch(..., recorder=...)`), defaults to
+  `NullRecorder`, and calls it from one guarded call site per recorded moment — for a search two of
+  them, `record_expansion` at each state advance and `record_goal` at the goal it returns on, so a
+  walkthrough ends at the answer rather than one step before it; a variant contributes its own
+  state through `_recorder_extras()` and never overrides `_search`. Observation is never
+  part of a result (D-28, D-32): the frames stay on the recorder the caller constructed. `math`
+  declares the recorder's shape and never imports `visualization`.
 - **A transformer:** subclass `data.transformers.Transformer` (`fit` learns state and returns `self`;
   `transform` returns a new frame, never mutating); add it to `transformers/__init__.py`; after 6.2 declare it
   by class name in the project's JSON config.
@@ -127,10 +141,13 @@ each permutation → `print_evaluation` reports the best. The smoke version of t
 pyproject.toml  uv.lock  CLAUDE.md  README.md  CONTRIBUTING.md
 src/mllib/
   math/      hypothesis.py  hypothesis_expander.py  loss_function.py  cost_function.py  …
-             graph/  algorithms/  probability/
+             recorder.py  graph/  algorithms/  probability/
   ml/        linear_regression.py  logistic_regression.py  …  evaluators/  projects/
+  visualization/  recorders/  views/  recording.py  html_renderer.py  render.py
+                  template.html  walkthrough.js
   data/      orchestrator.py  transformers/
-tests/       mirrors src/mllib; baseline snapshot beside its test
+tests/       mirrors src/mllib; baseline snapshot beside its test; committed recordings in
+             tests/visualization/fixtures/
 data/        datasets (≤ 1 MB each, D-19)  configs/
 examples/    composition roots
 notebooks/   docs/

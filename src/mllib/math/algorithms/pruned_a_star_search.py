@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import heapq
 import math
+from collections.abc import Sequence
 from typing import Any, NoReturn
 
 from mllib.math.algorithms.a_star_search import AStarSearch, HeapEntry, SearchResult, TieBreak
 from mllib.math.algorithms.abstract_graph_algorithm import SearchContext
 from mllib.math.graph.abstract_graph_problem import AbstractGraphProblem
+from mllib.math.recorder import AbstractSearchRecorder
 from mllib.math.search_cost_function import SearchCostFunction
 
 # Relative slack on the incumbent before a child is pruned. An incumbent seeded from another
@@ -119,6 +121,7 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
         tie_tolerance: float = 0.0,
         count_bound_drops: bool = False,
         bound_drop_slack: float = 0.0,
+        recorder: AbstractSearchRecorder | None = None,
     ):
         super().__init__(
             problem,
@@ -128,6 +131,7 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
             tie_tolerance=tie_tolerance,
             count_bound_drops=count_bound_drops,
             bound_drop_slack=bound_drop_slack,
+            recorder=recorder,
         )
         if max_frontier is not None and max_frontier < 1:
             raise ValueError("max_frontier must be at least 1: the frontier starts with one state.")
@@ -149,6 +153,9 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
         self._incumbent_state: State | None = None
         self._incumbent_from_search = False
         self._prune_above = math.inf
+        # What the last expansion declined to store; only ever replaced while a recorder is
+        # enabled, so an unwatched run keeps this one empty tuple from start to finish.
+        self._pruned_children: Sequence[tuple[State, float, str]] = ()
 
     @property
     def configuration(self) -> dict[str, object]:
@@ -185,6 +192,22 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
         ):
             frontier_min = result.cost - result.certified_gap
             gap = max(self._incumbent - frontier_min, 0.0)
+            # The base loop already recorded the popped goal, and this engine is about to return a
+            # different solution: without a second goal frame the run's last frame would name a
+            # state that never came back. The frontier is the one at the pop, which is also what
+            # the gap is measured against.
+            if self.recorder.enabled:
+                goal_frontier, expanded_set_size = self._recorded_goal_frontier
+                self.recorder.record_goal(
+                    self._incumbent_state,
+                    self._incumbent,
+                    result.nodes_expanded,
+                    goal_frontier,
+                    expanded_set_size,
+                    superseded_goal=result.state,
+                    superseded_cost=result.cost,
+                    **self._recorder_extras(),
+                )
             return SearchResult(
                 state=self._incumbent_state,
                 cost=self._incumbent,
@@ -219,13 +242,23 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
 
         prune_above = self._prune_above
         max_frontier = self.max_frontier
+        # Off by default: with no recorder watching, nothing below is allocated and nothing is
+        # appended — ``_pruned_children`` keeps the empty tuple ``__init__`` gave it.
+        recording = self.recorder.enabled
+        pruned: list[tuple[State, float, str]] = []
+        if recording:
+            self._pruned_children = pruned
         for position, (state, bound) in enumerate(children):
             # Every child takes an insertion index, pushed or not, so the entries that are pushed
             # pop in exactly the order exact A* would pop them.
             insertion_index += 1
             if is_goal[position] and position != kept_goal:
+                if recording:
+                    pruned.append((state, bound, "goal_sibling"))
                 continue
             if bound > prune_above:
+                if recording:
+                    pruned.append((state, bound, "above_incumbent"))
                 continue
             if max_frontier is not None and len(queue) >= max_frontier:
                 self.frontier_peak = max(self.frontier_peak, len(queue))
@@ -234,6 +267,21 @@ class PrunedAStarSearch[State, Action](AStarSearch[State, Action]):
         # Pops happen once per expansion before any push, so the frontier is largest here.
         self.frontier_peak = max(self.frontier_peak, len(queue))
         return insertion_index
+
+    def _recorder_extras(self) -> dict[str, object]:
+        """The two things this variant tracks that exact A* does not: prunings and the incumbent.
+
+        ``pruned`` is one entry per child left off the frontier this expansion — its state, its
+        bound and which mechanism dropped it — and the incumbent is the best complete solution the
+        search holds, with the state it belongs to. Nothing here is measured for the recorder's
+        sake; all of it is state the engine keeps anyway to decide what to store.
+        """
+        return {
+            **super()._recorder_extras(),
+            "pruned": tuple(self._pruned_children),
+            "incumbent": self._incumbent,
+            "incumbent_state": self._incumbent_state,
+        }
 
     def _no_goal_reachable(self) -> NoReturn:
         if self.incumbent_seed is not None:
