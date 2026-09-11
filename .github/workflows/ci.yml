@@ -1,4 +1,6 @@
-# from engineering-standards @ 56bfdb2 (configs/python/ci.yml); TODO grep paths adapted to this repo.
+# from engineering-standards @ 56bfdb2 (configs/python/ci.yml); local adaptations: TODO grep paths (paths, and the marker widened to `//` in *.html/*.js — back-port to engineering-standards),
+# adapted to this repo, and a second job `ci-torch` for the opt-in torch dependency group (D-31) —
+# the default `ci` job installs no torch, so the torch tests skip there via pytest.importorskip.
 name: ci
 
 on:
@@ -31,7 +33,20 @@ jobs:
         run: uv run ruff format --check .
       - name: TODOs reference the backlog
         run: |
-          hits=$(grep -rn '#[[:space:]]*TODO' --include='*.py' src tests examples | grep -v 'TODO(BL-[0-9][0-9]*):' || true)
+          hits=$(grep -rnE '(#|//)[[:space:]]*TODO' --include='*.py' --include='*.html' --include='*.js' src tests examples | grep -vE '(#|//)[[:space:]]*TODO\(BL-[0-9]+\):' || true)
           if [ -n "$hits" ]; then echo "$hits"; echo "TODO without BL-nn id"; exit 1; fi
       - name: Test
         run: uv run pytest
+
+  ci-torch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install with the torch group
+        run: uv sync --locked --dev --group torch
+      - name: Test (torch only)
+        run: uv run pytest -q tests/math/algorithms/test_two_hot_span_optimizer.py

@@ -9,6 +9,7 @@ from mllib.math.algorithms.a_star_search import HeapEntry, SearchResult, TieBrea
 from mllib.math.algorithms.abstract_graph_algorithm import SearchContext
 from mllib.math.algorithms.pruned_a_star_search import FrontierLimitExceeded, PrunedAStarSearch
 from mllib.math.graph.abstract_graph_problem import AbstractGraphProblem
+from mllib.math.recorder import AbstractSearchRecorder
 from mllib.math.search_cost_function import SearchCostFunction
 
 
@@ -75,6 +76,7 @@ class AnytimeAStarSearch[State, Action](PrunedAStarSearch[State, Action]):
         tie_tolerance: float = 0.0,
         count_bound_drops: bool = False,
         bound_drop_slack: float = 0.0,
+        recorder: AbstractSearchRecorder | None = None,
     ):
         super().__init__(
             problem,
@@ -88,6 +90,7 @@ class AnytimeAStarSearch[State, Action](PrunedAStarSearch[State, Action]):
             tie_tolerance=tie_tolerance,
             count_bound_drops=count_bound_drops,
             bound_drop_slack=bound_drop_slack,
+            recorder=recorder,
         )
         if max_expansions is not None and max_expansions < 1:
             raise ValueError("max_expansions must be at least 1: the initial state is expanded.")

@@ -122,6 +122,16 @@ tests. `probabilityBased/bayes_rule.py`, `Prior.py`, `gaussian_prior.py` are pla
 `regularization_function.py` is a placeholder → folded into BL-10. `gaussian_prior.py` assigned the *type* `float`
 to `variance` — fixed. Kept by owner decision (D-4 named set), tagged in slice 3.7.
 
+**Amended 2026-09-10 (BL-43 slice 4).** `math/graph/visualizer.py` is deleted, and with it the smoke test
+that was its only importer. The animation it offered — one matplotlib redraw per visited node, watchable once
+at the speed of its own loop — is now a recording plus a walkthrough page: `TraversalRecorder`
+(`visualization/recorders/graph_traversal.py`) watches BFS and DFS through the D-32 seam, and
+`examples/graph_search_vs_networkx.py` writes `bfs.json` and `dfs.json` instead of animating. What the old
+example produced was fingerprinted before the deletion and is now pinned by
+`tests/math/algorithms/test_graph_search_example_fingerprint.py` (CONTRIBUTING § "Behavioural baseline
+before a refactor"). Re-entry: none — the module is not coming back, and the D-4 named set loses it.
+`linear_algebra_helpers.py` and the placeholders are unaffected and keep their smoke tests.
+
 ### BL-19 — tradePlatform plugin seam · `backlog-only`
 North star (D-2): MlLib models plug into tradePlatform as strategy plugins with descriptors introspected at the boundary
 (`docs/reviews/2026-07-18-architecture-review.md` §Cross-codebase). Prerequisites: BL-16 (introspected metadata), BL-11 (exporter).
@@ -254,7 +264,9 @@ modules — the rounding condition becomes c_i v_i + c_j v_j = 0 and the rounded
 NCut, which was verified to machine precision in the research session. The source makes it
 conditional: "Only after this works reliably for rcut should the implementation be generalized."
 Open this when slice 2.3's harness shows a single λ giving exactly K components on at least three of
-the four test graphs. Parked on the research side as P23. Do not copy the modules; add parameters.
+the four **original** test graphs (`roach_g5`, `karate`, `planted_partition`, `two_moons_knn`);
+`roach_g20` (slice 2.6, K = 3, He-Gu-Zhang 2012) is an added instance reported alongside and outside
+that criterion. Parked on the research side as P23. Do not copy the modules; add parameters.
 
 ### BL-42 — torch on the R620: AVX2 requirement undocumented · `backlog-only` · re-entry 1–2 h
 
@@ -267,6 +279,68 @@ when this opens: install the `torch` group inside
 `compute-01` and run slice 2.3's harness on the roach graph; if it fails, record the failing op and
 decide between an AVX-less build and keeping these runs on the Mac. Blocks nothing today — the
 prototype's runs are minutes on the Mac (BL-40 is the wider R620 harnessing item).
+
+### BL-43 — Interactive walkthroughs from injected recorders · `backlog-only` · re-entry 6–10 h
+
+Opened 2026-09-10 from a grilling session; work started 2026-09-10 (plan
+`docs/plans/2026-09-visualization.md`, D-32). Neither of the repo's two engines can be watched: a
+`SearchResult` says what was proved and nothing about how the frontier moved or when the incumbent
+improved, and the two-hot optimizer's V is only ever seen at the last step. Observation enters as an
+*injected recorder* — an algorithm takes `recorder: AbstractRecorder` defaulting to a fresh
+`NullRecorder`, with one guarded call site at the moment its state advances, so a run with the default
+is byte-identical to today's and nothing joins a result type (D-28). The abstract recorder lives in
+`math/recorder.py`; the per-problem children, which do the extracting and the captioning, live in the
+new `mllib.visualization` package beside the renderer that turns a run's frames into one offline HTML
+page with a stepper (vanilla JS, inline SVG, no CDN).
+
+Four slices, by branch: `feat/visualization-recorder` (recorder contract, A\* instrumentation, records,
+process edits) → `feat/visualization-walkthrough` (versioned JSON recording, renderer, template and JS,
+A\* view, example, fixture, CLI) → `feat/visualization-two-hot` (two-hot recorder and view; stacked on
+`feat/two-hot-span-harness`) → `feat/visualization-graph-search` (BFS and DFS take the recorder,
+`math/graph/visualizer.py` deleted with BL-14 amended, the networkx example switched to a recording
+plus a page).
+
+**Phase 2 (2026-09-10).** Explainability layer: plan § 6, D-34, branches
+`feat/visualization-explain{,-two-hot,-traversal}`.
+
+First step: `math/recorder.py` with `AbstractRecorder`, a frozen slotted `Frame` and `NullRecorder`,
+then the single guarded call site in `AStarSearch._search`, with the variants' extras coming through a
+`_recorder_extras()` hook — both baselines run before and after.
+
+### BL-44 — Spectral-bound admissibility slack on near-duplicate points (hypothesis falsifying example) · `backlog-only` · re-entry 1–2 h
+
+Found 2026-09-10 while running the suite in a fresh worktree: hypothesis produced a falsifying example for
+`tests/math/graph/test_nystrom_landmark_problem.py::test_the_bound_never_exceeds_any_completion_it_bounds`
+— points `[0.0, 1.0, 0.0625, 0.03125, 1e-05]`, k = 3 — where the lower bound is 9.9e-08 and the best
+completion is exactly 0.0, so the bound overshoots by ~1e-7 against the test's 1e-9 slack. The kernel is
+numerically rank-deficient (near-duplicate points), and the code under test
+(`src/mllib/math/graph/nystrom_landmark_problem.py`) is untouched by any open slice. The property test is not
+derandomized, so `main` can hit this on any run. First step when this opens: reproduce with the example
+above, decide whether the slack should scale with the retained spectrum (D-26/D-27 territory) or the test
+should exclude kernels below numeric rank k, and add `derandomize=True` so the suite's verdict is stable.
+Nothing else depends on it; the two behavioural baselines are unaffected.
+
+### BL-45 — Two-hot span stress ladder (rungs 0–3) · `in-progress` · re-entry 2–4 h
+
+Opened 2026-09-10 from the research seed `~/develop/research/sessions/2026-09-18-two-hot-stress.md`; built as
+slice 2.7 of `docs/plans/2026-09-two-hot-span.md` on `feat/two-hot-stress`. The prototype's one tuned cell
+(roach G₅, λ = 10, ν = 10, μ = 0.3, Ê = 4/15) is run against a **pre-registered** ladder: rung 0 the
+prototype's three graphs at three seeds, rung 1 the planted partition at (100, 2)/(201, 3)/(500, 5) × clear,
+moderate and weak cross-block degree × three seeds, rung 2 the same generator at n = 1000 and 2000 (cloud
+only, BL-42 keeps it off the R620), rung 3 polbooks / football / email-Eu-core — 592 cells in all, every one
+recorded including the ones that reach fewer than K components, time out or exceed the memory budget.
+
+The runner (`src/mllib/ml/projects/two_hot_span_stress.py`, CLI `examples/two_hot_span_stress.py`) is
+**harness-tier**: it composes the engine and computes no mathematics of its own, and the three engine modules
+(problem, optimizer, harness) are byte-identical to what slices 2.1–2.6 shipped. The rung-0 oracle is what
+proves that — the prototype's frozen JSON reports are reproduced to 1e-8 before rungs 1–3 are allowed to run,
+and rungs 1–3 refuse to start without a passing oracle in the same results file. Live results are gitignored
+under `examples/two_hot_span_stress_results/`; the **frozen** result is not a botMaker artefact at all — it
+lives in the research repo as `nystrom/data/two-hot-stress-v1.jsonl` with its sha256 and a `PROVENANCE.md`
+row naming the botMaker commit, which every cell record also carries beside the three engine files' digests.
+
+Closes when the ladder has run and the seed's three questions have numbers; the analysis, the findings and
+the kill-criteria re-read belong to the research repo, not here.
 
 ## Closed
 

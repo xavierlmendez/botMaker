@@ -38,7 +38,7 @@ Lint/format: `uv run ruff check . && uv run ruff format --check .` — also run 
 
 - PEP 8 names throughout (`snake_case` modules/functions/attributes, `CapWords` classes); ruff's `N` rules
   enforce it. `X`, `X_*`, `Q` are the only exemptions (design matrix, quadratic form).
-- Commits: `<type>(<scope>): <imperative summary>`, scope ∈ `math ml data docs ci chore`.
+- Commits: `<type>(<scope>): <imperative summary>`, scope ∈ `math ml data viz docs ci chore`.
 - Dates ISO 8601. Line length 100.
 - A decision with lasting consequences → `docs/DECISIONS.md`; a technique implemented by hand →
   `docs/LEARNING_LOG.md`; both in the same PR as the change.

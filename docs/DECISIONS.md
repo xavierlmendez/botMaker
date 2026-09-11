@@ -284,3 +284,108 @@ PyPI's default Linux wheel is the GPU build, the explicit index is what keeps a 
 CPU wheel. `epsilon` is a training knob only, and a test asserts the reporting path never sees it —
 so a run's numbers mean the same thing whatever ε was. Whether the CPU wheels run on the R620 is
 undocumented upstream and is recorded as BL-42, not assumed here.
+**Verified 2026-09-10 (slice 2.2).** torch 2.14.0 resolves from the CPU index on macOS arm64
+(wheel `macosx_14_0_arm64`) and as `2.14.0+cpu` for Linux; uv writes the platform fork into the lock
+itself, so no `sys_platform` marker is needed.
+
+## D-32 — Observation is an injected recorder: abstract in math, children in visualization, off by default, never on a result · 2026-09-10 · accepted
+**Context.** Nothing in the tree can watch a run. The evaluators record once per run, not per step
+(`evaluator.evaluation_record[iteration]` is one row for a whole fit), and D-28 closed `SearchResult`
+to a stated rule — cost, set-up, certificate, and nothing else — so per-step observation has no seat on
+a result and must not take one. The only per-run instrumentation that exists, the bound-drop counter
+(BL-33), already made that choice: opt-in, left on the instance, never on the result. Meanwhile
+`math/graph/visualizer.py` is a matplotlib animation nothing imports. The remaining constraint is the
+one-way dependency flow of `docs/ARCHITECTURE.md` §1 — "Math never imports ML; ML composes math;
+scripts (composition roots) wire data to models" — which forbids the obvious shortcut of letting an
+algorithm import the thing that draws it.
+**Decision.** Observation is a collaborator injected into the algorithm, under four rules. (i) An
+algorithm takes `recorder: AbstractRecorder` defaulting to a fresh `NullRecorder` (never a shared
+mutable default), and every call site is guarded by `recorder.enabled`, so an unobserved run pays one
+boolean read per step. (ii) The abstract contract — `AbstractRecorder`, the frozen `Frame`, and
+`NullRecorder` — lives in `math/recorder.py`; the per-problem children live in
+`mllib.visualization.recorders`, and **the child extracts and captions**: the engine hands it the raw
+objects it already holds, and variants add their own through a `_recorder_extras()` hook the base loop
+calls, so no variant overrides `_search` and no engine grows a second call site. (iii) A recording is a
+versioned JSON document written when the run ends, with exact floats and no timestamps; a walkthrough is
+that recording rendered as one offline HTML page. (iv) Nothing observational is added to a result type
+(D-28); a recorder's frames are read off the recorder the caller injected.
+The new package `mllib.visualization` sits **above** both `ml` and `math`: it may import them, nothing
+below it imports it, and the composition roots in `examples/` wire the two together — an algorithm and
+the recorder that watches it meet in a script, never inside `math`.
+**Consequences.** The two behavioural baselines are the guarantee this rests on: every slice that
+touches an engine re-runs `tests/ml/test_training_baseline.py` and
+`tests/ml/test_nystrom_search_baseline.py` and leaves both byte-identical, which is what makes "off by
+default" a checked claim rather than an intention. Instrumenting a new problem adds a child recorder and
+a view; the engine does not change. `CLAUDE.md` gains the commit scope `viz`. Because the pages carry
+JavaScript, the TODO-id gate in CI and pre-commit now greps `*.html` and `*.js` beside `*.py` *and*
+matches `//` beside `#` as the comment marker — extending the file list alone left the gate hollow,
+since no JavaScript comment starts with `#` (a change to back-port to `engineering-standards`), and the templates ship as package data
+(`[tool.setuptools.package-data]`), so an installed `mllib` can render a walkthrough. The plan is
+`docs/plans/2026-09-visualization.md`, the initiative BL-43.
+
+## D-33 — One recorder contract per problem shape; the null recorder satisfies them all; frames are light or full · 2026-09-10 · accepted
+**Context.** D-32 settled that observation is an injected recorder, but it fixed the seam in the
+terms a *search* engine speaks: `record_expansion` with the expanded state, its bound, the priced
+children and the frontier, and `record_goal` when the goal is popped. An optimizer has none of
+those. It advances by steps and holds a step number, a training loss and the current V; a traversal
+advances by visits and holds a node, its neighbours and the queue. Three engines, three sets of raw
+objects, and one call vocabulary that fits only the first. The choice was between widening the base
+contract until it means nothing in particular (`record(**anything)`), giving each engine its own
+recorder hierarchy including its own off switch, or one base with a contract per shape.
+**Decision.** `AbstractRecorder` stays the shared base — `enabled`, `frames`, `record`, `metadata`,
+`frame_dicts`, `describe_result` — and each problem *shape* gets its own abstract contract beside it
+in `math/recorder.py`: `AbstractSearchRecorder` for the engines that expand states,
+`AbstractStepRecorder` for the ones that take gradient steps, and a traversal contract in slice 4. A
+contract is exactly the abstract methods the engine calls, so an engine's call site is checkable
+against a type rather than against a convention. `NullRecorder` is declared once, against the base,
+and satisfies each later contract through `ABC.register`: there is one off switch in the library,
+not one per shape, and `recorder: AbstractStepRecorder = NullRecorder()` keeps meaning what it says.
+A step recorder records two kinds of frame: a **light** frame every step, carrying the step number
+and the training loss, and a **full** frame every `frame_every` steps and at the run's end, carrying
+V and every number derived from it through the exact `pinv` projector (D-31). Both kinds are the
+same dict shape, the light one's derived fields `null`, so a view reads one shape from first frame
+to last. The recorder's own `frame_every` default is 1 — a recorder records what it is given — and a
+composition root chooses a coarser default when the document it writes would otherwise be large.
+**Consequences.** A third engine adds an abstract contract and a child recorder; it never adds a
+second null recorder, and nothing in `math` learns what a walkthrough is. The `register` call is the
+one place this is weaker under static typing than an inheritance chain would be — a checker sees
+`NullRecorder` as satisfying `AbstractStepRecorder` only through the registration — which is
+acceptable because the repo has no type-check gate and the runtime relationship is exact. Recording
+size becomes a composition-root decision and is documented where it is made: at the example's
+`--frame-every` default of 5, where a full frame every step would write a twelve-megabyte document
+for karate and the page that embeds it.
+
+## D-34 — Narration is derived from frames, never authored per run; glossary tooltips are CONTEXT.md terms · 2026-09-10 · accepted
+**Context.** Phase 1 of BL-43 (D-32, D-33) made a run watchable: a recording of frames and one
+offline page with a stepper. It did not make a run legible. A page shows the frontier moving and Ê
+falling; it never says what a bound is, which frames decided the run, or why the run ended where it
+did. The bar this layer is held to is a reader with the page and nothing else. Three shapes were on
+the table. Hand-written prose per page — a paragraph typed once beside each example — goes stale the
+moment the run is re-recorded, and nothing catches it, because prose is not compared against
+anything. Sentences composed in the browser from the layout keep the prose in step with the numbers,
+but they are untestable without a JS runtime, which is exactly what P-5 refuses ("tests assert on
+data, never pixels"; no headless browser). Sentences derived in the view's Python at render time,
+from a frame and its predecessor, and embedded as data are string values a test can compare for
+equality.
+**Decision.** The third. A view exposes `explain(recording) -> Explanation`, pure and deterministic:
+same recording in, same strings out, no clock, no randomness, no I/O. Every element of the layer —
+opening panel, per-frame narration, key moments, legend, quantity strip, ending panel, glossary — is
+data in the layout JSON under `explain`, and the stepper only displays it: the JS selects a string
+by frame index and marks glossary terms, and **it never composes a sentence**. Tooltips come from
+one dictionary, `visualization/glossary.py`, whose keys are `CONTEXT.md` `**Term**:` headings
+spelled identically; a term that gets a tooltip must be a heading, and a test parses `CONTEXT.md` to
+enforce it, so the page's vocabulary is the repository's vocabulary and cannot fork from it. The
+two-hot 2-hot rule is a named constant in the view (`TWO_HOT_SHARE = 0.95`), not a number inside a
+sentence. Nothing in this layer adds a recorder call site or a frame field: the one-way flow of
+`docs/ARCHITECTURE.md` §1 — "Math never imports ML; ML composes math; scripts (composition roots)
+wire data to models" — puts the narration above the engines, and a value a narration wants but no
+frame holds is written into the plan's risks as a stated absence, not fetched by widening a frame.
+**Consequences.** Re-recording a run re-narrates it, which is the property the hand-written option
+could not have. Narration tests are string equality on committed fixtures, so a wording change is a
+visible diff and a derivation change that moves a number fails loudly; the fix for a wrong sentence
+is always the derivation, never the sentence. The template gains fixed slots — opening, moments,
+quantities, narration, legend, ending — that every view fills or leaves empty, so a view is a list
+of things to supply rather than a page to design, and a layout without `explain` still renders with
+those slots hidden. The glossary grows only through `CONTEXT.md`: a page cannot introduce a word the
+domain language has not accepted, and adding a tooltip is a domain-modelling act with a test behind
+it. The plan is `docs/plans/2026-09-visualization.md` § 6 (P-7, P-8), the initiative BL-43.

@@ -1,0 +1,430 @@
+{
+  "configuration": {
+    "allow_revisiting": false,
+    "max_depth": null,
+    "start": 1
+  },
+  "frames": [
+    {
+      "caption": "Visited node 1 at depth 0; 0 nodes pending; 1 visited so far.",
+      "depth": 0,
+      "end": false,
+      "found": false,
+      "index": 0,
+      "node_id": 1,
+      "pending": [],
+      "traversal_order": [
+        1
+      ],
+      "visited": [
+        1
+      ]
+    },
+    {
+      "caption": "Visited node 2 at depth 1; 1 node pending; 2 visited so far.",
+      "depth": 1,
+      "end": false,
+      "found": false,
+      "index": 1,
+      "node_id": 2,
+      "pending": [
+        [
+          5,
+          1
+        ]
+      ],
+      "traversal_order": [
+        1,
+        2
+      ],
+      "visited": [
+        1,
+        2,
+        5
+      ]
+    },
+    {
+      "caption": "Visited node 5 at depth 1; 2 nodes pending; 3 visited so far.",
+      "depth": 1,
+      "end": false,
+      "found": false,
+      "index": 2,
+      "node_id": 5,
+      "pending": [
+        [
+          3,
+          2
+        ],
+        [
+          4,
+          2
+        ]
+      ],
+      "traversal_order": [
+        1,
+        2,
+        5
+      ],
+      "visited": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "caption": "Visited node 3 at depth 2; 2 nodes pending; 4 visited so far.",
+      "depth": 2,
+      "end": false,
+      "found": false,
+      "index": 3,
+      "node_id": 3,
+      "pending": [
+        [
+          4,
+          2
+        ],
+        [
+          6,
+          2
+        ]
+      ],
+      "traversal_order": [
+        1,
+        2,
+        5,
+        3
+      ],
+      "visited": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "caption": "Visited node 4 at depth 2; 2 nodes pending; 5 visited so far.",
+      "depth": 2,
+      "end": false,
+      "found": false,
+      "index": 4,
+      "node_id": 4,
+      "pending": [
+        [
+          6,
+          2
+        ],
+        [
+          7,
+          3
+        ]
+      ],
+      "traversal_order": [
+        1,
+        2,
+        5,
+        3,
+        4
+      ],
+      "visited": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "caption": "Visited node 6 at depth 2; 2 nodes pending; 6 visited so far.",
+      "depth": 2,
+      "end": false,
+      "found": false,
+      "index": 5,
+      "node_id": 6,
+      "pending": [
+        [
+          7,
+          3
+        ],
+        [
+          8,
+          3
+        ]
+      ],
+      "traversal_order": [
+        1,
+        2,
+        5,
+        3,
+        4,
+        6
+      ],
+      "visited": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "caption": "Visited node 7 at depth 3; 2 nodes pending; 7 visited so far.",
+      "depth": 3,
+      "end": false,
+      "found": false,
+      "index": 6,
+      "node_id": 7,
+      "pending": [
+        [
+          8,
+          3
+        ],
+        [
+          11,
+          3
+        ]
+      ],
+      "traversal_order": [
+        1,
+        2,
+        5,
+        3,
+        4,
+        6,
+        7
+      ],
+      "visited": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "caption": "Traversal ended after 7 visits; target found.",
+      "depth": null,
+      "end": true,
+      "found": true,
+      "index": 7,
+      "node_id": null,
+      "pending": [],
+      "traversal_order": [
+        1,
+        2,
+        5,
+        3,
+        4,
+        6,
+        7
+      ],
+      "visited": []
+    }
+  ],
+  "problem": {
+    "algorithm": "bfs",
+    "kind": "graph_traversal",
+    "layout": {
+      "edges": [
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          10,
+          11
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          12,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          15
+        ],
+        [
+          1,
+          5
+        ],
+        [
+          3,
+          7
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          6,
+          11
+        ],
+        [
+          8,
+          13
+        ],
+        [
+          9,
+          15
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          10,
+          12
+        ],
+        [
+          12,
+          14
+        ]
+      ],
+      "node_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "positions": [
+        [
+          0.9965550307565946,
+          -0.7773365255446658
+        ],
+        [
+          0.6211267971393057,
+          -0.9033106879259656
+        ],
+        [
+          0.2777981203058397,
+          -0.8073825152221844
+        ],
+        [
+          0.33278395823836626,
+          -0.53298168634517
+        ],
+        [
+          0.7511882984253305,
+          -0.38279266058181866
+        ],
+        [
+          0.43890637078922384,
+          0.051223594994940946
+        ],
+        [
+          0.15513729476425217,
+          -0.32971252246397637
+        ],
+        [
+          -0.18901415298781554,
+          -0.10072642793143385
+        ],
+        [
+          -0.46464581745179406,
+          0.3791624587644344
+        ],
+        [
+          -0.17521781834696726,
+          0.7673734213117582
+        ],
+        [
+          0.10392733068604275,
+          0.5416834617482171
+        ],
+        [
+          -0.4122393187720861,
+          0.6752289665869191
+        ],
+        [
+          -0.6174585171665505,
+          0.2724258982618906
+        ],
+        [
+          -0.8188475763797445,
+          0.6671715788242973
+        ],
+        [
+          -1.0,
+          0.4799736455227557
+        ]
+      ]
+    },
+    "node_count": 15,
+    "target_node_id": 7
+  },
+  "result": {
+    "traversal_order": [
+      1,
+      2,
+      5,
+      3,
+      4,
+      6,
+      7
+    ],
+    "visit_count": 7
+  },
+  "schema_version": 1
+}

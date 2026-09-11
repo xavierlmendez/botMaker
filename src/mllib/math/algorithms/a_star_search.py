@@ -15,6 +15,7 @@ from mllib.math.algorithms.abstract_graph_algorithm import (
     SearchContext,
 )
 from mllib.math.graph.abstract_graph_problem import AbstractGraphProblem
+from mllib.math.recorder import AbstractSearchRecorder, NullRecorder
 from mllib.math.search_cost_function import SearchCostFunction
 
 # A parent's bound and its children's come from different arithmetic paths (each batch is priced from
@@ -168,6 +169,15 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
     the caller knows the objective's scale (a Nyström caller passes a small multiple of the kernel
     trace, as it does for ``incumbent_slack``). Both are stated by ``configuration``, so a harness
     row that ran with the counter on says so.
+
+    ``recorder`` is the collaborator that watches the search, defaulting to a fresh ``NullRecorder``
+    — a fresh one, never a shared mutable default. It is offered a call at each of the loop's two
+    moments, behind a guard on its ``enabled`` flag: ``record_expansion`` once the expanded state's
+    children have been priced and pushed, and ``record_goal`` on the goal pop the search returns
+    on. A variant contributes what it alone tracks through ``_recorder_extras``. Watching costs
+    one attribute read per expansion when it is off and changes nothing about which states are
+    expanded or what comes back, so it is not a setting and does not appear on ``configuration``
+    (D-32); the frames stay on the recorder the caller built, never on ``SearchResult`` (D-28).
     """
 
     def __init__(
@@ -180,6 +190,7 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         tie_tolerance: float = 0.0,
         count_bound_drops: bool = False,
         bound_drop_slack: float = 0.0,
+        recorder: AbstractSearchRecorder | None = None,
     ):
         super().__init__(problem, evaluator)
         if tie_break not in ("fifo", "deepest"):
@@ -196,6 +207,13 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
         self.count_bound_drops = count_bound_drops
         self.bound_drop_slack = bound_drop_slack
         self.bound_drops: BoundDropCounter | None = None
+        # Observation is injected and off by default: a fresh NullRecorder, never a shared mutable
+        # default, and never something the search reads back (D-32).
+        self.recorder: AbstractSearchRecorder = recorder or NullRecorder()
+        # The frontier and expanded-set size at the goal pop, kept only while a recorder is
+        # enabled: a variant that supersedes that goal after the loop has returned (the pruned
+        # engine's tie-tolerance branch) no longer has the heap to describe.
+        self._recorded_goal_frontier: tuple[list[tuple[float, State]], int] = ([], 0)
 
     @property
     def problem(self) -> AbstractGraphProblem[State, Action]:
@@ -287,9 +305,25 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
                 gap = 0.0
                 if self.tie_tolerance > 0.0:
                     gap = max(bound - self._frontier_minimum(queue), 0.0)
+                cost = self.cost_function.goal_cost(state)
+                # The other moment a recorder is offered: progress has reached a goal and the
+                # search is about to return on it. A goal is popped, never expanded, so it prices
+                # no children and needs its own call; a walkthrough that ended at the last
+                # expansion would stop one step short of the answer.
+                if self.recorder.enabled:
+                    goal_frontier = [(entry[3], entry[4]) for entry in queue]
+                    self._recorded_goal_frontier = (goal_frontier, len(expanded))
+                    self.recorder.record_goal(
+                        state,
+                        cost,
+                        nodes_expanded,
+                        goal_frontier,
+                        len(expanded),
+                        **self._recorder_extras(),
+                    )
                 return SearchResult(
                     state=state,
-                    cost=self.cost_function.goal_cost(state),
+                    cost=cost,
                     optimal=gap == 0.0,
                     nodes_expanded=nodes_expanded,
                     certified_gap=gap,
@@ -304,6 +338,26 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
             if counter is not None and insertion_index > last_index:
                 run_ends.append(insertion_index)
                 run_depths.append(depth + 1)
+
+            # The state has advanced: the first of the two moments a recorder is offered, and
+            # everything it needs is already in hand. Children take one contiguous run of
+            # insertion indices whether they were pushed or not, so a child is on the frontier
+            # exactly when its index is (``_push_children``); the heap is copied, never consumed.
+            if self.recorder.enabled:
+                first_child_index = insertion_index - len(children) + 1
+                on_frontier = {entry[2] for entry in queue}
+                self.recorder.record_expansion(
+                    state,
+                    bound,
+                    nodes_expanded,
+                    [
+                        (child_state, child_bound, first_child_index + offset in on_frontier)
+                        for offset, (child_state, child_bound) in enumerate(children)
+                    ],
+                    [(entry[3], entry[4]) for entry in queue],
+                    len(expanded),
+                    **self._recorder_extras(),
+                )
 
         self._no_goal_reachable()
 
@@ -338,6 +392,16 @@ class AStarSearch[State, Action](AbstractGraphAlgorithm):
             insertion_index += 1
             heapq.heappush(queue, self._heap_entry(bound, insertion_index, state))
         return insertion_index
+
+    def _recorder_extras(self) -> dict[str, object]:
+        """What a variant tracks that the base loop does not, passed on to an enabled recorder.
+
+        The hook exists so that a variant never overrides ``_search``: the loop's call sites stay
+        where they are and the variant contributes only its own state. Exact A* tracks nothing
+        beyond what the call already carries, so it contributes nothing. Called only inside the
+        recorder guard.
+        """
+        return {}
 
     def _no_goal_reachable(self) -> NoReturn:
         """The frontier emptied without a goal being popped."""

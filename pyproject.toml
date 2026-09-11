@@ -18,7 +18,8 @@ dependencies = [
   "pandas>=2.2",
   "scikit-learn>=1.4",     # train_test_split, ParameterGrid only
   "networkx>=3.2",
-  "matplotlib>=3.8",       # graphBased/visualizer.py
+  "matplotlib>=3.8",       # notebooks/MLFall25HW1.ipynb only; BL-43 slice 4 deleted
+                           # math/graph/visualizer.py, the last library importer
 ]
 
 [dependency-groups]
@@ -29,10 +30,25 @@ dev = [
   "pre-commit>=3",
   "hypothesis>=6",
 ]
+# torch is a local-only group (D-31): opt in with `uv sync --dev --group torch`. The CPU index is
+# explicit so a Linux checkout gets the CPU wheel instead of PyPI's default GPU build.
+torch = ["torch>=2.4"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["mllib", "mllib.*"]
+
+[tool.setuptools.package-data]
+"mllib.visualization" = ["*.html", "*.js"]        # walkthrough template and stepper (D-32)
+"mllib.visualization.views" = ["*.js"]            # each problem's drawing function (BL-43 slice 2)
 
 [tool.ruff]
 line-length = 100
@@ -45,6 +61,11 @@ ignore = [
   "TD002",   # author tag not required: the BL-nn id carries provenance
   "TD003",   # issue link not required: BL-nn resolves in docs/BACKLOG.md
 ]
+
+# The two-hot span modules write the brief's mathematics in the brief's notation. Sigma, lambda and
+# mu are already unambiguous to RUF001-003; nu and the script l (the vertex load) are not, and
+# spelling them "nu" and "l" beside them would be worse than allowing them here.
+allowed-confusables = ["\u03bd", "\u2113"]
 
 [tool.ruff.lint.per-file-ignores]
 # Remaining BL-24 lint debt (docs/BACKLOG.md). A code leaves this list when its count reaches zero;
