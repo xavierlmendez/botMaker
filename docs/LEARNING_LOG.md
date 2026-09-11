@@ -874,7 +874,12 @@ this cell is decided by the fifteenth digit of a floating-point bound. The sente
 tie-break only when the pushed bounds are exactly equal or the tolerance is positive — the honest
 version is derivable from the frames, the confident version was not, and the capped anytime cell
 added to the example finds the other optimum first as its incumbent. The first complete selection
-priced (frame 4) is neither.
+priced (frame 4) is neither. CI then proved the point the hard way: on the ubuntu runner OpenBLAS
+puts the fifteenth digit the other way and the exact cell pops {1, 4, 6}, so a byte-for-byte fixture
+guard was a guard on the Mac's LAPACK. The guard now reads the tie off the fixture's own goal frame
+and accepts either reflection as the goal, everything else exactly; the cell itself keeps
+`tie_tolerance = 0`, because any positive tolerance turns a 4e-16 difference into `optimal=False`
+and the page into an exact run that certifies nothing.
 
 **The two-hot optimizer lowers a loss that is not the objective.** On roach at λ = 10 the narration
 says, frame after frame, "E\* rose by … since step N" while the training loss falls: the collision
