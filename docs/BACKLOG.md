@@ -339,23 +339,38 @@ under `examples/two_hot_span_stress_results/`; the **frozen** result is not a bo
 lives in the research repo as `nystrom/data/two-hot-stress-v1.jsonl` with its sha256 and a `PROVENANCE.md`
 row naming the botMaker commit, which every cell record also carries beside the three engine files' digests.
 
+Scheduling amendment 2026-09-11 (grill): rung 0 runs as registered — λ = 10 is what the frozen reports pin,
+and the oracle is the point of the rung. Rung 1 is **held** until the scale-law probe (scaled collision
+weights λ·r/Σλ ∈ {≈2, ≈6, ≈20} across the six default instances) reports; its grid's λ column is then
+amended to scaled values as a dated pre-registration amendment, made before rung 1 produces a single cell
+and citing the probe's numbers.
+
 Closes when the ladder has run and the seed's three questions have numbers; the analysis, the findings and
 the kill-criteria re-read belong to the research repo, not here.
 
 ### BL-46 — Two-hot: restarts and the joint (W, H) factorization as an optimizer variant · `backlog-only` · re-entry 2–4 h
 
 Opened 2026-09-10 from the `two_triangles` side-by-side (slice 2.8, `docs/LEARNING_LOG.md` "λ is not
-scale-free"). Two things the prototype does not do and Xavier's own minimal implementation of the same
-objective does: **restarts** — best of ten random initialisations, selected by training loss — and a **joint
-(W, H) factorization** in place of the single moved V. On the six-node triangles the two together are worth
+scale-free"). Two things the prototype does not do and the minimal implementation run beside it does —
+Prof. Schweitzer's, copied in as a comparison mock and **excluded as a comparator** (correction 2026-09-11;
+this entry first said Xavier's own): **restarts** — best of ten random initialisations, selected by training
+loss — and a **joint (W, H) factorization** in place of the single moved V. On the six-node triangles the two together are worth
 5/10 restarts against this engine's 2/10 seeds, and selection by training loss happened to pick the best Ê
 because the losing restarts sat at a column with R ≈ 0.43–0.47, visibly short of ½. Neither observation is a
 decision: one instance, and the selection rule only coincides with Ê selection while the failure stays that
 legible.
 
-First step: pair the two formulations on roach G₅ over 10 seeds at λ scaled by Σλ/r, and report by Ê — never
-by training loss, which is the two formulations' one incomparable quantity. Closes when the pairing says
-whether restarts alone explain the gap or the joint factorization buys something restarts do not.
+First step — redesigned 2026-09-11 (grill, after the mock's exclusion): a **restarts arm only**, no engine
+change — the existing optimizer over 10 seeds on roach G₅ and `two_triangles` (enumerated optimum, so the
+hit rate is exact), reported as the house seed summary with best-by-Ê, and best-by-training-loss recorded
+beside it only to show where the two selection rules diverge. This is owed regardless of any comparison: a
+randomised rule is quoted only as a seed summary (`CONTEXT.md`), and every prototype number to date is a
+single seed. The **joint (W, H) optimizer variant** is parked as not paper-blocking — built only if the
+restarts numbers leave the reliability question open, or office hours ask for the professor's formulation
+directly. The variant has an exact characterization (2026-09-11, from the professor's build session):
+L(W, H) = ‖X − VH‖²_F − λΣR with H a free r×m parameter — min over H recovers the span residual E(V), so it
+is a third training arithmetic of the same objective (beside ridge and pinv), smooth with neither QR nor a
+ridge. Closes when the restarts seed summary exists and the joint-variant decision is recorded.
 
 ### BL-47 — Walkthrough pages cost bytes per step, not per full frame · `backlog-only` · re-entry 2–3 h
 
@@ -459,6 +474,19 @@ first step is decided by rounding — if it stays, the fixtures are written on t
 compared at a stated tolerance there, and the Mac is the platform that skips; if it goes, the
 walkthrough and the rung-0 oracles move to the random start (BL-45 owns the ladder). Closes when
 no torch test is skipped by platform.
+
+### BL-51 — Report rank(V) beside the component count · `backlog-only` · re-entry 1–2 h
+
+Opened 2026-09-11 from the professor's build session (the paper grill): beside E\*, Ê, R(v_j) and the
+component count he asked for **rank(V)** — "duplicate rounded edges or cycles can otherwise produce fewer
+independent directions than intended even if each individual rounding looks reasonable." The pairing is
+deliberate: the component count already fixes the rounded side (an incidence-shaped V̂ over a pair graph
+with c components has rank n − c), so rank(V) is the *continuous* side's counterpart — how many independent
+directions the learned span actually holds before rounding. Add `rank_V` (numpy `matrix_rank` at a stated
+tolerance, computed on the reporting path beside the exact `pinv` numbers) to `TwoHotSpanRun`, the harness
+rows and the stress records; the paper's validation tables carry it (research repo, Paper 1 § Validation).
+Closes when every report row carries `rank_V` and one test pins a hand value (a V with a duplicated column
+has rank r − 1).
 
 ## Closed
 

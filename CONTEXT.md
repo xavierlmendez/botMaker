@@ -251,6 +251,12 @@ The per-column regularizer R(v_j) that rewards a column for concentrating on two
 diagnostic of how 2-hot a column has become, never the criterion a run is judged by.
 _Avoid_: sparsity penalty, concentration loss
 
+**Scaled collision weight**:
+λ·r/Σλ: the collision weight measured in units of the spectral floor per spanning vector, the
+quantity that transfers between graphs where raw λ does not; the collision reward's ceiling is
+half of it.
+_Avoid_: reward depth, normalized λ; a raw λ quoted alone in any cross-graph claim
+
 **Roundability**:
 How far a relaxed column is from its nearest 2-hot vector, and hence how much the rounded cut can
 exceed the relaxed objective.
@@ -305,6 +311,11 @@ _Avoid_: settings, params
 
 **Composition root**: The script or harness that instantiates concrete classes and wires them
 together. The only place a concrete class is named by name. _Avoid_: driver, runner, main
+
+**Engine**: A solver implementation as a whole — the module triple (problem, optimizer or
+selectors, harness) that computes a result; two implementations of the same objective are two
+engines. Never the machine a run executes on, and never the runner that composes it.
+_Avoid_: the repo (a library holds engines), the host (macDaddy, AWS, the R620)
 
 ### Optimization
 
