@@ -1172,9 +1172,10 @@ and for why spectral bisection misses its antenna cut.
 ## λ is not scale-free: the collision reward against the spectral floor · 2026-09-10
 
 **What.** A six-node instance — two weight-1 triangles, 0-1-2 and 3-4-5, joined by the weight-0.1
-bridge (2, 3) — entered the prototype as the sixth `default_test_graphs()` entry because Xavier's own
-minimal implementation of the same objective ships it as its `main()` example, and the two engines
-were run side by side on it today. It is the smallest instance on which *nothing but the optimizer*
+bridge (2, 3) — entered the prototype as the sixth `default_test_graphs()` entry because the minimal
+implementation of the same objective run beside this engine — Prof. Schweitzer's, copied in as a
+comparison mock *(attribution corrected 2026-09-11; this entry first said Xavier's own)* — ships it
+as its `main()` example, and the two engines were run side by side on it today. It is the smallest instance on which *nothing but the optimizer*
 can be blamed: n = 6 is inside `BRUTE_FORCE_NODE_LIMIT`, so the RatioCut optimum is enumerated rather
 than referenced and comes back as 1/15 = 0.066667 at exactly the planted labels [0,0,0,1,1,1], and
 all three datum roundings — `kmeans`, `discretize`, `cluster_qr`, seed 0 — land the same partition.
@@ -1229,10 +1230,12 @@ now carry `learning_rate` and `step_count`, but they apply *only* when the CLI l
 their defaults, and the three older entries carry neither. The roach G₅ walkthrough fixture is the
 guard: it is byte-identical, which is the statement that nothing about the older runs moved.
 
-**The side-by-side, which is the observation this entry exists for.** Xavier's engine reached 1/15 on
-**5 of 10 restarts** at λ = 0.1, against this repository's 2 of 10 seeds and its spectral hit. Two
-differences, and they are not separated yet. His formulation is a joint (W, H) factorization rather
-than a single moved V; and he takes ten restarts and selects the best by **training loss**. On this
+**The side-by-side, which is the observation this entry exists for.** The professor's mock reached
+1/15 on **5 of 10 restarts** at λ = 0.1, against this repository's 2 of 10 seeds and its spectral
+hit *(attribution corrected 2026-09-11: the implementation was Prof. Schweitzer's, copied in for
+the comparison, not Xavier's — and being a mock, its numbers motivate rather than calibrate)*. Two
+differences, and they are not separated yet. Its formulation is a joint (W, H) factorization rather
+than a single moved V; and it takes ten restarts and selects the best by **training loss**. On this
 instance that selection rule coincides with selecting by Ê, which is a coincidence worth naming
 rather than trusting: the losing restarts are legible failures, one column stuck at R ≈ 0.43–0.47 —
 visibly short of ½, so visibly not 2-hot — and the training loss sees that through its collision term.
