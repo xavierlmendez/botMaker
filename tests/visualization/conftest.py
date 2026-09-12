@@ -43,6 +43,32 @@ FLOAT_RELATIVE_TOLERANCE = 1e-9
 FLOAT_ABSOLUTE_TOLERANCE = 1e-9
 
 
+def _tie_invariant_frontier(entries: list) -> list:
+    """A recorded frontier with each run of tied bounds sorted by state, so the order within a tie
+    is not what the comparison reads.
+
+    The recorder sorts the frontier by raw bound and then by state. Two bounds a few ulps apart
+    are one tie in exact arithmetic, and which of them the BLAS rounds lower differs between the
+    Mac that wrote a fixture and the CI runner (b51d905, and BL-50 for the amplified form), so on
+    the runner such a pair sorts the other way round. Entries are grouped while each bound is
+    within the float tolerance of the group's first; each group is sorted by state.
+    """
+    canonical: list = []
+    group: list = []
+    for entry in entries:
+        if group and not math.isclose(
+            entry[0],
+            group[0][0],
+            rel_tol=FLOAT_RELATIVE_TOLERANCE,
+            abs_tol=FLOAT_ABSOLUTE_TOLERANCE,
+        ):
+            canonical.extend(sorted(group, key=lambda item: item[1]))
+            group = []
+        group.append(entry)
+    canonical.extend(sorted(group, key=lambda item: item[1]))
+    return canonical
+
+
 def _first_difference(actual, expected, path: str) -> str | None:
     """The path to the first place two JSON documents differ beyond float noise, or ``None``."""
     if isinstance(expected, bool) or isinstance(actual, bool):
@@ -59,7 +85,10 @@ def _first_difference(actual, expected, path: str) -> str | None:
         if actual.keys() != expected.keys():
             return f"{path}: keys {sorted(actual)} != {sorted(expected)}"
         for key in expected:
-            found = _first_difference(actual[key], expected[key], f"{path}.{key}")
+            left, right = actual[key], expected[key]
+            if key == "frontier" and isinstance(left, list) and isinstance(right, list):
+                left, right = _tie_invariant_frontier(left), _tie_invariant_frontier(right)
+            found = _first_difference(left, right, f"{path}.{key}")
             if found is not None:
                 return found
         return None
@@ -78,8 +107,9 @@ def assert_same_recording(actual_text: str, expected_text: str) -> None:
     """The two recording documents describe the same run, up to float noise.
 
     Same keys, same frames, same states, captions and counts; floats within
-    ``FLOAT_RELATIVE_TOLERANCE`` / ``FLOAT_ABSOLUTE_TOLERANCE``. The message names the first
-    place they part, which a byte-for-byte diff of a megabyte of JSON never did.
+    ``FLOAT_RELATIVE_TOLERANCE`` / ``FLOAT_ABSOLUTE_TOLERANCE``; a frontier's tied entries in any
+    order. The message names the first place they part, which a byte-for-byte diff of a megabyte
+    of JSON never did.
     """
     difference = _first_difference(json.loads(actual_text), json.loads(expected_text), "$")
     assert difference is None, f"recordings differ at {difference}"
