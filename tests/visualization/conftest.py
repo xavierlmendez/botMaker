@@ -2,6 +2,7 @@
 
 import json
 import math
+import platform
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +32,14 @@ SUPERSEDING_TOLERANCE_PER_TRACE = 0.1
 
 # An expansion cap the identity kernel reaches while still holding an incumbent it priced early.
 CAPPED_EXPANSIONS = 5
+
+# A fixture whose run is decided by a tie the BLAS breaks reproduces only on the platform that
+# wrote it (BL-50): the spectral start of the two-hot fixture, and the tied bounds of the A* one.
+FIXTURE_PLATFORM = "Darwin-arm64"
+only_on_fixture_platform = pytest.mark.skipif(
+    f"{platform.system()}-{platform.machine()}" != FIXTURE_PLATFORM,
+    reason=f"BL-50: fixture run reproduces only on {FIXTURE_PLATFORM}",
+)
 
 FIXTURE_NAME = "astar_landmark_rbf_chain_8x8_k3.json"
 TWO_HOT_FIXTURE_NAME = "two_hot_span_roach_g5_30steps.json"

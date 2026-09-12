@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from mllib.visualization.render import main as render_main
-from tests.visualization.conftest import assert_same_recording
+from tests.visualization.conftest import assert_same_recording, only_on_fixture_platform
 
 HERE = Path(__file__).resolve().parent
 REPOSITORY_ROOT = HERE.parents[1]
@@ -95,9 +95,13 @@ def assert_same_run_up_to_the_goal_tie(actual_text: str, expected_text: str) -> 
     assert_same_recording(actual_text, json.dumps(_with_the_tied_goal(expected, goal)))
 
 
+@only_on_fixture_platform
 def test_the_recorded_run_is_the_one_the_committed_fixture_holds(
     example_module, tmp_path, fixture_path
 ):
+    """Platform-bound (BL-50): at expansion 8 two frontier states share the bound 0.6811 to the
+    last digits the display shows, the runner's BLAS ranks them the other way, and the expansion
+    order diverges from there while the certificate still ends at the same state."""
     recording_path, _ = example_module.write_cell("rbf_chain_8x8_k3", tmp_path)
 
     assert_same_run_up_to_the_goal_tie(recording_path.read_text(), fixture_path.read_text())

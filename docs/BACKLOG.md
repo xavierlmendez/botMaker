@@ -427,10 +427,13 @@ spectral start stays a reported cell given that it is a stationary point of the 
 first step is decided by rounding — if it stays, the fixtures are written on the CI platform and
 compared at a stated tolerance there, and the Mac is the platform that skips; if it goes, the
 walkthrough and the rung-0 oracles move to the random start (BL-45 owns the ladder). Closes when
-no torch test is skipped by platform. The A\* walkthrough fixture showed the milder form on
-2026-09-11: two frontier bounds a few ulps apart sort the other way round on the runner, and
-the fixture comparison now treats bounds within its tolerance as one unordered tie
-(`tests/visualization/conftest.py`), so that fixture is not platform-bound. The same decision
+no torch test is skipped by platform. The A\* walkthrough fixture
+(`astar_landmark_rbf_chain_8x8_k3.json`) is in the same set, found 2026-09-11 when `main` went red
+after #43 and #45: its first frame holds two frontier bounds a few ulps apart, which the comparison
+now reads as one unordered tie (`tests/visualization/conftest.py`), and its eighth expansion is a
+real tie at 0.6811 that the runner breaks the other way, after which the expansion order diverges
+while the certificate still ends at the same state and count. The rerun test carries the same
+platform skip; the render tests load the fixture and run everywhere. The same decision
 settles the Laplacian's two derivations
 (ARCHITECTURE §5): the fixture set that is regenerated deliberately takes the other's arithmetic.
 
