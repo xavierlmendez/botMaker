@@ -2,7 +2,7 @@
 
 Both are *experiments* and both are off by default, so the first thing this file pins is that a
 default run is untouched (that test lives beside its siblings in
-`test_two_hot_span_optimizer.py::test_the_default_configuration_reproduces_an_explicit_constant_run`).
+`test_two_hot_span_optimizer.py::test_the_defaulted_objects_reproduce_an_explicit_constant_run`).
 What is here is the behaviour the knobs add: the shape of the schedule the optimizer actually ran
 under, the two adjacency forms checked against numbers computed by hand on a graph small enough to
 read, that switching the term on leaves the run's invariants standing, and that a misspelled name
@@ -15,7 +15,6 @@ assertions are on closed-form values rather than on anything Adam did.
 from __future__ import annotations
 
 import math
-from dataclasses import replace
 
 import networkx as nx
 import numpy as np
@@ -25,11 +24,16 @@ pytest.importorskip("torch")
 
 import torch
 
+from mllib.math.algorithms.two_hot_span.optimizer import (
+    TwoHotSpanOptimizer,
+    TwoHotSpanSettings,
+    training_cost,
+)
 from mllib.math.algorithms.two_hot_span.penalties import (
     EdgeProductAdjacencyPenalty,
     LaplacianAdjacencyPenalty,
 )
-from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
+from mllib.math.algorithms.two_hot_span.step_rules import AdamStepRule
 from mllib.math.graph.two_hot_span_problem import (
     brute_force_rcut,
     graph_matrices,
@@ -38,6 +42,14 @@ from mllib.math.graph.two_hot_span_problem import (
     roach_graph,
     spectral_floor,
 )
+from mllib.math.learning_rate_schedule import (
+    ConstantSchedule,
+    CosineSchedule,
+    LinearSchedule,
+    WarmupCosineSchedule,
+)
+
+from .two_hot_span_support import problem_for, run, run_with_history
 
 STEPS = 40
 LEARNING_RATE = 0.05
@@ -72,11 +84,27 @@ def seeded_graph(node_total: int, seed: int) -> nx.Graph:
     return graph
 
 
+def schedule_named(name: str, **knobs):
+    """The schedule object the old config name asked for; the names live in `mllib.ml` now."""
+    fraction = float(knobs.get("final_learning_rate_fraction", 0.0))
+    if name == "constant":
+        return ConstantSchedule()
+    if name == "linear":
+        return LinearSchedule(final_fraction=fraction)
+    if name == "cosine":
+        return CosineSchedule(final_fraction=fraction)
+    return WarmupCosineSchedule(
+        warmup_steps=int(knobs.get("warmup_steps", 0)), final_fraction=fraction
+    )
+
+
 def run_with(**overrides) -> np.ndarray:
     """The learning-rate history of a short seeded run on the roach under the given schedule."""
-    X = incidence_matrix(roach_graph(5))
-    config = TwoHotSpanConfig(step_count=STEPS, learning_rate=LEARNING_RATE, seed=0, **overrides)
-    return fit_two_hot_span(X, 2, config).learning_rate_history
+    schedule = schedule_named(overrides.pop("learning_rate_schedule", "constant"), **overrides)
+    _, history = run_with_history(
+        roach_graph(5), 2, step_count=STEPS, learning_rate=LEARNING_RATE, seed=0, schedule=schedule
+    )
+    return history.learning_rate_history
 
 
 # ------------------------------------------------------------------------------------------------
@@ -132,19 +160,17 @@ def test_the_linear_schedule_is_linear_in_the_step():
 
 
 def test_a_scheduled_run_still_holds_the_zero_sum_constraint():
-    X = incidence_matrix(roach_graph(5))
-    config = TwoHotSpanConfig(
+    result, history = run_with_history(
+        roach_graph(5),
+        2,
         step_count=STEPS,
         seed=0,
         collision_weight=1.0,
-        learning_rate_schedule="warmup_cosine",
-        warmup_steps=5,
-        final_learning_rate_fraction=FRACTION,
+        schedule=WarmupCosineSchedule(warmup_steps=5, final_fraction=FRACTION),
     )
-    run = fit_two_hot_span(X, 2, config)
 
-    assert run.max_zero_sum_violation <= 1e-12
-    assert np.isfinite(run.loss_history).all()
+    assert result.max_zero_sum_violation <= 1e-12
+    assert np.isfinite(history.loss_history).all()
 
 
 # ------------------------------------------------------------------------------------------------
@@ -253,76 +279,79 @@ def test_a_matrix_that_is_not_an_incidence_matrix_is_refused():
 @pytest.mark.parametrize("form", ["laplacian", "edge_product"])
 def test_a_run_with_the_graph_term_keeps_every_invariant(form):
     graph = seeded_graph(8, seed=5)
-    X = incidence_matrix(graph)
     optimum, _ = brute_force_rcut(graph, 2)
     floor = spectral_floor(graph, 2)
-    config = TwoHotSpanConfig(
+
+    result, history = run_with_history(
+        graph,
+        2,
         step_count=200,
         seed=7,
         collision_weight=1.0,
         adjacency_weight=1.0,
         adjacency_form=form,
-        learning_rate_schedule="cosine",
-        final_learning_rate_fraction=0.02,
+        schedule=CosineSchedule(final_fraction=0.02),
     )
 
-    run = fit_two_hot_span(X, 2, config)
-
-    assert run.max_zero_sum_violation <= 1e-12
-    assert np.isfinite(run.loss_history).all()
-    assert np.isfinite(run.spanning_set).all()
-    assert run.rounded_cut >= optimum - 1e-10
-    assert run.relaxed_objective >= floor - 1e-10
+    assert result.max_zero_sum_violation <= 1e-12
+    assert np.isfinite(history.loss_history).all()
+    assert np.isfinite(result.spanning_set).all()
+    assert result.rounded_cut >= optimum - 1e-10
+    assert result.relaxed_objective >= floor - 1e-10
 
 
 def test_the_graph_term_changes_the_run_it_is_switched_on_for():
     """A knob that made no difference would be a knob nobody could test the sign of."""
-    X = incidence_matrix(seeded_graph(8, seed=5))
-    base = TwoHotSpanConfig(step_count=50, seed=7, collision_weight=1.0)
+    graph = seeded_graph(8, seed=5)
 
-    off = fit_two_hot_span(X, 2, base)
-    on = fit_two_hot_span(X, 2, replace(base, adjacency_weight=1.0))
+    off = run(graph, 2, step_count=50, seed=7, collision_weight=1.0)
+    on = run(graph, 2, step_count=50, seed=7, collision_weight=1.0, adjacency_weight=1.0)
 
     assert not np.array_equal(off.spanning_set, on.spanning_set)
 
 
 # ------------------------------------------------------------------------------------------------
-# Validation.
+# Validation: each refusal lives on the object that owns the knob (D-35 (3)).
+#
+# The two name-based refusals the old config made — an unknown schedule name, an unknown adjacency
+# form — are a composition root's: names live in `mllib.ml.projects.two_hot_span_composition` and
+# are tested there. Negative penalty weights likewise: the penalty classes take any weight and the
+# composition module refuses a negative one.
 # ------------------------------------------------------------------------------------------------
 
 
-def test_an_unknown_schedule_name_is_refused_at_construction():
-    with pytest.raises(ValueError, match="unknown learning_rate_schedule"):
-        TwoHotSpanConfig(learning_rate_schedule="exponential")
-
-
-def test_an_unknown_adjacency_form_is_refused_at_construction():
-    with pytest.raises(ValueError, match="unknown adjacency_form"):
-        TwoHotSpanConfig(adjacency_form="normalized")
-
-
-def test_a_negative_adjacency_weight_is_refused():
-    with pytest.raises(ValueError, match="adjacency_weight must not be negative"):
-        TwoHotSpanConfig(adjacency_weight=-1.0)
-
-
-def test_a_negative_warmup_is_refused():
+def test_a_negative_warmup_is_refused_by_the_schedule():
     with pytest.raises(ValueError, match="warmup_steps must not be negative"):
-        TwoHotSpanConfig(warmup_steps=-1)
+        WarmupCosineSchedule(warmup_steps=-1)
 
 
-def test_a_negative_learning_rate_is_refused():
-    with pytest.raises(ValueError, match="learning_rate must not be negative"):
-        TwoHotSpanConfig(learning_rate=-0.01)
+def test_a_negative_learning_rate_is_refused_by_the_step_rule():
+    with pytest.raises(ValueError, match="learning_rate must be finite and not negative"):
+        AdamStepRule(-0.01)
 
 
 @pytest.mark.parametrize("fraction", [-0.1, 1.5])
-def test_a_final_fraction_outside_the_unit_interval_is_refused(fraction):
-    with pytest.raises(ValueError, match="final_learning_rate_fraction"):
-        TwoHotSpanConfig(final_learning_rate_fraction=fraction)
+@pytest.mark.parametrize("schedule_class", [LinearSchedule, CosineSchedule])
+def test_a_final_fraction_outside_the_unit_interval_is_refused_by_the_schedule(
+    schedule_class, fraction
+):
+    with pytest.raises(ValueError, match="final_fraction"):
+        schedule_class(final_fraction=fraction)
 
 
 def test_a_warmup_as_long_as_the_run_is_refused_so_the_decay_cannot_silently_vanish():
+    """The one cross-object check: the optimizer knows the budget, the schedule the warm-up."""
+    graph = roach_graph(5)
     with pytest.raises(ValueError, match="warmup_steps"):
-        TwoHotSpanConfig(step_count=30, learning_rate_schedule="warmup_cosine", warmup_steps=30)
-    TwoHotSpanConfig(step_count=30, learning_rate_schedule="warmup_cosine", warmup_steps=29)
+        TwoHotSpanOptimizer(
+            problem_for(graph, 2),
+            training_cost(problem_for(graph, 2)),
+            step_rule=AdamStepRule(0.05, WarmupCosineSchedule(warmup_steps=30)),
+            settings=TwoHotSpanSettings(step_count=30),
+        )
+    TwoHotSpanOptimizer(
+        problem_for(graph, 2),
+        training_cost(problem_for(graph, 2)),
+        step_rule=AdamStepRule(0.05, WarmupCosineSchedule(warmup_steps=29)),
+        settings=TwoHotSpanSettings(step_count=30),
+    )

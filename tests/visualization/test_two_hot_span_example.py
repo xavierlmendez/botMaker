@@ -20,7 +20,6 @@ command has to keep producing this fixture even if that default moves again.
 from __future__ import annotations
 
 import json
-import platform
 import re
 import sys
 from pathlib import Path
@@ -29,7 +28,7 @@ import pytest
 
 from mllib.visualization.recording import Recording
 from mllib.visualization.render import main as render_main
-from tests.visualization.conftest import assert_same_recording
+from tests.visualization.conftest import assert_same_recording, only_on_fixture_platform
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "two_hot_span_roach_g5_30steps.json"
@@ -109,16 +108,6 @@ def test_the_cli_renders_the_committed_fixture_through_the_two_hot_span_view(tmp
 
     assert 'var KIND = "two_hot_span";' in page
     assert "window.walkthroughViews[KIND] = function" in page
-
-
-# The spectral start is a stationary point of the span term, so Adam's first step is a sign
-# function of a gradient whose near-zero entries the BLAS decides: the fixtures written on this
-# platform reproduce only on it (BL-50). The random-start snapshot has no such sensitivity.
-FIXTURE_PLATFORM = "Darwin-arm64"
-only_on_fixture_platform = pytest.mark.skipif(
-    f"{platform.system()}-{platform.machine()}" != FIXTURE_PLATFORM,
-    reason=f"BL-50: spectral-start fixture reproduces only on {FIXTURE_PLATFORM}",
-)
 
 
 @only_on_fixture_platform

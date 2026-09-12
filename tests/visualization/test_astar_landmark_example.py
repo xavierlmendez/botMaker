@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from mllib.visualization.render import main as render_main
-from tests.visualization.conftest import assert_same_recording
+from tests.visualization.conftest import assert_same_recording, only_on_fixture_platform
 
 HERE = Path(__file__).resolve().parent
 REPOSITORY_ROOT = HERE.parents[1]
@@ -95,9 +95,13 @@ def assert_same_run_up_to_the_goal_tie(actual_text: str, expected_text: str) -> 
     assert_same_recording(actual_text, json.dumps(_with_the_tied_goal(expected, goal)))
 
 
+@only_on_fixture_platform
 def test_the_recorded_run_is_the_one_the_committed_fixture_holds(
     example_module, tmp_path, fixture_path
 ):
+    """Platform-bound (BL-50): at expansion 8 two frontier states share the bound 0.6811 to the
+    last digits the display shows, the runner's BLAS ranks them the other way, and the expansion
+    order diverges from there while the certificate still ends at the same state."""
     recording_path, _ = example_module.write_cell("rbf_chain_8x8_k3", tmp_path)
 
     assert_same_run_up_to_the_goal_tie(recording_path.read_text(), fixture_path.read_text())
@@ -155,3 +159,39 @@ def test_the_cli_re_renders_the_fixture_to_the_page_the_example_writes(example_m
 def test_an_unknown_cell_is_refused_by_name(example_module):
     with pytest.raises(ValueError, match="two_hot_span"):
         example_module.kernel_for("two_hot_span")
+
+
+def test_a_frontier_tie_in_either_order_is_the_same_recording(fixture_path):
+    """The runner sorts two bounds a few ulps apart the other way round (b51d905); a tie is a set.
+
+    The committed fixture's first frame holds such a pair: states [2] and [5] at bounds that differ
+    in the fifteenth digit. Swapping them, or nudging one bound by an ulp, is the same run; a
+    different state in the tie, or a swap across a real gap, is not.
+    """
+    document = json.loads(fixture_path.read_text())
+    frontier = document["frames"][0]["frontier"]
+    tied = [
+        index for index, (bound, _) in enumerate(frontier) if abs(bound - frontier[4][0]) < 1e-9
+    ]
+    assert tied == [4, 5], "the fixture no longer holds the tie this test is about"
+
+    swapped = json.loads(json.dumps(document))
+    swapped["frames"][0]["frontier"][4], swapped["frames"][0]["frontier"][5] = (
+        frontier[5],
+        frontier[4],
+    )
+    swapped["frames"][0]["frontier"][4][0] += 2e-15
+    assert_same_recording(json.dumps(swapped), json.dumps(document))
+
+    other_state = json.loads(json.dumps(document))
+    other_state["frames"][0]["frontier"][5][1] = [7]
+    with pytest.raises(AssertionError, match=r"frontier\[5\]\[1\]"):
+        assert_same_recording(json.dumps(other_state), json.dumps(document))
+
+    across_a_gap = json.loads(json.dumps(document))
+    across_a_gap["frames"][0]["frontier"][3], across_a_gap["frames"][0]["frontier"][4] = (
+        frontier[4],
+        frontier[3],
+    )
+    with pytest.raises(AssertionError, match=r"frontier\[3\]"):
+        assert_same_recording(json.dumps(across_a_gap), json.dumps(document))

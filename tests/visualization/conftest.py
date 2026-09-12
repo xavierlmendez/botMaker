@@ -2,6 +2,7 @@
 
 import json
 import math
+import platform
 from pathlib import Path
 
 import numpy as np
@@ -32,6 +33,14 @@ SUPERSEDING_TOLERANCE_PER_TRACE = 0.1
 # An expansion cap the identity kernel reaches while still holding an incumbent it priced early.
 CAPPED_EXPANSIONS = 5
 
+# A fixture whose run is decided by a tie the BLAS breaks reproduces only on the platform that
+# wrote it (BL-50): the spectral start of the two-hot fixture, and the tied bounds of the A* one.
+FIXTURE_PLATFORM = "Darwin-arm64"
+only_on_fixture_platform = pytest.mark.skipif(
+    f"{platform.system()}-{platform.machine()}" != FIXTURE_PLATFORM,
+    reason=f"BL-50: fixture run reproduces only on {FIXTURE_PLATFORM}",
+)
+
 FIXTURE_NAME = "astar_landmark_rbf_chain_8x8_k3.json"
 TWO_HOT_FIXTURE_NAME = "two_hot_span_roach_g5_30steps.json"
 
@@ -41,6 +50,32 @@ TWO_HOT_FIXTURE_NAME = "two_hot_span_roach_g5_30steps.json"
 # else — a state, a caption, a count, a key — has to match exactly.
 FLOAT_RELATIVE_TOLERANCE = 1e-9
 FLOAT_ABSOLUTE_TOLERANCE = 1e-9
+
+
+def _tie_invariant_frontier(entries: list) -> list:
+    """A recorded frontier with each run of tied bounds sorted by state, so the order within a tie
+    is not what the comparison reads.
+
+    The recorder sorts the frontier by raw bound and then by state. Two bounds a few ulps apart
+    are one tie in exact arithmetic, and which of them the BLAS rounds lower differs between the
+    Mac that wrote a fixture and the CI runner (b51d905, and BL-50 for the amplified form), so on
+    the runner such a pair sorts the other way round. Entries are grouped while each bound is
+    within the float tolerance of the group's first; each group is sorted by state.
+    """
+    canonical: list = []
+    group: list = []
+    for entry in entries:
+        if group and not math.isclose(
+            entry[0],
+            group[0][0],
+            rel_tol=FLOAT_RELATIVE_TOLERANCE,
+            abs_tol=FLOAT_ABSOLUTE_TOLERANCE,
+        ):
+            canonical.extend(sorted(group, key=lambda item: item[1]))
+            group = []
+        group.append(entry)
+    canonical.extend(sorted(group, key=lambda item: item[1]))
+    return canonical
 
 
 def _first_difference(actual, expected, path: str) -> str | None:
@@ -59,7 +94,10 @@ def _first_difference(actual, expected, path: str) -> str | None:
         if actual.keys() != expected.keys():
             return f"{path}: keys {sorted(actual)} != {sorted(expected)}"
         for key in expected:
-            found = _first_difference(actual[key], expected[key], f"{path}.{key}")
+            left, right = actual[key], expected[key]
+            if key == "frontier" and isinstance(left, list) and isinstance(right, list):
+                left, right = _tie_invariant_frontier(left), _tie_invariant_frontier(right)
+            found = _first_difference(left, right, f"{path}.{key}")
             if found is not None:
                 return found
         return None
@@ -78,8 +116,9 @@ def assert_same_recording(actual_text: str, expected_text: str) -> None:
     """The two recording documents describe the same run, up to float noise.
 
     Same keys, same frames, same states, captions and counts; floats within
-    ``FLOAT_RELATIVE_TOLERANCE`` / ``FLOAT_ABSOLUTE_TOLERANCE``. The message names the first
-    place they part, which a byte-for-byte diff of a megabyte of JSON never did.
+    ``FLOAT_RELATIVE_TOLERANCE`` / ``FLOAT_ABSOLUTE_TOLERANCE``; a frontier's tied entries in any
+    order. The message names the first place they part, which a byte-for-byte diff of a megabyte
+    of JSON never did.
     """
     difference = _first_difference(json.loads(actual_text), json.loads(expected_text), "$")
     assert difference is None, f"recordings differ at {difference}"

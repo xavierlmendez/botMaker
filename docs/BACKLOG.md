@@ -373,37 +373,6 @@ docstring) is worth its cost, since the view already branches on `full`. Then a 
 `AbstractStepRecorder` and narration derived only for retained frames. Closes when a 5000-step
 `two_triangles` page is committed under the limit and the roach G₅ fixture is regenerated deliberately.
 
-### BL-48 — Optimizer object model: the two-hot span optimizer onto injected math objects · `in-progress` · re-entry 1–2 days
-
-Opened 2026-09-11 from D-35. The two-hot span optimizer
-(`math/algorithms/two_hot_span_optimizer.py`) is one module with no class hierarchy: thirteen knobs
-in one frozen config, free functions for the training loss and its penalties, Adam and its schedule
-built inside the function, per-step arrays on the result, and two stop conditions that raise. The
-search stack next to it is four injected objects and a result contract, and a variant touches none
-of them. This initiative gives the optimizer the search stack's shape: an `AbstractOptimizer` in
-`math/algorithms` owning `run()` with a `_step` seam; a problem object holding X and the cluster
-count and the exact reporting arithmetic; `CostFunction` redefined as a scalar of the parameters
-being optimized, with the ridge cost as its first implementation (shipped as `SpanCost` over an
-injected projector, slice 2); `RegularizationFunction` made
-abstract with the collision, adjacency and diversity terms as its first implementations, each weight
-a knob on its class; step rules and schedules as injected objects; a result per D-35 (9) —
-parameters, final training loss, steps taken, stop reason, configuration, delivered numbers — with
-per-step frames on the recorder, so the two-hot recorder, view and stress harness read them from
-there.
-
-Acceptance test: BL-46 (restarts, the joint factorization) and BL-41 (ncut) each slot in without
-editing an existing class. Plan: `docs/plans/2026-09-optimizer-object-model.md`, six slices, the
-first docs-only. Closes when slice 5 has landed with both baselines byte-identical, the two-hot
-fixtures regenerated deliberately and stated in the PR, and the acceptance test written down as a
-sentence per item in the plan's §5 that the reviewer-agent can check against BL-46's first slice
-when it opens.
-
-Progress: slice 2 (2026-09-11) — `AbstractCostFunction`, the projector as one concept with two
-arithmetics (`ExactProjector`, `RidgeProjector`), `SpanCost`; refactor snapshot byte-identical;
-Laplacian dedupe moved to slice 4.
-Progress: slice 1 (2026-09-11) — penalties as injected objects; `AbstractRegularizationFunction`;
-refactor snapshot `tests/math/algorithms/two_hot_span_refactor_snapshot.json` byte-identical.
-
 ### BL-49 — Descent stack breaks injection · `backlog-only` · re-entry 3–5 h
 
 Opened 2026-09-11 from the D-35 survey; out of BL-48's scope by decision. The descent stack is the
@@ -424,8 +393,8 @@ BL-48 slices 1 and 2, the other two are not.
 Relation to BL-26: that entry is the loop duplication (Perceptron and SVM off the descent base) and
 names the gradient-signature alignment as its enabling step; this entry is the injection break and
 the base-class form, and the signature alignment is done once, here or there, never twice. The
-`math/hypothesis.py:51` call to an `expand` signature no expander defines is not this entry: it is a
-bug and is fixed by the last slice of the BL-48 plan, with a test.
+`math/hypothesis.py:51` call to an `expand` signature no expander defines is not this entry: it was a
+bug, fixed in BL-48 slice 5 (2026-09-11) with a test that fails on `main`.
 
 First step: a fresh-objects `grid_fit` — a cell is a configuration plus a constructor per injected
 role, built per cell, never mutated (D-35 (5)) — with the training baseline byte-identical before
@@ -458,9 +427,63 @@ spectral start stays a reported cell given that it is a stationary point of the 
 first step is decided by rounding — if it stays, the fixtures are written on the CI platform and
 compared at a stated tolerance there, and the Mac is the platform that skips; if it goes, the
 walkthrough and the rung-0 oracles move to the random start (BL-45 owns the ladder). Closes when
-no torch test is skipped by platform.
+no torch test is skipped by platform. The A\* walkthrough fixture
+(`astar_landmark_rbf_chain_8x8_k3.json`) is in the same set, found 2026-09-11 when `main` went red
+after #43 and #45: its first frame holds two frontier bounds a few ulps apart, which the comparison
+now reads as one unordered tie (`tests/visualization/conftest.py`), and its eighth expansion is a
+real tie at 0.6811 that the runner breaks the other way, after which the expansion order diverges
+while the certificate still ends at the same state and count. The rerun test carries the same
+platform skip; the render tests load the fixture and run everywhere. The same decision
+settles the Laplacian's two derivations
+(ARCHITECTURE §5): the fixture set that is regenerated deliberately takes the other's arithmetic.
 
 ## Closed
+
+### BL-48 — Optimizer object model: the two-hot span optimizer onto injected math objects · closed 2026-09-11 (this PR: the stacked branch `refactor/optimizer-object-model-5`, slices 2–5, on top of #43 and #44)
+
+Opened 2026-09-11 from D-35. The two-hot span optimizer
+(`math/algorithms/two_hot_span_optimizer.py`) is one module with no class hierarchy: thirteen knobs
+in one frozen config, free functions for the training loss and its penalties, Adam and its schedule
+built inside the function, per-step arrays on the result, and two stop conditions that raise. The
+search stack next to it is four injected objects and a result contract, and a variant touches none
+of them. This initiative gives the optimizer the search stack's shape: an `AbstractOptimizer` in
+`math/algorithms` owning `run()` with a `_step` seam; a problem object holding X and the cluster
+count and the exact reporting arithmetic; `CostFunction` redefined as a scalar of the parameters
+being optimized, with the ridge cost as its first implementation (shipped as `SpanCost` over an
+injected projector, slice 2); `RegularizationFunction` made
+abstract with the collision, adjacency and diversity terms as its first implementations, each weight
+a knob on its class; step rules and schedules as injected objects; a result per D-35 (9) —
+parameters, final training loss, steps taken, stop reason, configuration, delivered numbers — with
+per-step frames on the recorder, so the two-hot recorder, view and stress harness read them from
+there.
+
+Acceptance test: BL-46 (restarts, the joint factorization) and BL-41 (ncut) each slot in without
+editing an existing class. Plan: `docs/plans/2026-09-optimizer-object-model.md`, six slices, the
+first docs-only. Closes when slice 5 has landed with both baselines byte-identical, the two-hot
+fixtures regenerated deliberately and stated in the PR, and the acceptance test written down as a
+sentence per item in the plan's §5 that the reviewer-agent can check against BL-46's first slice
+when it opens.
+
+Progress: slice 5 (2026-09-11) — `HypothesisFunction.expand_hypothesis` recomputes the constructor's
+expansion of the initial weights; a test fails on `main` and passes here. All six slices shipped;
+BL-46 and BL-41 open against the seams the plan's §5 names; the Laplacian dedupe waits on BL-50.
+Progress: slice 4 (2026-09-11) — `AbstractOptimizer` with `run()`/`_begin`/`_step`/`_iterate`/`_assemble`;
+`TwoHotSpanOptimizer` in the package on a `TwoHotSpanProblem` (X, K, the exact arithmetic, the
+constraint vector), taking its cost, penalties, step rule and recorder; `TwoHotSpanResult` per D-35 (9)
+with `StopReason` in place of the two exceptions; `configuration` assembled through `describe`;
+`compose_two_hot_span` as the composition roots' one home; the harnesses and the recorder read
+histories off the recorder; `two_hot_span_optimizer.py` deleted; walkthrough and stress fixtures
+regenerated with every number unchanged; refactor snapshot byte-identical. The Laplacian dedupe
+stays open (ARCHITECTURE §5, with BL-50): the two derivations differ by ulps the spectral start
+amplifies, and this slice regenerated no number.
+Progress: slice 3 (2026-09-11) — step rules and schedules as injected objects (`AbstractStepRule`,
+`AdamStepRule`; `AbstractLearningRateSchedule` with four members); `learning_rate_lambda` deleted;
+refactor snapshot byte-identical, after catching a one-ulp reordering in the cosine schedule.
+Progress: slice 2 (2026-09-11) — `AbstractCostFunction`, the projector as one concept with two
+arithmetics (`ExactProjector`, `RidgeProjector`), `SpanCost`; refactor snapshot byte-identical;
+Laplacian dedupe moved to slice 4.
+Progress: slice 1 (2026-09-11) — penalties as injected objects; `AbstractRegularizationFunction`;
+refactor snapshot `tests/math/algorithms/two_hot_span_refactor_snapshot.json` byte-identical.
 
 ### BL-39 — Conditional solves: forced and forbidden columns in the Nyström problem · closed 2026-09-07 (this PR; research candidate E3 necessity margins, seed `sessions/2026-09-10-engine-slices.md`)
 

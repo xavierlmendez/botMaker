@@ -24,7 +24,6 @@ import torch
 
 from mllib.describe import describe
 from mllib.math.algorithms.two_hot_span.projectors import RidgeProjector
-from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig
 from mllib.math.graph.two_hot_span_problem import SpanCost, incidence_matrix, roach_graph
 from mllib.math.projector import ExactProjector
 
@@ -93,8 +92,8 @@ def test_describe_reads_epsilon_as_the_only_knob():
 
 
 def test_the_default_epsilon_is_the_configs_default():
+    # 1e-6 is the ridge every two-hot run has trained under since slice 2.2 (D-31).
     assert RidgeProjector().epsilon == 1e-6
-    assert RidgeProjector().epsilon == TwoHotSpanConfig().epsilon
 
 
 def test_the_ridge_projector_is_frozen():

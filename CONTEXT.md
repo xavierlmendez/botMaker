@@ -318,6 +318,12 @@ search. Never the update rule it applies. _Avoid_: trainer, solver, Adam (a step
 schedule is one step rule. Injected into the optimizer. _Avoid_: optimizer (taken: the loop),
 scheduler alone
 
+**Stop reason**:
+Why a run ended: its step budget, a non-finite value, or a constraint a step violated. A run that
+stops early is still a run and delivers a result carrying its reason; it never raises for a
+numeric stop.
+_Avoid_: error, failure, exception
+
 **Training loss**: The scalar an optimizer descends: a cost plus its penalties. A training knob may
 enter it; a reported number never comes from it. _Avoid_: objective (taken: the search's word, and
 the relaxed objective is a different quantity)

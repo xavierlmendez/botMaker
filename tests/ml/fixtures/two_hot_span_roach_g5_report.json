@@ -4,7 +4,9 @@
   "brute_force_labels": null,
   "brute_force_optimum": null,
   "cluster_count": 2,
-  "config": {
+  "configuration": {
+    "adjacency_form": "laplacian",
+    "adjacency_weight": 0.0,
     "collision_weights": [
       0.0,
       0.1,
@@ -13,15 +15,19 @@
       3.0,
       10.0
     ],
+    "diversity_weight": 0.0,
     "epsilon": 1e-06,
+    "final_learning_rate_fraction": 0.0,
     "inits": [
       "random",
       "spectral"
     ],
     "learning_rate": 0.05,
+    "learning_rate_schedule": "constant",
     "normalize_columns": true,
     "seed": 0,
-    "step_count": 300
+    "step_count": 300,
+    "warmup_steps": 0
   },
   "datum": {
     "cluster_qr": {
@@ -128,6 +134,35 @@
       ],
       "collision_weight": 0.0,
       "component_count": 5,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "seeded",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": 0.07376411340726283,
       "init": "random",
       "labels": [
@@ -156,7 +191,9 @@
       "relaxed_objective": 0.07374001417145634,
       "rounded_cut": 9.166666666666666,
       "rounded_cut_minus_floor": 9.095389115291617,
-      "rounded_cut_minus_relaxed": 9.09292665249521
+      "rounded_cut_minus_relaxed": 9.09292665249521,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -181,6 +218,35 @@
       ],
       "collision_weight": 0.0,
       "component_count": 9,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "given",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": 0.07130882468911498,
       "init": "spectral",
       "labels": [
@@ -209,7 +275,9 @@
       "relaxed_objective": 0.07131645132302053,
       "rounded_cut": 16.666666666666664,
       "rounded_cut_minus_floor": 16.595389115291614,
-      "rounded_cut_minus_relaxed": 16.595350215343643
+      "rounded_cut_minus_relaxed": 16.595350215343643,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -234,6 +302,40 @@
       ],
       "collision_weight": 0.1,
       "component_count": 6,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "seeded",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 0.1
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -0.2506532587468149,
       "init": "random",
       "labels": [
@@ -262,7 +364,9 @@
       "relaxed_objective": 0.0781357898686535,
       "rounded_cut": 10.285714285714285,
       "rounded_cut_minus_floor": 10.214436734339236,
-      "rounded_cut_minus_relaxed": 10.207578495845631
+      "rounded_cut_minus_relaxed": 10.207578495845631,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -287,6 +391,40 @@
       ],
       "collision_weight": 0.1,
       "component_count": 6,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "given",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 0.1
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -0.6419582800996597,
       "init": "spectral",
       "labels": [
@@ -315,7 +453,9 @@
       "relaxed_objective": 0.07624064762751605,
       "rounded_cut": 8.384615384615387,
       "rounded_cut_minus_floor": 8.313337833240338,
-      "rounded_cut_minus_relaxed": 8.30837473698787
+      "rounded_cut_minus_relaxed": 8.30837473698787,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -340,6 +480,40 @@
       ],
       "collision_weight": 0.3,
       "component_count": 6,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "seeded",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 0.3
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -1.5269919282108446,
       "init": "random",
       "labels": [
@@ -368,7 +542,9 @@
       "relaxed_objective": 0.09669178679804304,
       "rounded_cut": 9.583333333333332,
       "rounded_cut_minus_floor": 9.512055781958283,
-      "rounded_cut_minus_relaxed": 9.486641546535289
+      "rounded_cut_minus_relaxed": 9.486641546535289,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -393,6 +569,40 @@
       ],
       "collision_weight": 0.3,
       "component_count": 6,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "given",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 0.3
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -2.3081731084413293,
       "init": "spectral",
       "labels": [
@@ -421,7 +631,9 @@
       "relaxed_objective": 0.12634096330676453,
       "rounded_cut": 7.142857142857142,
       "rounded_cut_minus_floor": 7.0715795914820925,
-      "rounded_cut_minus_relaxed": 7.016516179550377
+      "rounded_cut_minus_relaxed": 7.016516179550377,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -446,6 +658,40 @@
       ],
       "collision_weight": 1.0,
       "component_count": 4,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "seeded",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 1.0
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -7.438105234319913,
       "init": "random",
       "labels": [
@@ -474,7 +720,9 @@
       "relaxed_objective": 0.3304701345407497,
       "rounded_cut": 6.352941176470589,
       "rounded_cut_minus_floor": 6.281663625095539,
-      "rounded_cut_minus_relaxed": 6.022471041929839
+      "rounded_cut_minus_relaxed": 6.022471041929839,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -499,6 +747,40 @@
       ],
       "collision_weight": 1.0,
       "component_count": 6,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "given",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 1.0
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -7.108734161754828,
       "init": "spectral",
       "labels": [
@@ -527,7 +809,9 @@
       "relaxed_objective": 0.3588845273916565,
       "rounded_cut": 9.0,
       "rounded_cut_minus_floor": 8.928722448624951,
-      "rounded_cut_minus_relaxed": 8.641115472608343
+      "rounded_cut_minus_relaxed": 8.641115472608343,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -552,6 +836,40 @@
       ],
       "collision_weight": 3.0,
       "component_count": 5,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "seeded",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 3.0
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -23.728341441806165,
       "init": "random",
       "labels": [
@@ -580,7 +898,9 @@
       "relaxed_objective": 0.43202710265406563,
       "rounded_cut": 6.25,
       "rounded_cut_minus_floor": 6.17872244862495,
-      "rounded_cut_minus_relaxed": 5.817972897345935
+      "rounded_cut_minus_relaxed": 5.817972897345935,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -605,6 +925,40 @@
       ],
       "collision_weight": 3.0,
       "component_count": 3,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "given",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 3.0
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -25.31630382912973,
       "init": "spectral",
       "labels": [
@@ -633,7 +987,9 @@
       "relaxed_objective": 0.4085770246512778,
       "rounded_cut": 3.055555555555556,
       "rounded_cut_minus_floor": 2.984278004180506,
-      "rounded_cut_minus_relaxed": 2.646978530904278
+      "rounded_cut_minus_relaxed": 2.646978530904278,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -658,6 +1014,40 @@
       ],
       "collision_weight": 10.0,
       "component_count": 4,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "seeded",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 10.0
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -86.6050583062746,
       "init": "random",
       "labels": [
@@ -686,7 +1076,9 @@
       "relaxed_objective": 1.0948147935824455,
       "rounded_cut": 5.294117647058824,
       "rounded_cut_minus_floor": 5.222840095683774,
-      "rounded_cut_minus_relaxed": 4.199302853476379
+      "rounded_cut_minus_relaxed": 4.199302853476379,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     },
     {
       "collision_measures": [
@@ -711,6 +1103,40 @@
       ],
       "collision_weight": 10.0,
       "component_count": 3,
+      "configuration": {
+        "cost": {
+          "name": "SpanCost",
+          "projector": {
+            "epsilon": 1e-06,
+            "name": "RidgeProjector"
+          }
+        },
+        "initial_spanning_set": "given",
+        "name": "TwoHotSpanOptimizer",
+        "normalize_columns": true,
+        "penalties": [
+          {
+            "name": "CollisionPenalty",
+            "weight": 10.0
+          }
+        ],
+        "problem": {
+          "cluster_count": 2,
+          "graph": "roach_g5",
+          "name": "TwoHotSpanProblem",
+          "node_count": 20
+        },
+        "seed": 0,
+        "step_count": 300,
+        "step_rule": {
+          "learning_rate": 0.05,
+          "name": "AdamStepRule",
+          "schedule": {
+            "name": "ConstantSchedule"
+          }
+        },
+        "zero_sum_tolerance": 1e-12
+      },
       "final_training_loss": -86.39300674313692,
       "init": "spectral",
       "labels": [
@@ -739,7 +1165,9 @@
       "relaxed_objective": 1.0588646130659802,
       "rounded_cut": 2.65,
       "rounded_cut_minus_floor": 2.57872244862495,
-      "rounded_cut_minus_relaxed": 1.5911353869340197
+      "rounded_cut_minus_relaxed": 1.5911353869340197,
+      "stop_detail": "the step budget of 300 ran out",
+      "stop_reason": "step_budget"
     }
   ],
   "single_weight_gives_k_components": {

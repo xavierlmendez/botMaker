@@ -49,6 +49,16 @@ def test_the_null_recorder_raises_when_a_goal_pop_reaches_it():
         NullRecorder().record_goal((1, 2), 0.5, 3, [], 3)
 
 
+def test_the_null_recorder_raises_when_an_optimizer_step_reaches_it():
+    with pytest.raises(RuntimeError, match="guard is missing"):
+        NullRecorder().record_step(0, 1.5, object())
+
+
+def test_the_null_recorder_raises_when_an_optimizers_end_reaches_it():
+    with pytest.raises(RuntimeError, match="guard is missing"):
+        NullRecorder().record_end(object())
+
+
 def test_the_null_recorder_describes_no_result():
     assert NullRecorder().describe_result(object()) == {}
 

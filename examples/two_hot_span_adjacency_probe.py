@@ -27,8 +27,8 @@ projector of `two_hot_span_problem`.
     uv run --group torch python examples/two_hot_span_adjacency_probe.py --graphs roach_g5
     uv run --group torch python examples/two_hot_span_adjacency_probe.py --graphs roach_g20
 
-This is a composition root: it builds the graphs, assembles the configurations, runs
-`fit_two_hot_span`, and prints one table per graph. It computes no mathematics of its own beyond
+This is a composition root: it builds the graphs, composes a fresh optimizer per cell through
+`two_hot_span_composition`, runs it, and prints one table per graph. It computes no mathematics of its own beyond
 counting pairs.
 """
 
@@ -42,13 +42,11 @@ import networkx as nx
 import numpy as np
 
 from mllib.math.graph.two_hot_span_problem import (
-    incidence_matrix,
     karate_graph,
     ratio_cut,
     roach_graph,
     rounded_pairs,
     spectral_floor,
-    spectral_spanning_set,
 )
 
 DEFAULT_STEP_COUNT = 300
@@ -63,19 +61,20 @@ INITS = ("spectral", "random")
 
 # name -> the three schedule fields. The two annealed ones end at 0.001 from a 0.05 start, which is
 # the fraction 0.02; `warmup_cosine` spends its first 30 steps climbing to 0.05 before that.
+# The composition's schedule knobs per grid name; the probe is a composition root (D-35 (8)).
 SCHEDULES: dict[str, dict[str, object]] = {
     "constant": {
-        "learning_rate_schedule": "constant",
+        "schedule": "constant",
         "warmup_steps": 0,
         "final_learning_rate_fraction": 0.0,
     },
     "cosine": {
-        "learning_rate_schedule": "cosine",
+        "schedule": "cosine",
         "warmup_steps": 0,
         "final_learning_rate_fraction": 0.02,
     },
     "warmup30": {
-        "learning_rate_schedule": "warmup_cosine",
+        "schedule": "warmup_cosine",
         "warmup_steps": 30,
         "final_learning_rate_fraction": 0.02,
     },
@@ -170,27 +169,30 @@ def cross_path_pair_count(pairs: list[frozenset[int]], path_split: int) -> int:
 
 def probe_rows(name: str, graph: nx.Graph, step_count: int, seed: int) -> list[dict[str, object]]:
     """Every cell of the λ x init x schedule x adjacency grid, as one row each."""
-    from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
+    from mllib.math.graph.two_hot_span_problem import TwoHotSpanProblem
+    from mllib.ml.projects.two_hot_span_composition import compose_two_hot_span
 
     cluster_count = CLUSTER_COUNTS[name]
     path_split = graph.number_of_nodes() // 2
-    X = incidence_matrix(graph)
-    spectral = spectral_spanning_set(graph, cluster_count)
+    problem = TwoHotSpanProblem(graph, cluster_count, name=name)
+    spectral = problem.spectral_spanning_set()
 
     rows: list[dict[str, object]] = []
     grid = itertools.product(COLLISION_WEIGHTS, INITS, SCHEDULES.items(), ADJACENCIES)
     for collision_weight, init, (schedule_name, schedule), (form, adjacency_weight) in grid:
-        config = TwoHotSpanConfig(
+        # A fresh optimizer per cell (D-35 (5)); `none` still has to name a legal form, and at
+        # mu = 0 no graph penalty is built.
+        run = compose_two_hot_span(
+            problem,
             step_count=step_count,
             learning_rate=DEFAULT_LEARNING_RATE,
             collision_weight=collision_weight,
             seed=seed,
             adjacency_weight=adjacency_weight,
-            # `none` still has to name a legal form; at mu = 0 it is never read.
             adjacency_form="laplacian" if form == "none" else form,
+            initial_spanning_set=spectral if init == "spectral" else None,
             **schedule,  # type: ignore[arg-type]
-        )
-        run = fit_two_hot_span(X, cluster_count, config, spectral if init == "spectral" else None)
+        ).run()
         pairs = distinct_pairs(run.spanning_set)
         rows.append(
             {

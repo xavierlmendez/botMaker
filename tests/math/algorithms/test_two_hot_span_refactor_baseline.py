@@ -27,8 +27,24 @@ import pytest
 
 pytest.importorskip("torch")
 
-from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
-from mllib.math.graph.two_hot_span_problem import incidence_matrix, roach_graph
+from mllib.math.algorithms.two_hot_span.optimizer import (
+    TwoHotSpanOptimizer,
+    TwoHotSpanSettings,
+    training_cost,
+)
+from mllib.math.algorithms.two_hot_span.penalties import (
+    CollisionPenalty,
+    DiversityPenalty,
+    EdgeProductAdjacencyPenalty,
+    LaplacianAdjacencyPenalty,
+)
+from mllib.math.algorithms.two_hot_span.projectors import RidgeProjector
+from mllib.math.algorithms.two_hot_span.step_rules import AdamStepRule
+from mllib.math.graph.two_hot_span_problem import TwoHotSpanProblem, roach_graph
+from mllib.math.learning_rate_schedule import CosineSchedule, WarmupCosineSchedule
+from mllib.math.recorder import AbstractStepRecorder
+
+from .two_hot_span_support import HistoryRecorder
 
 SNAPSHOT_PATH = Path(__file__).with_name("two_hot_span_refactor_snapshot.json")
 # The snapshot records the platform that wrote it. On that platform the comparison is exact; on any
@@ -44,40 +60,66 @@ def platform_tag() -> str:
 
 CLUSTER_COUNT = 2
 
-CELLS: dict[str, TwoHotSpanConfig] = {
-    "objective_only": TwoHotSpanConfig(step_count=30, seed=0, collision_weight=10.0),
-    "every_penalty_cosine_edge_product": TwoHotSpanConfig(
-        step_count=30,
-        seed=1,
-        collision_weight=10.0,
-        learning_rate_schedule="cosine",
-        final_learning_rate_fraction=0.1,
-        adjacency_weight=0.3,
-        adjacency_form="edge_product",
-        diversity_weight=10.0,
-    ),
-    "laplacian_warmup_unnormalised": TwoHotSpanConfig(
-        step_count=30,
-        seed=2,
-        collision_weight=1.0,
-        learning_rate_schedule="warmup_cosine",
-        warmup_steps=5,
-        final_learning_rate_fraction=0.05,
-        adjacency_weight=0.5,
-        adjacency_form="laplacian",
-        normalize_columns=False,
-    ),
+PROBLEM = TwoHotSpanProblem(roach_graph(5), CLUSTER_COUNT, name="roach_g5")
+STEP_COUNT = 30
+
+
+def objective_only(recorder: AbstractStepRecorder | None = None) -> TwoHotSpanOptimizer:
+    return TwoHotSpanOptimizer(
+        PROBLEM,
+        training_cost(PROBLEM),
+        [CollisionPenalty(weight=10.0)],
+        settings=TwoHotSpanSettings(step_count=STEP_COUNT, seed=0),
+        recorder=recorder,
+    )
+
+
+def every_penalty_cosine_edge_product(
+    recorder: AbstractStepRecorder | None = None,
+) -> TwoHotSpanOptimizer:
+    return TwoHotSpanOptimizer(
+        PROBLEM,
+        training_cost(PROBLEM),
+        [
+            CollisionPenalty(weight=10.0),
+            EdgeProductAdjacencyPenalty(PROBLEM.adjacency, weight=0.3),
+            DiversityPenalty(weight=10.0),
+        ],
+        AdamStepRule(0.05, CosineSchedule(final_fraction=0.1)),
+        settings=TwoHotSpanSettings(step_count=STEP_COUNT, seed=1),
+        recorder=recorder,
+    )
+
+
+def laplacian_warmup_unnormalised(
+    recorder: AbstractStepRecorder | None = None,
+) -> TwoHotSpanOptimizer:
+    return TwoHotSpanOptimizer(
+        PROBLEM,
+        training_cost(PROBLEM, RidgeProjector(1e-6)),
+        [CollisionPenalty(weight=1.0), LaplacianAdjacencyPenalty(PROBLEM.laplacian, weight=0.5)],
+        AdamStepRule(0.05, WarmupCosineSchedule(warmup_steps=5, final_fraction=0.05)),
+        settings=TwoHotSpanSettings(step_count=STEP_COUNT, seed=2, normalize_columns=False),
+        recorder=recorder,
+    )
+
+
+# Each cell is a factory (D-35 (5)): a fresh optimizer, a fresh step rule, per run.
+CELLS = {
+    "objective_only": objective_only,
+    "every_penalty_cosine_edge_product": every_penalty_cosine_edge_product,
+    "laplacian_warmup_unnormalised": laplacian_warmup_unnormalised,
 }
 
 
 def run_cells() -> dict[str, dict[str, object]]:
-    X = incidence_matrix(roach_graph(5))
     results: dict[str, dict[str, object]] = {}
-    for name, config in CELLS.items():
-        run = fit_two_hot_span(X, CLUSTER_COUNT, config)
+    for name, build in CELLS.items():
+        history = HistoryRecorder()
+        run = build(recorder=history).run()
         results[name] = {
-            "loss_history": [float(value) for value in run.loss_history],
-            "learning_rate_history": [float(value) for value in run.learning_rate_history],
+            "loss_history": history.losses,
+            "learning_rate_history": history.learning_rates,
             "spanning_set": np.asarray(run.spanning_set, dtype=np.float64).tolist(),
             "relaxed_objective": float(run.relaxed_objective),
             "rounded_cut": float(run.rounded_cut),
@@ -94,8 +136,8 @@ def results() -> dict[str, dict[str, object]]:
 
 
 def test_every_cell_ran_its_step_budget(results):
-    for name, config in CELLS.items():
-        assert len(results[name]["loss_history"]) == config.step_count, name
+    for name in CELLS:
+        assert len(results[name]["loss_history"]) == STEP_COUNT, name
 
 
 def test_snapshot_matches_to_the_last_bit(results):

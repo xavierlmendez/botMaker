@@ -19,8 +19,10 @@ import pytest
 
 pytest.importorskip("torch")
 
-from mllib.math.graph.two_hot_span_problem import incidence_matrix, roach_graph
+from mllib.math.graph.two_hot_span_problem import TwoHotSpanProblem, incidence_matrix, roach_graph
+from mllib.ml.projects.two_hot_span_composition import compose_two_hot_span
 from mllib.ml.projects.two_hot_span_stress import (
+    ENGINE_MODULES,
     FIXTURE_REPORTS_DIR,
     RUNG0_GRAPHS,
     CellSpec,
@@ -87,12 +89,11 @@ def test_the_final_checkpoint_is_the_run_the_engine_returns():
     training loop; if the recorder ever saw a different V than the one the engine finishes with,
     every intermediate checkpoint in the results file would be measuring something else.
     """
-    from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
-
-    X = incidence_matrix(roach_graph(5))
-    recorder = CheckpointRecorder(X, (10, 20))
-    config = TwoHotSpanConfig(step_count=20, learning_rate=0.05, collision_weight=10.0, seed=0)
-    run = fit_two_hot_span(X, 2, config, None, recorder=recorder)
+    problem = TwoHotSpanProblem(roach_graph(5), 2, name="roach_g5")
+    recorder = CheckpointRecorder(problem.X, (10, 20))
+    run = compose_two_hot_span(
+        problem, step_count=20, learning_rate=0.05, collision_weight=10.0, seed=0, recorder=recorder
+    ).run()
 
     assert [checkpoint["step"] for checkpoint in recorder.checkpoints] == [10, 20]
     final = recorder.checkpoints[-1]
@@ -129,6 +130,9 @@ def test_a_cell_past_its_cap_is_recorded_as_a_timeout_with_what_it_completed():
     assert record["checkpoints"] == []
     assert record["rounded_cut"] is None
     assert record["seconds"] > 0.0
+    # D-35 (8): the record says what it ran under even though the run never returned.
+    assert record["configuration"]["name"] == "TwoHotSpanOptimizer"
+    assert record["configuration"]["step_count"] == 30
 
 
 # ---------------------------------------------------------------------------------------------
@@ -153,6 +157,72 @@ def test_a_finished_cell_names_the_configuration_it_actually_ran(short_cell_reco
     assert short_cell_record["init_seed"] == 0
     assert short_cell_record["step_count"] == 30
     assert short_cell_record["checkpoint_steps"] == [10, 30]
+    # The run's own assembled record (D-35 (4)): the classes and knobs that actually ran.
+    configuration = short_cell_record["configuration"]
+    assert configuration["name"] == "TwoHotSpanOptimizer"
+    assert configuration["step_count"] == 30
+    assert configuration["seed"] == 0
+    assert configuration["problem"] == {
+        "name": "TwoHotSpanProblem",
+        "graph": "roach_g5",
+        "node_count": 20,
+        "cluster_count": 2,
+    }
+    assert configuration["cost"]["projector"] == {"name": "RidgeProjector", "epsilon": 1e-6}
+    assert configuration["step_rule"]["name"] == "AdamStepRule"
+    assert configuration["step_rule"]["learning_rate"] == 0.05
+    assert configuration["step_rule"]["schedule"] == {"name": "ConstantSchedule"}
+    assert [(penalty["name"], penalty["weight"]) for penalty in configuration["penalties"]] == [
+        ("CollisionPenalty", 10.0),
+        ("EdgeProductAdjacencyPenalty", 0.3),
+        ("DiversityPenalty", 10.0),
+    ]
+    assert configuration["initial_spanning_set"] == "seeded"
+    assert short_cell_record["stop_reason"] == "step_budget"
+    assert short_cell_record["steps_taken"] == 30
+
+
+def test_a_cell_whose_run_stops_early_is_a_stopped_record_with_its_reason_not_an_error():
+    """A stop is a result (D-35 (9)): the cell keeps its numbers and says why the run ended."""
+    context = short_context()
+    context["zero_sum_tolerance"] = 0.0
+    record = run_cell(tuned_cell(), context)
+
+    assert record["status"] == "stopped"
+    assert record["stop_reason"] == "constraint_violation"
+    assert "exceeds" in record["stop_detail"]
+    assert record["steps_taken"] == 0
+    assert record["error"] is None
+    assert record["rounded_cut"] is not None
+    assert record["final_training_loss"] is None
+    assert record["configuration"]["zero_sum_tolerance"] == 0.0
+
+
+def test_a_cell_whose_start_is_not_finite_is_a_stopped_record_with_null_numbers(monkeypatch):
+    """A NON_FINITE stop: no step completes, the report is NaN and the record writes it as null.
+
+    `run_cell` takes its spectral start from the problem, so the start is made non-finite there;
+    a knob on the context would make this patch-free.
+    """
+    monkeypatch.setattr(
+        TwoHotSpanProblem,
+        "spectral_spanning_set",
+        lambda self: np.full((self.node_count, self.spanning_vector_count), np.nan),
+    )
+    cell = CellSpec(tuned_cell().graph, 10.0, 0.3, "spectral")
+    record = run_cell(cell, short_context())
+
+    assert record["status"] == "stopped"
+    assert record["stop_reason"] == "non_finite"
+    assert record["steps_taken"] == 0
+    assert record["error"] is None
+    assert record["relaxed_objective"] is None
+    assert record["rounded_cut"] is None
+    assert record["rounded_cut_minus_floor"] is None
+    assert record["collision_measures"] == [None] * 18
+    assert set(record["labels"]) == {-1}
+    assert record["configuration"]["initial_spanning_set"] == "given"
+    assert "NaN" not in json.dumps(record)
 
 
 def test_a_finished_cell_carries_the_three_objectives_and_both_differences(short_cell_record):
@@ -178,11 +248,8 @@ def test_a_finished_cell_carries_the_datum_it_is_read_against(short_cell_record)
 
 def test_a_finished_cell_names_the_engine_that_produced_it(short_cell_record):
     engine = short_cell_record["engine"]
-    assert set(engine["engine_sha256"]) == {
-        "src/mllib/math/graph/two_hot_span_problem.py",
-        "src/mllib/math/algorithms/two_hot_span_optimizer.py",
-        "src/mllib/ml/projects/two_hot_span_harness.py",
-    }
+    assert set(engine["engine_sha256"]) == set(ENGINE_MODULES)
+    assert "src/mllib/math/algorithms/two_hot_span/optimizer.py" in engine["engine_sha256"]
     assert all(len(digest) == 64 for digest in engine["engine_sha256"].values())
 
 

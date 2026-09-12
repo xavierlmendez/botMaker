@@ -15,11 +15,13 @@ when the CLI left `--learning-rate` and `--steps` at their defaults, so naming e
 line still means what it said, and the three older graphs — whose entries carry neither — run today's
 schedule exactly.
 
-This is a composition root and nothing else. It builds the incidence matrix, the initial V and the
-recorder, runs `fit_two_hot_span` with the recorder attached, and writes `<graph>.json` beside
+This is a composition root and nothing else (D-35 (8)). It builds the problem, the initial V and
+the recorder, composes the optimizer from the command line's names and knobs
+(`two_hot_span_composition`), runs it with the recorder attached, and writes `<graph>.json` beside
 `<graph>.html`. Every number in those documents is the recorder's; every number the *run* reports
-comes back through the exact numpy `pinv` projector of `two_hot_span_problem` (D-31). The training
-loss on each frame is the ridge training loss and is never E.
+comes back through the exact projector of `two_hot_span_problem` (D-31), and the recording's
+`configuration` is the run's own assembled record (D-35 (4)). The training loss on each frame is
+the ridge training loss and is never E.
 
 `--frame-every` defaults to 5 *here*, in the example, while the recorder's own default stays 1. A
 full frame carries V, so karate at every step of 300 is a 34-by-78 matrix three hundred times over —
@@ -53,18 +55,14 @@ reference configuration, the one that reaches the roach optimum, is
 from __future__ import annotations
 
 import argparse
-import dataclasses
 from pathlib import Path
 
 import networkx as nx
 
 from mllib.math.graph.two_hot_span_problem import (
-    incidence_matrix,
+    TwoHotSpanProblem,
     karate_graph,
-    node_count,
     roach_graph,
-    spectral_floor,
-    spectral_spanning_set,
     two_triangles_graph,
 )
 from mllib.visualization.html_renderer import write_walkthrough
@@ -78,8 +76,8 @@ DEFAULT_FRAME_EVERY = 5
 DEFAULT_SEED = 0
 DEFAULT_LEARNING_RATE = 0.05
 
-# The experiment knobs, at the values that leave the run the one slice 2.2 shipped. They are the
-# config's own defaults, restated here so the CLI can default to them without importing torch.
+# The experiment knobs, at the values that leave the run the one slice 2.2 shipped: a zero weight
+# builds no penalty and the constant schedule is the step rule's default.
 DEFAULT_INIT = "spectral"
 DEFAULT_SCHEDULE = "constant"
 DEFAULT_ADJACENCY_WEIGHT = 0.0
@@ -173,29 +171,35 @@ def layout_edges(graph: nx.Graph) -> list[list[int]]:
     return edges
 
 
-def initial_spanning_set(graph: nx.Graph, cluster_count: int, init: str):
+def initial_spanning_set(problem: TwoHotSpanProblem, init: str):
     """The starting V for an init name; ``None`` means the optimizer's own seeded randn."""
     if init == "spectral":
-        return spectral_spanning_set(graph, cluster_count)
+        return problem.spectral_spanning_set()
     if init == "random":
         return None
     raise ValueError(f"unknown init {init!r}; known: {list(INITS)}")
 
 
-def experiment_keys(config) -> dict[str, object]:
+def experiment_keys(
+    *,
+    learning_rate_schedule: str,
+    adjacency_weight: float,
+    adjacency_form: str,
+    diversity_weight: float,
+) -> dict[str, object]:
     """The knobs of slices 2.4 and 2.5 that are *on*, for the recording's ``problem``.
 
     Only the non-default ones, so a default run's document is byte for byte the document the
     example wrote before these flags existed and a reader of a page never sees a knob at zero.
     """
     keys: dict[str, object] = {}
-    if config.learning_rate_schedule != DEFAULT_SCHEDULE:
-        keys["learning_rate_schedule"] = config.learning_rate_schedule
-    if config.adjacency_weight != DEFAULT_ADJACENCY_WEIGHT:
-        keys["adjacency_weight"] = float(config.adjacency_weight)
-        keys["adjacency_form"] = config.adjacency_form
-    if config.diversity_weight != DEFAULT_DIVERSITY_WEIGHT:
-        keys["diversity_weight"] = float(config.diversity_weight)
+    if learning_rate_schedule != DEFAULT_SCHEDULE:
+        keys["learning_rate_schedule"] = learning_rate_schedule
+    if adjacency_weight != DEFAULT_ADJACENCY_WEIGHT:
+        keys["adjacency_weight"] = float(adjacency_weight)
+        keys["adjacency_form"] = adjacency_form
+    if diversity_weight != DEFAULT_DIVERSITY_WEIGHT:
+        keys["diversity_weight"] = float(diversity_weight)
     return keys
 
 
@@ -234,7 +238,7 @@ def record_graph(
     switched on.
     """
     # torch is an optional group (D-31), so the import is local to the function that needs it.
-    from mllib.math.algorithms.two_hot_span_optimizer import TwoHotSpanConfig, fit_two_hot_span
+    from mllib.ml.projects.two_hot_span_composition import compose_two_hot_span
 
     settings = GRAPHS[name]
     cluster_count = int(settings["cluster_count"])  # type: ignore[arg-type]
@@ -247,30 +251,33 @@ def record_graph(
         learning_rate = float(settings["learning_rate"])  # type: ignore[arg-type]
 
     graph = build_graph(name)
-    count = node_count(graph)
-    X = incidence_matrix(graph)
-    floor = spectral_floor(graph, cluster_count)
-    initial = initial_spanning_set(graph, cluster_count, init)
+    instance = TwoHotSpanProblem(graph, cluster_count, name=name)
+    count = instance.node_count
+    floor = instance.spectral_floor()
+    initial = initial_spanning_set(instance, init)
 
-    config = TwoHotSpanConfig(
-        step_count=step_count,
-        learning_rate=learning_rate,
-        collision_weight=collision_weight,
-        seed=seed,
-        learning_rate_schedule=learning_rate_schedule,
-        adjacency_weight=adjacency_weight,
-        adjacency_form=adjacency_form,
-        diversity_weight=diversity_weight,
-    )
     recorder = TwoHotSpanRecorder(
-        X,
+        instance.X,
         graph,
         cluster_count,
         step_count,
         frame_every=frame_every,
         spectral_floor=floor,
     )
-    run = fit_two_hot_span(X, cluster_count, config, initial, recorder=recorder)
+    optimizer = compose_two_hot_span(
+        instance,
+        step_count=step_count,
+        learning_rate=learning_rate,
+        seed=seed,
+        schedule=learning_rate_schedule,
+        collision_weight=collision_weight,
+        adjacency_weight=adjacency_weight,
+        adjacency_form=adjacency_form,
+        diversity_weight=diversity_weight,
+        initial_spanning_set=initial,
+        recorder=recorder,
+    )
+    run = optimizer.run()
 
     problem: dict[str, object] = {
         "kind": "two_hot_span",
@@ -281,7 +288,14 @@ def record_graph(
         "init": init,
         "spectral_floor": float(floor),
     }
-    problem.update(experiment_keys(config))
+    problem.update(
+        experiment_keys(
+            learning_rate_schedule=learning_rate_schedule,
+            adjacency_weight=adjacency_weight,
+            adjacency_form=adjacency_form,
+            diversity_weight=diversity_weight,
+        )
+    )
     problem["layout"] = {
         "positions": layout_positions(name, graph),
         "edges": layout_edges(graph),
@@ -290,7 +304,7 @@ def record_graph(
     recording = Recording.from_recorder(
         recorder,
         problem=problem,
-        configuration=dataclasses.asdict(config),
+        configuration=run.configuration,
         result=run,
     )
     stem = output_name or name
@@ -313,12 +327,8 @@ def summarise(name: str, paths: tuple[Path, Path], run_fields: dict[str, object]
 
 def main(argv: list[str] | None = None) -> None:
     """Record every requested graph and print where each recording went."""
-    # Same reason as `record_graph`'s import: the allowed schedule and form names live beside the
-    # config that validates against them, in the torch module (D-31), and only the CLI needs them.
-    from mllib.math.algorithms.two_hot_span_optimizer import (
-        ADJACENCY_FORMS,
-        LEARNING_RATE_SCHEDULES,
-    )
+    # torch is an optional group (D-31); the names live beside the objects they build.
+    from mllib.ml.projects.two_hot_span_composition import ADJACENCY_FORM_NAMES, SCHEDULE_NAMES
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--output-dir", required=True, type=Path)
@@ -350,9 +360,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--collision-weight", type=float, default=None, help="λ; default: the graph's own"
     )
-    parser.add_argument("--schedule", choices=LEARNING_RATE_SCHEDULES, default=DEFAULT_SCHEDULE)
+    parser.add_argument("--schedule", choices=SCHEDULE_NAMES, default=DEFAULT_SCHEDULE)
     parser.add_argument("--adjacency-weight", type=float, default=DEFAULT_ADJACENCY_WEIGHT)
-    parser.add_argument("--adjacency-form", choices=ADJACENCY_FORMS, default=DEFAULT_ADJACENCY_FORM)
+    parser.add_argument(
+        "--adjacency-form", choices=ADJACENCY_FORM_NAMES, default=DEFAULT_ADJACENCY_FORM
+    )
     parser.add_argument("--diversity-weight", type=float, default=DEFAULT_DIVERSITY_WEIGHT)
     parser.add_argument(
         "--output-name",

@@ -179,7 +179,7 @@ def test_a_graph_without_planted_labels_reports_none(roach_report):
 
 
 def test_the_report_records_the_configuration_it_ran_under(roach_report):
-    config = roach_report.config
+    config = roach_report.configuration
     assert config["step_count"] == SMALL_STEPS
     assert config["learning_rate"] == DEFAULT_LEARNING_RATE
     assert config["collision_weights"] == list(SMALL_WEIGHTS)
@@ -199,13 +199,81 @@ def test_the_report_records_the_configuration_it_ran_under(roach_report):
         "collision_weights",
         "inits",
     }
-    # Recorded off the sweep's own config object, so it is the flag the rows actually ran under.
     assert isinstance(config["normalize_columns"], bool)
+
+
+def test_every_row_carries_the_configuration_it_ran_under_and_why_it_stopped(roach_report):
+    """D-35 (8): a row without its configuration cannot be reproduced; (9): a stop is a reason."""
+    for row in roach_report.rows:
+        configuration = row.configuration
+        assert configuration["name"] == "TwoHotSpanOptimizer"
+        assert configuration["step_count"] == SMALL_STEPS
+        assert configuration["step_rule"]["learning_rate"] == DEFAULT_LEARNING_RATE
+        assert configuration["problem"]["graph"] == roach_report.name
+        assert configuration["initial_spanning_set"] == "given"
+        weights = [penalty["weight"] for penalty in configuration["penalties"]]
+        assert weights == ([] if row.collision_weight == 0.0 else [row.collision_weight])
+        assert row.stop_reason == "step_budget"
+        assert row.stop_detail
+
+
+def test_the_report_reads_normalize_columns_off_the_rows_it_ran(roach_report):
+    """D-35 (4): assembled, not declared - the report-level knob is the rows' own."""
+    assert (
+        roach_report.configuration["normalize_columns"]
+        == (roach_report.rows[0].configuration["normalize_columns"])
+    )
+
+
+def test_a_stopped_row_writes_its_numbers_as_null_and_is_never_the_best_row(monkeypatch):
+    """A run stopped for a non-finite start is a row (D-35 (9)); its NaNs cannot be JSON and
+    cannot win. The first cell's start is made non-finite through the composition the harness
+    calls, which is the seam a composition root has."""
+    import mllib.ml.projects.two_hot_span_composition as composition
+
+    real_compose = composition.compose_two_hot_span
+    calls = {"count": 0}
+
+    def compose_with_a_bad_first_start(problem, **knobs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            knobs["initial_spanning_set"] = np.full(
+                (problem.node_count, problem.spanning_vector_count), np.nan
+            )
+        return real_compose(problem, **knobs)
+
+    monkeypatch.setattr(composition, "compose_two_hot_span", compose_with_a_bad_first_start)
+    report = small_report(GraphInstance("roach_g5", roach_graph(5), 2))
+
+    stopped, finished = report.rows[0], report.rows[1]
+    assert stopped.stop_reason == "non_finite"
+    assert finished.stop_reason == "step_budget"
+    assert report.best_row_index == 1
+    written = report_to_dict(report)
+    assert written["rows"][0]["rounded_cut"] is None
+    assert written["rows"][0]["relaxed_objective"] is None
+    assert written["rows"][0]["collision_measures"] == [None] * 18
+    assert "NaN" not in json.dumps(written)
+
+
+def test_the_harness_records_the_diversity_weight_it_ran_under():
+    report = run_graph(
+        GraphInstance("tiny", seeded_graph(8, seed=1), 2),
+        collision_weights=(1.0,),
+        inits=("spectral",),
+        step_count=5,
+        diversity_weight=0.75,
+    )
+
+    assert report.configuration["diversity_weight"] == 0.75
+    # And the row itself carries the assembled record of the objects that ran (D-35 (4), (8)).
+    penalties = report.rows[0].configuration["penalties"]
+    assert {"name": "DiversityPenalty", "weight": 0.75} in penalties
 
 
 def test_the_report_records_the_experimental_knobs_at_their_defaults(roach_report):
     """The six experimental knobs are recorded; a report naming none of them ran without them."""
-    config = roach_report.config
+    config = roach_report.configuration
     assert config["learning_rate_schedule"] == "constant"
     assert config["warmup_steps"] == 0
     assert config["final_learning_rate_fraction"] == 0.0
@@ -227,14 +295,25 @@ def test_the_report_records_the_experimental_knobs_it_was_asked_for():
         adjacency_form="edge_product",
         diversity_weight=0.25,
     )
-    assert report.config["learning_rate_schedule"] == "warmup_cosine"
-    assert report.config["warmup_steps"] == 3
-    assert report.config["final_learning_rate_fraction"] == 0.02
-    assert report.config["adjacency_weight"] == 0.5
-    assert report.config["adjacency_form"] == "edge_product"
-    assert report.config["diversity_weight"] == 0.25
+    assert report.configuration["learning_rate_schedule"] == "warmup_cosine"
+    assert report.configuration["warmup_steps"] == 3
+    assert report.configuration["final_learning_rate_fraction"] == 0.02
+    assert report.configuration["adjacency_weight"] == 0.5
+    assert report.configuration["adjacency_form"] == "edge_product"
+    assert report.configuration["diversity_weight"] == 0.25
     for row in report.rows:
         assert row.rounded_cut >= report.brute_force_optimum - 1e-10
+        # The row's own record names the objects those knobs became.
+        assert row.configuration["step_rule"]["schedule"] == {
+            "name": "WarmupCosineSchedule",
+            "warmup_steps": 3,
+            "final_fraction": 0.02,
+        }
+        assert [penalty["name"] for penalty in row.configuration["penalties"]] == [
+            "CollisionPenalty",
+            "EdgeProductAdjacencyPenalty",
+            "DiversityPenalty",
+        ]
 
 
 def test_main_accepts_the_experimental_flags_and_writes_them_into_the_report(tmp_path):
@@ -260,11 +339,13 @@ def test_main_accepts_the_experimental_flags_and_writes_them_into_the_report(tmp
     )
     with (tmp_path / "roach_g5.json").open(encoding="utf-8") as handle:
         written = json.load(handle)
-    assert written["config"]["learning_rate_schedule"] == "cosine"
-    assert written["config"]["final_learning_rate_fraction"] == 0.01
-    assert written["config"]["adjacency_weight"] == 0.5
-    assert written["config"]["adjacency_form"] == "edge_product"
-    assert written["config"]["diversity_weight"] == 0.25
+    assert written["configuration"]["learning_rate_schedule"] == "cosine"
+    assert written["configuration"]["final_learning_rate_fraction"] == 0.01
+    assert written["configuration"]["adjacency_weight"] == 0.5
+    assert written["configuration"]["adjacency_form"] == "edge_product"
+    assert written["configuration"]["diversity_weight"] == 0.25
+    assert written["rows"][0]["configuration"]["step_rule"]["schedule"]["name"] == "CosineSchedule"
+    assert written["rows"][0]["stop_reason"] == "step_budget"
 
 
 def test_main_rejects_a_schedule_name_that_does_not_exist(tmp_path):
